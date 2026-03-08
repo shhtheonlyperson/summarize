@@ -52,6 +52,7 @@ import { createSlidesHydrator } from "./slides-hydrator";
 import { resolveSlidesPayload, slidesPayloadChanged } from "./slides-payload";
 import { hasResolvedSlidesPayload } from "./slides-pending";
 import { createSlidesRenderer } from "./slides-renderer";
+import { shouldSeedPlannedSlidesForRun } from "./slides-seed-policy";
 import {
   buildSlideDescriptions,
   deriveSlideSummaries,
@@ -64,8 +65,8 @@ import {
 } from "./slides-state";
 import { resolveSlidesRenderLayout } from "./slides-view-policy";
 import { createStreamController } from "./stream-controller";
-import { buildSummaryEmptyState } from "./summary-empty-state";
-import { linkifyTimestamps, parseTimestampHref } from "./timestamp-links";
+import { renderSummaryMarkdownDisplay } from "./summary-renderer";
+import { parseTimestampHref } from "./timestamp-links";
 import type { ChatMessage, PanelPhase, PanelState, RunStart, UiState } from "./types";
 import { createTypographyController } from "./typography-controller";
 
@@ -493,6 +494,7 @@ function attachSummaryRun(run: RunStart) {
     };
   }
   pendingRunForPlannedSlides = run;
+  maybeSeedPlannedSlidesForPendingRun();
   if (!panelState.summaryMarkdown?.trim()) {
     renderMarkdownDisplay();
   }
@@ -500,6 +502,15 @@ function attachSummaryRun(run: RunStart) {
     startSlidesStream(run);
   }
   void streamController.start(run);
+}
+
+function maybeSeedPlannedSlidesForPendingRun() {
+  if (!pendingRunForPlannedSlides) return false;
+  if (seedPlannedSlidesForRun(pendingRunForPlannedSlides)) {
+    pendingRunForPlannedSlides = null;
+    return true;
+  }
+  return false;
 }
 
 async function fetchSlideTools(requireOcr: boolean): Promise<{
@@ -1231,68 +1242,45 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 
 function renderEmptySummaryState() {
-  const state = buildSummaryEmptyState({
-    tabTitle: panelState.currentSource?.title ?? panelState.ui?.tab.title ?? null,
-    tabUrl: panelState.currentSource?.url ?? panelState.ui?.tab.url ?? activeTabUrl ?? null,
+  renderSummaryMarkdownDisplay({
+    activeTabUrl,
     autoSummarize: autoValue,
-    phase: panelState.phase,
+    currentSourceTitle: panelState.currentSource?.title ?? null,
+    currentSourceUrl: panelState.currentSource?.url ?? null,
     hasSlides: Boolean(panelState.slides?.slides.length),
+    headerSetStatus: (text) => headerController.setStatus(text),
+    hostEl: renderMarkdownHostEl,
+    inputMode: inputModeOverride ?? inputMode,
+    markdown: "",
+    md,
+    phase: panelState.phase,
+    renderInlineSlides,
+    slidesEnabled: slidesEnabledValue,
+    slidesLayout: slidesLayoutValue,
+    tabTitle: panelState.ui?.tab.title ?? null,
+    tabUrl: panelState.ui?.tab.url ?? null,
   });
-  if (!state) {
-    renderMarkdownHostEl.innerHTML = "";
-    return;
-  }
-  const wrapper = document.createElement("section");
-  wrapper.className = "renderEmpty";
-  wrapper.dataset.emptyState = "true";
-  const label = document.createElement("div");
-  label.className = "renderEmpty__label";
-  label.textContent = state.label;
-  const message = document.createElement("p");
-  message.className = "renderEmpty__message";
-  message.textContent = state.message;
-  wrapper.append(label, message);
-  if (state.detail) {
-    const detail = document.createElement("p");
-    detail.className = "renderEmpty__detail";
-    detail.textContent = state.detail;
-    wrapper.append(detail);
-  }
-  renderMarkdownHostEl.replaceChildren(wrapper);
 }
 
 function renderMarkdownDisplay() {
-  const markdown = panelState.summaryMarkdown ?? "";
-  const displayMarkdown = selectMarkdownForLayout({
-    markdown,
-    slidesEnabled: slidesEnabledValue,
-    inputMode: inputModeOverride ?? inputMode,
+  renderSummaryMarkdownDisplay({
+    activeTabUrl,
+    autoSummarize: autoValue,
+    currentSourceTitle: panelState.currentSource?.title ?? null,
+    currentSourceUrl: panelState.currentSource?.url ?? null,
     hasSlides: Boolean(panelState.slides?.slides.length),
+    headerSetStatus: (text) => headerController.setStatus(text),
+    hostEl: renderMarkdownHostEl,
+    inputMode: inputModeOverride ?? inputMode,
+    markdown: panelState.summaryMarkdown ?? "",
+    md,
+    phase: panelState.phase,
+    renderInlineSlides,
+    slidesEnabled: slidesEnabledValue,
     slidesLayout: slidesLayoutValue,
+    tabTitle: panelState.ui?.tab.title ?? null,
+    tabUrl: panelState.ui?.tab.url ?? null,
   });
-  if (!displayMarkdown.trim()) {
-    renderEmptySummaryState();
-    return;
-  }
-  try {
-    renderMarkdownHostEl.innerHTML = md.render(linkifyTimestamps(displayMarkdown));
-  } catch (err) {
-    const message = err instanceof Error ? err.stack || err.message : String(err);
-    headerController.setStatus(`Error: ${message}`);
-    return;
-  }
-  for (const a of Array.from(renderMarkdownHostEl.querySelectorAll("a"))) {
-    const href = a.getAttribute("href") ?? "";
-    if (href.startsWith("timestamp:")) {
-      a.classList.add("chatTimestamp");
-      a.removeAttribute("target");
-      a.removeAttribute("rel");
-      continue;
-    }
-    a.setAttribute("target", "_blank");
-    a.setAttribute("rel", "noopener noreferrer");
-  }
-  renderInlineSlides(renderMarkdownHostEl, { fallback: true });
 }
 
 function renderMarkdown(markdown: string) {
@@ -2304,6 +2292,7 @@ function updateControls(state: UiState) {
   summarizeVideoLabel = nextVideoLabel;
   summarizePageWords = state.stats.pageWords;
   summarizeVideoDurationSeconds = state.stats.videoDurationSeconds;
+  maybeSeedPlannedSlidesForPendingRun();
   refreshSummarizeControl();
   const showingSetup = maybeShowSetup(state);
   if (showingSetup && panelState.phase !== "setup") {
@@ -2456,11 +2445,19 @@ function sendSummarize(opts?: { refresh?: boolean }) {
 }
 
 function seedPlannedSlidesForRun(run: RunStart) {
-  if (!slidesEnabledValue) return;
-  const effectiveInputMode = inputModeOverride ?? inputMode;
-  if (effectiveInputMode !== "video") return;
   const durationSeconds = summarizeVideoDurationSeconds;
-  if (!durationSeconds || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return;
+  if (
+    !shouldSeedPlannedSlidesForRun({
+      durationSeconds,
+      inputMode: inputModeOverride ?? inputMode,
+      media: panelState.ui?.media,
+      mediaAvailable,
+      runUrl: run.url,
+      slidesEnabled: slidesEnabledValue,
+    })
+  ) {
+    return false;
+  }
 
   const normalized = pickerSettings.length.trim().toLowerCase();
   const chunkSeconds =
@@ -2488,7 +2485,7 @@ function seedPlannedSlidesForRun(run: RunStart) {
     panelState.slides.sourceId === sourceId &&
     panelState.slides.slides.length > 0
   ) {
-    return;
+    return true;
   }
 
   const slides = Array.from({ length: count }, (_, i) => {
@@ -2509,6 +2506,7 @@ function seedPlannedSlidesForRun(run: RunStart) {
   updateSlidesTextState();
   void requestSlidesContext();
   queueSlidesRender();
+  return true;
 }
 
 function toggleDrawer(force?: boolean, opts?: { animate?: boolean }) {
