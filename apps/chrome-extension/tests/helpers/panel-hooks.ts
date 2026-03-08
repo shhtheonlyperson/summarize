@@ -59,6 +59,17 @@ export async function getPanelTranscriptTimedText(page: Page): Promise<string | 
   });
 }
 
+export async function setPanelTranscriptTimedText(page: Page, value: string | null) {
+  await page.evaluate((nextValue) => {
+    const hooks = (
+      window as typeof globalThis & {
+        __summarizeTestHooks?: { setTranscriptTimedText?: (value: string | null) => void };
+      }
+    ).__summarizeTestHooks;
+    hooks?.setTranscriptTimedText?.(nextValue);
+  }, value);
+}
+
 export async function getPanelSlidesSummaryMarkdown(page: Page): Promise<string> {
   return await page.evaluate(() => {
     const hooks = (

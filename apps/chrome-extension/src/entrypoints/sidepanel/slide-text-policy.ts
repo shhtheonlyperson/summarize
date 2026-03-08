@@ -2,7 +2,6 @@ type SlideTextChoice = {
   transcriptText: string;
   ocrText: string;
   preferOcr: boolean;
-  holdTranscriptFallback: boolean;
   allowOcrFallback: boolean;
 };
 
@@ -18,12 +17,10 @@ export function chooseSlideDescription({
   transcriptText,
   ocrText,
   preferOcr,
-  holdTranscriptFallback,
   allowOcrFallback,
 }: SlideTextChoice): string {
   if (preferOcr) return ocrText;
   const ocrFallback = allowOcrFallback ? ocrText : "";
-  if (holdTranscriptFallback) return ocrFallback;
   if (!transcriptText && ocrFallback) return ocrFallback;
   return transcriptText;
 }

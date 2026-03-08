@@ -68,6 +68,7 @@ import {
   getPanelSlidesTimeline,
   getPanelSummaryMarkdown,
   getPanelTranscriptTimedText,
+  setPanelTranscriptTimedText,
   waitForApplySlidesHook,
 } from "./helpers/panel-hooks";
 
@@ -1610,6 +1611,97 @@ test("sidepanel replaces placeholder slides with the final smaller payload", asy
     ).toHaveCount(1);
     const slides = await getPanelSlideDescriptions(page);
     expect(slides[0]?.[1] ?? "").toContain("Final slide 1");
+
+    assertNoErrors(harness);
+  } finally {
+    await closeExtension(harness.context, harness.userDataDir);
+  }
+});
+
+test("sidepanel shows transcript-first gallery cards and hides the big summary block in slide mode", async ({
+  browserName: _browserName,
+}, testInfo) => {
+  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
+
+  try {
+    await seedSettings(harness, {
+      token: "test-token",
+      autoSummarize: false,
+      slidesEnabled: true,
+      slidesParallel: true,
+      slidesOcrEnabled: true,
+      slidesLayout: "strip",
+    });
+    const page = await openExtensionPage(harness, "sidepanel.html", "#title", () => {
+      (
+        window as typeof globalThis & { __summarizeTestHooks?: Record<string, unknown> }
+      ).__summarizeTestHooks = {};
+    });
+    await waitForPanelPort(page);
+    await waitForApplySlidesHook(page);
+
+    await sendBgMessage(harness, {
+      type: "ui:state",
+      state: buildUiState({
+        tab: {
+          id: 1,
+          url: "https://www.youtube.com/watch?v=heliafast",
+          title: "Helia Video",
+        },
+        media: { hasVideo: true, hasAudio: true, hasCaptions: true },
+        stats: { pageWords: 120, videoDurationSeconds: 120 },
+        settings: {
+          autoSummarize: false,
+          slidesEnabled: true,
+          slidesParallel: true,
+          slidesOcrEnabled: true,
+          slidesLayout: "strip",
+          tokenPresent: true,
+        },
+      }),
+    });
+
+    await applySlidesPayload(page, {
+      sourceUrl: "https://www.youtube.com/watch?v=heliafast",
+      sourceId: "youtube-heliafast",
+      sourceKind: "youtube",
+      ocrAvailable: false,
+      slides: [
+        { index: 1, timestamp: 2, imageUrl: "", ocrText: null },
+        { index: 2, timestamp: 60, imageUrl: "", ocrText: null },
+      ],
+    });
+
+    await setPanelTranscriptTimedText(
+      page,
+      ["[00:02] Helia returns to command.", "[01:00] Atlantis pushes toward Earth."].join("\n"),
+    );
+
+    await expect
+      .poll(async () => await getPanelTranscriptTimedText(page), { timeout: 10_000 })
+      .toContain("Helia returns to command.");
+    await expect(page.locator(".slideGallery")).toHaveCount(1);
+    await expect(page.locator(".slideStrip")).toHaveCount(0);
+
+    await page.evaluate((markdown) => {
+      const hooks = (
+        window as typeof globalThis & {
+          __summarizeTestHooks?: {
+            applySummaryMarkdown?: (value: string) => void;
+          };
+        }
+      ).__summarizeTestHooks;
+      hooks?.applySummaryMarkdown?.(markdown);
+    }, "Overall summary that should stay hidden in slide mode.");
+
+    await expect(page.locator("#render")).not.toContainText(
+      "Overall summary that should stay hidden in slide mode.",
+    );
+    await expect(
+      page.locator(
+        'img.slideStrip__thumbImage[data-loaded=\"true\"], img.slideInline__thumbImage[data-loaded=\"true\"]',
+      ),
+    ).toHaveCount(0);
 
     assertNoErrors(harness);
   } finally {

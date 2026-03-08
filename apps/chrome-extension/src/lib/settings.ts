@@ -226,7 +226,7 @@ export const defaultSettings: Settings = {
   slidesEnabled: false,
   slidesParallel: true,
   slidesOcrEnabled: false,
-  slidesLayout: "strip",
+  slidesLayout: "gallery",
   summaryTimestamps: true,
   extendedLogging: false,
   autoCliFallback: true,

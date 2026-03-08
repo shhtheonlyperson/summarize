@@ -17,7 +17,6 @@ describe("sidepanel slide text policy", () => {
         transcriptText: "Destiny drops out of FTL.",
         ocrText: "OCR text",
         preferOcr: false,
-        holdTranscriptFallback: false,
         allowOcrFallback: false,
       }),
     ).toBe("Destiny drops out of FTL.");
@@ -29,7 +28,6 @@ describe("sidepanel slide text policy", () => {
         transcriptText: "",
         ocrText: "ignored",
         preferOcr: false,
-        holdTranscriptFallback: false,
         allowOcrFallback: false,
       }),
     ).toBe("");
@@ -41,7 +39,6 @@ describe("sidepanel slide text policy", () => {
         transcriptText: "",
         ocrText: "Visible slide text",
         preferOcr: true,
-        holdTranscriptFallback: false,
         allowOcrFallback: false,
       }),
     ).toBe("Visible slide text");
@@ -51,7 +48,6 @@ describe("sidepanel slide text policy", () => {
         transcriptText: "",
         ocrText: "Visible slide text",
         preferOcr: false,
-        holdTranscriptFallback: false,
         allowOcrFallback: true,
       }),
     ).toBe("Visible slide text");

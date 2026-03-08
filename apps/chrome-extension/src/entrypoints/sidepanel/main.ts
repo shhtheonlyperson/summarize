@@ -52,6 +52,7 @@ import { chooseSlideDescription, sanitizeSlideSummaryTitle } from "./slide-text-
 import { createSlidesHydrator } from "./slides-hydrator";
 import { resolveSlidesPayload, slidesPayloadChanged } from "./slides-payload";
 import { hasResolvedSlidesPayload } from "./slides-pending";
+import { resolveSlidesRenderLayout, shouldHideSummaryForSlides } from "./slides-view-policy";
 import { createStreamController } from "./stream-controller";
 import { buildSummaryEmptyState } from "./summary-empty-state";
 import type { ChatMessage, PanelPhase, PanelState, RunStart, UiState } from "./types";
@@ -781,9 +782,15 @@ function retrySlidesStream() {
 }
 
 function applySlidesLayout() {
-  const isGallery = slidesLayoutValue === "gallery";
+  const effectiveInputMode = inputModeOverride ?? inputMode;
+  const renderLayout = resolveSlidesRenderLayout({
+    preferredLayout: slidesLayoutValue,
+    slidesEnabled: slidesEnabledValue,
+    inputMode: effectiveInputMode,
+  });
+  const isGallery = renderLayout === "gallery";
   renderMarkdownHostEl.classList.remove("hidden");
-  renderSlidesHostEl.dataset.layout = slidesLayoutValue;
+  renderSlidesHostEl.dataset.layout = renderLayout;
   if (isGallery) {
     clearSlideStrip(renderSlidesHostEl);
   } else {
@@ -1322,6 +1329,16 @@ function splitSlidesMarkdown(markdown: string): { summary: string; slides: strin
 function selectMarkdownForLayout(markdown: string): string {
   const trimmed = markdown.trim();
   if (!trimmed) return "";
+  const effectiveInputMode = inputModeOverride ?? inputMode;
+  if (
+    shouldHideSummaryForSlides({
+      slidesEnabled: slidesEnabledValue,
+      inputMode: effectiveInputMode,
+      hasSlides: Boolean(panelState.slides?.slides.length),
+    })
+  ) {
+    return "";
+  }
   const { summary, slides } = splitSlidesMarkdown(markdown);
   if (slidesLayoutValue === "strip") return summary || slides || markdown;
   if (slidesLayoutValue === "gallery") return summary || slides || markdown;
@@ -1595,13 +1612,6 @@ function getOcrTextForSlide(slide: { ocrText?: string | null }, budget: number):
 function rebuildSlideDescriptions() {
   slideDescriptions = new Map();
   if (!panelState.slides) return;
-  if (slideSummaryByIndex.size === 0 && slidesSummaryMarkdown.trim()) {
-    const derived = deriveSlideSummaries(slidesSummaryMarkdown);
-    if (derived) {
-      slideSummaryByIndex = derived.summaries;
-      slideTitleByIndex = derived.titles;
-    }
-  }
   const lengthArg = resolveSlidesLengthArg(pickerSettings.length);
   const timeline: SlideTimelineEntry[] = panelState.slides.slides.map((slide) => ({
     index: slide.index,
@@ -1613,40 +1623,19 @@ function rebuildSlideDescriptions() {
     lengthArg,
   });
   const budget = resolveSlideTextBudget({ lengthArg, slideCount: timeline.length });
-  const hasSummary = slideSummaryByIndex.size > 0;
   const allowOcrFallback =
-    !hasSummary && slidesOcrEnabledValue && slidesOcrAvailable && !slidesTranscriptAvailable;
-  const effectiveInputMode = inputModeOverride ?? inputMode;
-  const holdTranscriptFallback =
-    !hasSummary &&
-    slidesEnabledValue &&
-    effectiveInputMode === "video" &&
-    (panelState.phase === "connecting" || panelState.phase === "streaming");
+    slidesOcrEnabledValue && slidesOcrAvailable && !slidesTranscriptAvailable;
   const slides = panelState.slides.slides;
   for (let i = 0; i < slides.length; i += 1) {
     const slide = slides[i];
     const transcriptText = fallbackSummaries.get(slide.index) ?? "";
     const ocrText = getOcrTextForSlide(slide, budget);
-    if (hasSummary) {
-      slideDescriptions.set(
-        slide.index,
-        chooseSlideDescription({
-          transcriptText,
-          ocrText,
-          preferOcr: slidesTextMode === "ocr",
-          holdTranscriptFallback,
-          allowOcrFallback: false,
-        }),
-      );
-      continue;
-    }
     slideDescriptions.set(
       slide.index,
       chooseSlideDescription({
         transcriptText,
         ocrText,
         preferOcr: slidesTextMode === "ocr",
-        holdTranscriptFallback,
         allowOcrFallback,
       }),
     );
@@ -1789,6 +1778,7 @@ const slidesTestHooks = (
       getSlidesSummaryMarkdown?: () => string;
       getSlidesSummaryComplete?: () => boolean;
       getSlidesSummaryModel?: () => string | null;
+      setTranscriptTimedText?: (value: string | null) => void;
       setSummarizeMode?: (payload: { mode: "page" | "video"; slides: boolean }) => Promise<void>;
       getSummarizeMode?: () => { mode: "page" | "video"; slides: boolean; mediaAvailable: boolean };
       getSlidesState?: () => { slidesCount: number; layout: SlidesLayout; hasSlides: boolean };
@@ -1796,6 +1786,7 @@ const slidesTestHooks = (
       applyUiState?: (state: UiState) => void;
       applyBgMessage?: (message: BgToPanel) => void;
       applySummarySnapshot?: (payload: { run: RunStart; markdown: string }) => void;
+      applySummaryMarkdown?: (markdown: string) => void;
       forceRenderSlides?: () => void;
       showInlineError?: (message: string) => void;
       isInlineErrorVisible?: () => boolean;
@@ -1819,6 +1810,10 @@ if (slidesTestHooks) {
   slidesTestHooks.getSlidesSummaryMarkdown = () => slidesSummaryMarkdown;
   slidesTestHooks.getSlidesSummaryComplete = () => slidesSummaryComplete;
   slidesTestHooks.getSlidesSummaryModel = () => slidesSummaryModel;
+  slidesTestHooks.setTranscriptTimedText = (value) => {
+    setSlidesTranscriptTimedText(value);
+    updateSlidesTextState();
+  };
   slidesTestHooks.setSummarizeMode = async (payload) => {
     await handleSummarizeControlChange(payload);
   };
@@ -1851,6 +1846,10 @@ if (slidesTestHooks) {
     headerController.setBaseTitle(payload.run.title || payload.run.url || "Summarize");
     headerController.setBaseSubtitle("");
     renderMarkdown(payload.markdown);
+    setPhase("idle");
+  };
+  slidesTestHooks.applySummaryMarkdown = (markdown) => {
+    renderMarkdown(markdown);
     setPhase("idle");
   };
   slidesTestHooks.forceRenderSlides = () => {
@@ -1888,7 +1887,13 @@ let slideStripRenderQueued = 0;
 let slideGalleryRenderQueued = 0;
 
 function queueSlidesRender() {
-  if (slidesLayoutValue === "gallery") {
+  const effectiveInputMode = inputModeOverride ?? inputMode;
+  const renderLayout = resolveSlidesRenderLayout({
+    preferredLayout: slidesLayoutValue,
+    slidesEnabled: slidesEnabledValue,
+    inputMode: effectiveInputMode,
+  });
+  if (renderLayout === "gallery") {
     queueSlideGalleryRender();
   } else {
     queueSlideStripRender();
@@ -1902,7 +1907,13 @@ function shouldRenderSlides() {
 }
 
 function queueSlideStripRender() {
-  if (slidesLayoutValue !== "strip") {
+  const effectiveInputMode = inputModeOverride ?? inputMode;
+  const renderLayout = resolveSlidesRenderLayout({
+    preferredLayout: slidesLayoutValue,
+    slidesEnabled: slidesEnabledValue,
+    inputMode: effectiveInputMode,
+  });
+  if (renderLayout !== "strip") {
     clearSlideStrip(renderSlidesHostEl);
     return;
   }
@@ -1914,7 +1925,13 @@ function queueSlideStripRender() {
 }
 
 function queueSlideGalleryRender() {
-  if (slidesLayoutValue !== "gallery") {
+  const effectiveInputMode = inputModeOverride ?? inputMode;
+  const renderLayout = resolveSlidesRenderLayout({
+    preferredLayout: slidesLayoutValue,
+    slidesEnabled: slidesEnabledValue,
+    inputMode: effectiveInputMode,
+  });
+  if (renderLayout !== "gallery") {
     clearSlideGallery(renderSlidesHostEl);
     return;
   }
@@ -1936,7 +1953,13 @@ function clearSlideGallery(container: HTMLElement) {
 }
 
 function renderSlideStrip(container: HTMLElement) {
-  if (slidesLayoutValue !== "strip") {
+  const effectiveInputMode = inputModeOverride ?? inputMode;
+  const renderLayout = resolveSlidesRenderLayout({
+    preferredLayout: slidesLayoutValue,
+    slidesEnabled: slidesEnabledValue,
+    inputMode: effectiveInputMode,
+  });
+  if (renderLayout !== "strip") {
     clearSlideStrip(container);
     return;
   }
@@ -2082,7 +2105,13 @@ function renderSlideStrip(container: HTMLElement) {
 }
 
 function renderSlideGallery(container: HTMLElement) {
-  if (slidesLayoutValue !== "gallery") {
+  const effectiveInputMode = inputModeOverride ?? inputMode;
+  const renderLayout = resolveSlidesRenderLayout({
+    preferredLayout: slidesLayoutValue,
+    slidesEnabled: slidesEnabledValue,
+    inputMode: effectiveInputMode,
+  });
+  if (renderLayout !== "gallery") {
     clearSlideGallery(container);
     return;
   }
@@ -3717,6 +3746,7 @@ function seedPlannedSlidesForRun(run: RunStart) {
   };
   slidesSeededSourceId = sourceId;
   updateSlidesTextState();
+  void requestSlidesContext();
   queueSlidesRender();
 }
 
