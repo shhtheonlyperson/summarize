@@ -7,6 +7,7 @@ import { resolveExecutableInPath } from "../src/run/env.js";
 const ENV = process.env as Record<string, string | undefined>;
 const XURL_PATH = resolveExecutableInPath("xurl", ENV);
 const LIVE = process.env.SUMMARIZE_LIVE_TESTS === "1" && Boolean(XURL_PATH);
+let cachedIdentity: { userId: string; username: string } | null | undefined;
 
 type MeResponse = { data?: { id?: string; username?: string } };
 type TimelineTweet = {
@@ -28,13 +29,28 @@ function readJson<T>(endpoint: string): T {
 }
 
 function resolveLiveIdentity(): { userId: string; username: string } {
+  if (cachedIdentity !== undefined) {
+    if (!cachedIdentity) throw new Error("xurl live test could not resolve /2/users/me");
+    return cachedIdentity;
+  }
   const me = readJson<MeResponse>("/2/users/me");
   const userId = me.data?.id;
   const username = me.data?.username;
   if (!userId || !username) {
+    cachedIdentity = null;
     throw new Error("xurl live test could not resolve /2/users/me");
   }
-  return { userId, username };
+  cachedIdentity = { userId, username };
+  return cachedIdentity;
+}
+
+function hasAuthenticatedXurl(): boolean {
+  try {
+    resolveLiveIdentity();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function resolveRecentTweets(): {
@@ -87,7 +103,7 @@ const createClient = () =>
   });
 
 describe("live xurl tweet reader", () => {
-  const run = LIVE ? it : it.skip;
+  const run = LIVE && hasAuthenticatedXurl() ? it : it.skip;
 
   run(
     "prefers xurl for tweet extraction when it is installed and authenticated",
