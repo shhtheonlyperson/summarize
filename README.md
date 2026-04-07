@@ -5,16 +5,18 @@ Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side
 ## Highlights
 
 - Chrome Side Panel **chat** (streaming agent + history) inside the sidebar.
-- **YouTube slides**: screenshots + OCR + transcript cards, timestamped seek, OCR/Transcript toggle.
+- **Video slides**: screenshots + OCR + transcript cards for YouTube, direct video URLs, and local video files.
 - Media-aware summaries: auto‑detect video/audio vs page content.
+- Coding CLI backends: Codex, Claude, Gemini, Cursor Agent, OpenClaw, OpenCode.
 - Streaming Markdown + metrics + cache‑aware status.
 - CLI supports URLs, files, podcasts, YouTube, audio/video, PDFs.
 
 ## Feature overview
 
 - URLs, files, and media: web pages, PDFs, images, audio/video, YouTube, podcasts, RSS.
-- Slide extraction for video sources (YouTube/direct media) with OCR + timestamped cards.
+- Slide extraction for video sources (YouTube, direct video URLs, local video files) with OCR + timestamped cards.
 - Transcript-first media flow: published transcripts when available, then Groq/ONNX/whisper.cpp/AssemblyAI/Gemini/OpenAI/FAL transcription fallback when not.
+- Coding CLI providers: Claude, Codex, Gemini, Cursor Agent, OpenClaw, OpenCode.
 - Streaming output with Markdown rendering, metrics, and cache-aware status.
 - Local, paid, and free models: OpenAI‑compatible local endpoints, paid providers, plus an OpenRouter free preset.
 - Output modes: Markdown/text, JSON diagnostics, extract-only, metrics, timing, and cost estimates.
@@ -206,6 +208,12 @@ Spotify episode page (best-effort; may fail for exclusives):
 
 ```bash
 summarize "https://open.spotify.com/episode/5auotqWAXhhKyb9ymCuBJY"
+```
+
+HLS playlist:
+
+```bash
+summarize "https://example.com/master.m3u8"
 ```
 
 ### Output length
@@ -447,7 +455,7 @@ extractor also samples at a fixed interval to improve coverage.
 When using `--slides`, supported terminals (kitty/iTerm/Konsole) render inline thumbnails automatically inside the
 summary narrative (the model inserts `[slide:N]` markers). Timestamp links are clickable when the terminal supports
 OSC-8 (YouTube/Vimeo/Loom/Dropbox). If inline images are unsupported, Summarize prints a note with the on-disk
-slide directory.
+slide directory. Local video files stay on the slide-aware path, transcribe in place, and avoid fake download labels.
 
 Use `--slides --extract` to print the full timed transcript and insert slide images inline at matching timestamps.
 

@@ -5,25 +5,29 @@
 ### Features
 
 - Slides: support `--slides` for local video files in the main CLI and `summarize slides`, route local videos through the shared slide-aware flow, and document the local-file workflow (#149, thanks @steipete).
-
-- Config: allow setting a default summary length via `output.length`, and keep prompt-override runs aligned with the configured length/language defaults in both CLI and daemon flows (#178, thanks @maciej).
 - Models: add OpenCode as a first-class CLI provider across CLI flags, config, auto fallback, daemon picker/chat flows, and Chrome extension settings, while preserving existing OpenClaw behavior (#169, thanks @maciej).
+- CLI providers: add OpenClaw as a configurable CLI backend (`--cli openclaw`, `cli/openclaw/...`, `openclaw/...`) across config, daemon discovery, and docs (#165, thanks @yqf-ai).
+- Config: allow setting a default summary length via `output.length`, and keep prompt-override runs aligned with the configured length/language defaults in both CLI and daemon flows (#178, thanks @maciej).
+- Media detection/cache: recognize `.m3u8` HLS playlists as direct media inputs and preserve the playlist extension in the media cache (#159, thanks @mdsakalu).
 
 ### Fixes
 
-- CI: update the GitHub Pages workflow to `actions/configure-pages@v6` and `actions/deploy-pages@v5` (#182, thanks @dependabot).
+- Slides/local video: transcribe direct videos for slide summaries, avoid fake local-file “Downloading audio” phases, and keep progress text visible while slide extraction runs.
+- Chrome extension slides: restore slide text/session state more reliably so reruns and reloads do not leave stale or blank slide summaries.
+- Windows daemon: keep Scheduled Task startup hidden without breaking `summarize daemon restart` or uninstall by tracking the hidden daemon PID and killing that process tree before reruns/removal (#146, thanks @mathicg).
+- Windows containers: let `summarize daemon install` start the daemon for the current container session without Scheduled Task registration, keep `0.0.0.0` binding Windows-only, and probe slide tools by spawning commands when PATH lookup is unreliable (#152, thanks @mathicg).
+- YouTube: detect obviously truncated caption-track transcripts on long videos and fall through to yt-dlp transcription instead of caching a broken partial result (#184, thanks @sportiz91).
+- YouTube: treat yt-dlp “no audio stream” videos as a non-fatal unavailable transcript case so summarize can continue cleanly with an explanatory note (#161, thanks @mdsakalu).
+- Cache: include the prompt `<context>` block in summary cache hashing and bump the cache format version so stale cross-page summary collisions cannot be reused (#171, thanks @mvance).
+- Daemon models: gracefully fall back for unrecognized custom models when using proxy base URLs instead of crashing on undefined API metadata (#175, thanks @douo).
+- Whisper.cpp: honor config-resolved transcription env overrides for readiness checks, model display, and local transcription so custom binary/model paths work outside `process.env` (#160, thanks @mdsakalu).
+- Chrome extension chat: handle plain-string assistant replies in the side-panel agent loop instead of crashing on `.filter()` tool-call extraction (#186, thanks @Youpen-y).
 - Docs/setup: switch Homebrew instructions from the old tap to the official `brew install summarize` formula, including the side-panel setup UI and release checklist (#172, thanks @zeldrisho).
 - Chrome extension: detect blank `userAgentData.platform` browsers like Vivaldi by falling back to `navigator.platform` before choosing OS-specific setup instructions (#158, thanks @bytrangle).
-- YouTube: detect obviously truncated caption-track transcripts on long videos and fall through to yt-dlp transcription instead of caching a broken partial result (#184, thanks @sportiz91).
-- Windows containers: let `summarize daemon install` start the daemon for the current container session without Scheduled Task registration, keep `0.0.0.0` binding Windows-only, and probe slide tools by spawning commands when PATH lookup is unreliable (#152, thanks @mathicg).
-- Cache: include the prompt `<context>` block in summary cache hashing and bump the cache format version so stale cross-page summary collisions cannot be reused (#171, thanks @mvance).
-- Chrome extension chat: handle plain-string assistant replies in the side-panel agent loop instead of crashing on `.filter()` tool-call extraction (#186, thanks @Youpen-y).
-- YouTube: treat yt-dlp “no audio stream” videos as a non-fatal unavailable transcript case so summarize can continue cleanly with an explanatory note (#161, thanks @mdsakalu).
-- Whisper.cpp: honor config-resolved transcription env overrides for readiness checks, model display, and local transcription so custom binary/model paths work outside `process.env` (#160, thanks @mdsakalu).
 - Homebrew: make the tap formula fail clearly on Linux instead of installing a macOS binary, and add generator/test coverage for the macOS-only guard (#147, thanks @steipete).
 - Firecrawl: reject `--firecrawl always` for YouTube URLs with an explicit guidance error instead of silently skipping Firecrawl on the transcript-first path (#145, thanks @steipete).
 - YouTube: keep Gemini-only no-caption runs on the transcription path by forwarding the Google API key from the top-level URL flow into link-preview transcription config (#148, thanks @bytrangle).
-- Daemon tests: expand CORS allowlist edge-case coverage for localhost variants, extension-origin casing, spoofed localhost domains, and full trusted response headers (#142, thanks @sebastiondev).
+- Maintenance: update the GitHub Pages workflow to `actions/configure-pages@v6` and `actions/deploy-pages@v5` (#182, thanks @dependabot).
 
 ## 0.12.0 - 2026-03-11
 
@@ -33,7 +37,6 @@
 
 ### Fixes
 
-- Windows daemon: keep Scheduled Task startup hidden without breaking `summarize daemon restart` or uninstall by tracking the hidden daemon PID and killing that process tree before reruns/removal (#146, thanks @mathicg).
 - Transcription: add AssemblyAI as a first-class remote provider across direct media, podcast/RSS, and yt-dlp YouTube fallback; refactor remote fallback ordering, expand config/env support (`ASSEMBLYAI_API_KEY`, legacy `apiKeys.assemblyai`), and add AssemblyAI unit + live coverage (#126).
 - X/Twitter: prefer `xurl` for tweet extraction when installed, fall back to `bird`, preserve long-form/article text plus media URLs, add live `xurl` extraction/media coverage, and replace the stale dead-`bird` install tip with a current X CLI recommendation (#70).
 - Models: make daemon agent `artifacts` schemas Gemini-safe, improve Google empty-response handling with preview-to-stable fallback, and switch CLI/auto Gemini defaults away from brittle preview behavior (#82, #96).
@@ -64,8 +67,6 @@
 - Chrome automation: require sidepanel arming before debugger-backed native input can run in a tab, and auto-disarm after browser JS execution ends (#129, thanks @omnicoder9).
 - Media setup: fix the local whisper.cpp install hint to use the current Homebrew formula name `whisper-cpp` (#92, thanks @zerone0x).
 - CLI output: cap markdown render width on very wide terminals by default, with a `--width` override for manual control (#119, thanks @howardpen9).
-- Media detection/cache: recognize `.m3u8` HLS playlists as direct media inputs and preserve the playlist extension in the media cache (#159, thanks @mdsakalu).
-- CLI providers: add OpenClaw as a configurable CLI backend (`--cli openclaw`, `cli/openclaw/...`, `openclaw/...`) across config, daemon discovery, and docs (#165, thanks @yqf-ai).
 - Slides: size inline slide images from terminal width instead of keeping them pinned to 32 columns, capped at 2x the previous width while preserving `COLUMNS` fallback behavior (#125, #135, thanks @WinnCook).
 - Shell completions: add Fish shell completions for the current CLI flags and option values (#95, thanks @fbehrens).
 - Bun fetch: only opt into compressed HTML/YouTube responses when running under Bun, and retry link-preview fetches with `Accept-Encoding: identity` after Bun decompression failures (#105, thanks @maciej).
