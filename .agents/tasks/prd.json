@@ -128,7 +128,7 @@
     {
       "id": "LLR-007",
       "title": "Add Local-Only Privacy Guard",
-      "status": "in_progress",
+      "status": "done",
       "dependsOn": [
         "LLR-006"
       ],
@@ -142,13 +142,13 @@
         "Run targeted tests plus pnpm -s check."
       ],
       "startedAt": "2026-04-22T16:41:17.488818+00:00",
-      "completedAt": null,
-      "updatedAt": "2026-04-22T16:41:17.488943+00:00"
+      "completedAt": "2026-04-22T16:54:22.648319+00:00",
+      "updatedAt": "2026-04-22T16:54:22.648158+00:00"
     },
     {
       "id": "LLR-008",
       "title": "Expose Local Runtime Status in Daemon API",
-      "status": "open",
+      "status": "in_progress",
       "dependsOn": [
         "LLR-004",
         "LLR-007"
@@ -160,7 +160,10 @@
         "Endpoint must not leak API keys or sensitive environment values.",
         "Add daemon tests with mocked probe logic.",
         "Run daemon tests plus pnpm -s typecheck."
-      ]
+      ],
+      "startedAt": "2026-04-22T16:54:24.739390+00:00",
+      "completedAt": null,
+      "updatedAt": "2026-04-22T16:54:24.739573+00:00"
     },
     {
       "id": "LLR-009",
