@@ -4984,7 +4984,7 @@ index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04d
 --- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
 +++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
 @@ -47,4 +47,3 @@
- 
+
  ### Uncommitted Changes
  - .ralph/activity.log
 -
@@ -5201,7 +5201,7 @@ index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04d
 --- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
 +++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
 @@ -47,4 +47,3 @@
- 
+
  ### Uncommitted Changes
  - .ralph/activity.log
 -
@@ -5443,7 +5443,7 @@ index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04d
 --- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
 +++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
 @@ -47,4 +47,3 @@
- 
+
  ### Uncommitted Changes
  - .ralph/activity.log
 -
@@ -5663,7 +5663,7 @@ index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04d
 --- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
 +++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
 @@ -47,4 +47,3 @@
- 
+
  ### Uncommitted Changes
  - .ralph/activity.log
 -
@@ -5914,10 +5914,3138 @@ index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04d
 --- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
 +++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
 @@ -47,4 +47,3 @@
- 
+
  ### Uncommitted Changes
  - .ralph/activity.log
 -
+diff --git a/docs/README.md b/docs/README.md
+index 9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b..af16efa1320cdf08dc06b2bb2430253152b0eb32
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -12,6 +12,7 @@
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
++- `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+ - `docs/manual-tests.md` — manual end-to-end test checklist
+ - `docs/model-auto.md` — automatic model selection (`--model auto`)
+diff --git a/docs/index.md b/docs/index.md
+index 6341b450b2e2922bac076dac022951bd1b5a9da9..8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -12,6 +12,7 @@
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
+ - [Local-first roadmap](local-first-roadmap.md)
++- [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+ - [Manual tests](manual-tests.md)
+ - [Model auto](model-auto.md)
+diff --git a/docs/local-model-capabilities-audit.md b/docs/local-model-capabilities-audit.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6dbcc524b9ab65d2175ec7f3e9f80d1b8ac18c6
+--- /dev/null
++++ b/docs/local-model-capabilities-audit.md
+@@ -0,0 +1,176 @@
++---
++summary: "Source-grounded audit of local and OpenAI-compatible model paths."
++read_when:
++  - "When adding local runtime descriptors, probes, local-only privacy checks, or language-aware routing."
++  - "When changing daemon or extension model request flow."
++---
++
++# Local Model Capabilities Audit
++
++Audit date: 2026-04-22. Scope: source inspection only; no runtime behavior changes.
++
++## Current Provider Paths
++
++### OpenAI-compatible HTTP paths
++
++- `openai/...` model IDs are parsed by `src/model-spec.ts` and `src/llm/model-id.ts`.
++- `OPENAI_BASE_URL` or `openai.baseUrl` in `~/.summarize/config.json` overrides the OpenAI endpoint through
++  `src/run/run-env.ts`, `packages/core/src/openai/base-url.ts`, and `src/llm/providers/openai.ts`.
++- `src/llm/providers/openai.ts` treats custom OpenAI base URLs as chat-completions endpoints. This is the current path
++  for llama.cpp-style OpenAI-compatible local servers.
++- `openai/...` still requires an `OPENAI_API_KEY` before transport setup, even when `OPENAI_BASE_URL` points at
++  localhost and the server ignores bearer auth.
++- OpenAI document attachments are only allowed for `api.openai.com`; `src/llm/providers/openai.ts` rejects attachments
++  when the OpenAI base URL host is not `api.openai.com`.
++- `openrouter/...` is a separate forced transport in `src/model-spec.ts` and `src/model-auto.ts`; it resolves to the
++  OpenAI-compatible OpenRouter API with `OPENROUTER_API_KEY`.
++- `zai/...`, `nvidia/...`, and `github-copilot/...` use OpenAI-compatible transport helpers through
++  `src/llm/provider-profile.ts`, `src/llm/providers/models.ts`, and `src/run/summary-engine.ts`, but they carry their
++  own required env keys and default base URLs.
++
++There is no dedicated Ollama provider, llama.cpp provider, or local runtime registry in the current source. Local model
++server usage is therefore configured as an OpenAI-compatible `openai/...` endpoint override.
++
++### Local CLI model paths
++
++- `cli/<provider>/<model>` is parsed in `src/model-spec.ts`; supported CLI providers are declared in
++  `src/config/types.ts`.
++- CLI execution lives in `src/llm/cli.ts`, with binary overrides from provider-specific config or env such as
++  `CODEX_PATH`, `GEMINI_PATH`, `OPENCLAW_PATH`, and `OPENCODE_PATH`.
++- Auto CLI fallback is configured by `cli.autoFallback` and implemented by `src/model-auto-cli.ts`.
++- CLI transports are local process executions, not OpenAI-compatible HTTP runtimes. They should be considered separately
++  from localhost model servers for probing and local-only policy.
++
++## Config Files And Env
++
++- User defaults: `~/.summarize/config.json`, parsed by `src/config.ts`, `src/config/types.ts`,
++  `src/config/model.ts`, and `src/config/sections.ts`.
++- Config env defaults: `env` and legacy `apiKeys` are merged by `src/config/env.ts`; process env wins.
++- OpenAI-compatible endpoint config: `openai.baseUrl`, `openai.useChatCompletions`, and env
++  `OPENAI_BASE_URL` / `OPENAI_USE_CHAT_COMPLETIONS`.
++- Provider endpoint overrides: `nvidia.baseUrl`, `anthropic.baseUrl`, `google.baseUrl`, `xai.baseUrl`, `zai.baseUrl`,
++  plus corresponding env variables in `src/run/run-env.ts`.
++- Daemon pairing and env snapshot: `~/.summarize/daemon.json`, read/written by `src/daemon/config.ts`. Installed daemon
++  env keys are selected in `src/daemon/env-snapshot.ts` and merged in `src/daemon/env-merge.ts`.
++- Extension settings: `chrome.storage.local` key `settings`, normalized and saved by
++  `apps/chrome-extension/src/lib/settings.ts`.
++
++Operational caveat: daemon installs snapshot the environment. Changing `OPENAI_BASE_URL`, local server API keys, PATH, or
++CLI binary paths requires reinstalling or restarting the daemon with an updated snapshot, depending on how the service was
++installed.
++
++## CLI Request Flow
++
++1. `src/run/runner.ts` normalizes argv and calls `prepareRunEnvironment` in `src/run/runner-setup.ts`.
++2. `prepareRunEnvironment` loads config and merges config env defaults before Commander parses flags.
++3. `src/run/runner-plan.ts` resolves flags, output language, env status, and model selection.
++4. `src/run/run-models.ts` resolves explicit model, env `SUMMARIZE_MODEL`, config `model`, named presets, or default
++   `auto`.
++5. Fixed and auto choices become `ModelAttempt` objects in `src/model-spec.ts`, `src/model-auto.ts`,
++   `src/run/flows/url/summary-resolution.ts`, or `src/run/flows/asset/summary-attempts.ts`.
++6. `src/run/model-attempts.ts` skips missing env for auto mode or errors for fixed models.
++7. `src/run/summary-engine.ts` runs the selected attempt through `src/llm/cli.ts` for `cli/...` or through
++   `src/llm/generate-text.ts` / `src/llm/generate-text-stream.ts` for native/OpenRouter transports.
++
++## Daemon Request Flow
++
++1. `summarize daemon install` writes `~/.summarize/daemon.json` and snapshots selected env in
++   `src/daemon/cli.ts`.
++2. `summarize daemon run` merges the saved env snapshot and starts `runDaemonServer` in `src/daemon/server.ts`.
++3. `POST /v1/summarize` is token-authenticated, parsed by `src/daemon/server-summarize-request.ts`, and executed by
++   `src/daemon/server-summarize-execution.ts`.
++4. `streamSummaryForUrl` and `streamSummaryForVisiblePage` in `src/daemon/summarize.ts` build a
++   `UrlFlowContext` with `src/daemon/flow-context.ts`.
++5. `src/daemon/flow-context.ts` mirrors CLI setup: config/env resolution, output language, model selection, metrics, and
++   `createSummaryEngine`.
++6. Summary output streams through daemon sessions as SSE from `src/daemon/server-session.ts` and
++   `src/daemon/server-session-routes.ts`.
++7. `POST /v1/agent` is handled separately by `src/daemon/server-agent-route.ts`,
++   `src/daemon/agent-model.ts`, and `src/daemon/agent.ts`.
++
++Operational caveat: `/v1/summarize` uses the shared summary engine path, but `/v1/agent` resolves model transport in
++`src/daemon/agent-model.ts` and calls pi-ai directly. Local-only checks and language routing must cover both paths if
++chat is in scope.
++
++## Extension Setting Flow
++
++1. Options UI loads/saves `Settings` through `apps/chrome-extension/src/lib/settings.ts`.
++2. Options form wiring lives in `apps/chrome-extension/src/entrypoints/options/main.ts`,
++   `form-state.ts`, `bindings.ts`, and `model-presets.ts`.
++3. Side-panel summarization runs in `apps/chrome-extension/src/entrypoints/background/panel-summarize.ts`.
++4. Summary request bodies are built by `apps/chrome-extension/src/lib/daemon-payload.ts`, which sends `model`, `length`,
++   `language`, prompt overrides, and advanced overrides to `/v1/summarize`.
++5. Hover summaries use `apps/chrome-extension/src/entrypoints/background/hover-controller.ts`; they reuse settings but
++   force `length: "short"`, `mode: "url"`, and a short timeout.
++6. Automation's `summarize` tool builds a direct `/v1/summarize` body in
++   `apps/chrome-extension/src/automation/tools.ts`.
++7. Side-panel chat sends `model`, `length`, and `language` to `/v1/agent` from
++   `apps/chrome-extension/src/entrypoints/background/panel-chat.ts`.
++
++Operational caveat: the extension always sends a model setting, whose default is `auto`. Future routing should treat
++`model: "auto"` as routeable rather than as an explicit fixed-model override.
++
++## Local-only Safety Check Locations
++
++Local-only enforcement should run after model selection has produced a concrete transport/model attempt and before any
++provider transport or remote model probe starts.
++
++- Shared attempt classification: add reusable local-runtime predicates near future local runtime registry code in
++  `@steipete/summarize-core`; consume them from the CLI package.
++- CLI URL and asset summaries: enforce against `ModelAttempt` values before `runSummaryAttempt` in
++  `src/run/flows/url/summary-resolution.ts` and `src/run/flows/asset/summary.ts`, or centralize it in
++  `src/run/model-attempts.ts` with enough context to produce useful errors.
++- Summary engine fallback: keep a defensive check in `src/run/summary-engine.ts` before CLI/native transport setup, since
++  this is the final shared choke point for CLI and daemon summary runs.
++- Daemon `/v1/summarize`: parse a future request override in `src/daemon/server-summarize-request.ts`, thread it through
++  `src/daemon/flow-context.ts`, and rely on the shared attempt-level guard.
++- Daemon `/v1/agent`: add equivalent enforcement in `src/daemon/agent-model.ts` because agent model resolution bypasses
++  `ModelAttempt` execution for non-summary chat.
++- Extension-initiated runs: add settings and payload fields in `apps/chrome-extension/src/lib/settings.ts` and
++  `apps/chrome-extension/src/lib/daemon-payload.ts`, but keep the daemon as the authority. Cover side panel, hover,
++  automation summarize tool, and chat requests.
++
++Classification should distinguish:
++
++- Local OpenAI-compatible HTTP endpoints: `openai/...` with a base URL whose hostname is `localhost`, `127.0.0.1`, or
++  another explicitly allowed loopback/local host.
++- Remote OpenAI-compatible gateways: `api.openai.com`, OpenRouter, GitHub Models, NVIDIA, Z.AI, or arbitrary nonlocal
++  base URLs.
++- Local process transports: `cli/...`, subject to separate policy because provider CLIs may themselves call cloud models.
++
++## Language-aware Routing Locations
++
++Existing language parsing lives in `packages/core/src/language.ts`; CLI and daemon flows consume it through
++`src/run/run-config.ts`, `src/run/run-settings.ts`, and `src/daemon/flow-context.ts`.
++
++Routing should happen before concrete model attempts are built, while preserving explicit model precedence:
++
++- CLI: `src/run/runner-plan.ts` already resolves `outputLanguage` before calling `resolveModelSelection`. A routing
++  helper can be applied there when no explicit `--model` / `--cli` fixed model is supplied.
++- Daemon summaries: `src/daemon/flow-context.ts` has `languageRaw`, config fallback language, and `modelOverride`.
++  Compute final output language before `resolveModelSelection` if routing needs the same explicit-model precedence as
++  CLI.
++- Auto attempts: use existing `ModelConfig` and `AutoRule` shapes from `src/config/types.ts` if routing is implemented
++  as model presets or auto-rule selection; add a dedicated config section if routing needs named language buckets.
++- Recommended config extension point: `SummarizeConfig` in `src/config/types.ts`, parsed by `src/config/sections.ts`.
++  Runtime descriptor primitives should live in `packages/core` once LLR-003 adds them, but persisted CLI config parsing
++  currently lives in the CLI package.
++- Agent chat: `apps/chrome-extension/src/entrypoints/background/panel-chat.ts` sends `language`, but
++  `src/daemon/server-agent-route.ts` and `src/daemon/agent-model.ts` do not currently consume it. If chat should route
++  by output language, the agent route must parse and thread language first.
++
++Suggested route buckets for later stories:
++
++- English: match `OutputLanguage` fixed tags/labels for English aliases.
++- Traditional Chinese: match `zh-TW`, `zh-Hant`, and labels containing Traditional Chinese.
++- Bilingual: add an explicit config/request hint; current `OutputLanguage` has no structured bilingual mode beyond
++  free-form labels.
++- Fallback local model: use when language is `auto`, unknown, or a bucket-specific model is not configured.
++
++## Relevant Tests For Future Changes
++
++- Config parsing and model selection: existing Vitest coverage under `tests/` for config, model auto, run models, and
++  daemon payload/request behavior.
++- Extension settings and payloads: `apps/chrome-extension/tests/options.spec.ts` and side-panel tests.
++- Extension automated path: `pnpm -C apps/chrome-extension test:chrome`.
++- Default repository gates: `pnpm -s typecheck`, `pnpm -s build`, and `pnpm -s check` for runtime/config/daemon changes.
+
+exec
+/bin/zsh -lc 'git add -A && git commit -m "docs: audit local model capabilities"' in /Users/shh/proj/summarize succeeded in 0ms:
+[main 06e79045] docs: audit local model capabilities
+ 11 files changed, 6539 insertions(+), 28 deletions(-)
+ create mode 100644 .ralph/.tmp/prompt-20260422-085058-72504-2.md
+ create mode 100644 .ralph/.tmp/story-20260422-085058-72504-2.json
+ create mode 100644 .ralph/.tmp/story-20260422-085058-72504-2.md
+ create mode 100644 .ralph/runs/run-20260422-085058-72504-iter-2.log
+ create mode 100644 docs/local-model-capabilities-audit.md
+file update:
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-1.md b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04df3e29fe3
+--- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+@@ -47,4 +47,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/docs/README.md b/docs/README.md
+index 9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b..af16efa1320cdf08dc06b2bb2430253152b0eb32
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -12,6 +12,7 @@
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
++- `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+ - `docs/manual-tests.md` — manual end-to-end test checklist
+ - `docs/model-auto.md` — automatic model selection (`--model auto`)
+diff --git a/docs/index.md b/docs/index.md
+index 6341b450b2e2922bac076dac022951bd1b5a9da9..8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -12,6 +12,7 @@
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
+ - [Local-first roadmap](local-first-roadmap.md)
++- [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+ - [Manual tests](manual-tests.md)
+ - [Model auto](model-auto.md)
+diff --git a/docs/local-model-capabilities-audit.md b/docs/local-model-capabilities-audit.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6dbcc524b9ab65d2175ec7f3e9f80d1b8ac18c6
+--- /dev/null
++++ b/docs/local-model-capabilities-audit.md
+@@ -0,0 +1,176 @@
++---
++summary: "Source-grounded audit of local and OpenAI-compatible model paths."
++read_when:
++  - "When adding local runtime descriptors, probes, local-only privacy checks, or language-aware routing."
++  - "When changing daemon or extension model request flow."
++---
++
++# Local Model Capabilities Audit
++
++Audit date: 2026-04-22. Scope: source inspection only; no runtime behavior changes.
++
++## Current Provider Paths
++
++### OpenAI-compatible HTTP paths
++
++- `openai/...` model IDs are parsed by `src/model-spec.ts` and `src/llm/model-id.ts`.
++- `OPENAI_BASE_URL` or `openai.baseUrl` in `~/.summarize/config.json` overrides the OpenAI endpoint through
++  `src/run/run-env.ts`, `packages/core/src/openai/base-url.ts`, and `src/llm/providers/openai.ts`.
++- `src/llm/providers/openai.ts` treats custom OpenAI base URLs as chat-completions endpoints. This is the current path
++  for llama.cpp-style OpenAI-compatible local servers.
++- `openai/...` still requires an `OPENAI_API_KEY` before transport setup, even when `OPENAI_BASE_URL` points at
++  localhost and the server ignores bearer auth.
++- OpenAI document attachments are only allowed for `api.openai.com`; `src/llm/providers/openai.ts` rejects attachments
++  when the OpenAI base URL host is not `api.openai.com`.
++- `openrouter/...` is a separate forced transport in `src/model-spec.ts` and `src/model-auto.ts`; it resolves to the
++  OpenAI-compatible OpenRouter API with `OPENROUTER_API_KEY`.
++- `zai/...`, `nvidia/...`, and `github-copilot/...` use OpenAI-compatible transport helpers through
++  `src/llm/provider-profile.ts`, `src/llm/providers/models.ts`, and `src/run/summary-engine.ts`, but they carry their
++  own required env keys and default base URLs.
++
++There is no dedicated Ollama provider, llama.cpp provider, or local runtime registry in the current source. Local model
++server usage is therefore configured as an OpenAI-compatible `openai/...` endpoint override.
++
++### Local CLI model paths
++
++- `cli/<provider>/<model>` is parsed in `src/model-spec.ts`; supported CLI providers are declared in
++  `src/config/types.ts`.
++- CLI execution lives in `src/llm/cli.ts`, with binary overrides from provider-specific config or env such as
++  `CODEX_PATH`, `GEMINI_PATH`, `OPENCLAW_PATH`, and `OPENCODE_PATH`.
++- Auto CLI fallback is configured by `cli.autoFallback` and implemented by `src/model-auto-cli.ts`.
++- CLI transports are local process executions, not OpenAI-compatible HTTP runtimes. They should be considered separately
++  from localhost model servers for probing and local-only policy.
++
++## Config Files And Env
++
++- User defaults: `~/.summarize/config.json`, parsed by `src/config.ts`, `src/config/types.ts`,
++  `src/config/model.ts`, and `src/config/sections.ts`.
++- Config env defaults: `env` and legacy `apiKeys` are merged by `src/config/env.ts`; process env wins.
++- OpenAI-compatible endpoint config: `openai.baseUrl`, `openai.useChatCompletions`, and env
++  `OPENAI_BASE_URL` / `OPENAI_USE_CHAT_COMPLETIONS`.
++- Provider endpoint overrides: `nvidia.baseUrl`, `anthropic.baseUrl`, `google.baseUrl`, `xai.baseUrl`, `zai.baseUrl`,
++  plus corresponding env variables in `src/run/run-env.ts`.
++- Daemon pairing and env snapshot: `~/.summarize/daemon.json`, read/written by `src/daemon/config.ts`. Installed daemon
++  env keys are selected in `src/daemon/env-snapshot.ts` and merged in `src/daemon/env-merge.ts`.
++- Extension settings: `chrome.storage.local` key `settings`, normalized and saved by
++  `apps/chrome-extension/src/lib/settings.ts`.
++
++Operational caveat: daemon installs snapshot the environment. Changing `OPENAI_BASE_URL`, local server API keys, PATH, or
++CLI binary paths requires reinstalling or restarting the daemon with an updated snapshot, depending on how the service was
++installed.
++
++## CLI Request Flow
++
++1. `src/run/runner.ts` normalizes argv and calls `prepareRunEnvironment` in `src/run/runner-setup.ts`.
++2. `prepareRunEnvironment` loads config and merges config env defaults before Commander parses flags.
++3. `src/run/runner-plan.ts` resolves flags, output language, env status, and model selection.
++4. `src/run/run-models.ts` resolves explicit model, env `SUMMARIZE_MODEL`, config `model`, named presets, or default
++   `auto`.
++5. Fixed and auto choices become `ModelAttempt` objects in `src/model-spec.ts`, `src/model-auto.ts`,
++   `src/run/flows/url/summary-resolution.ts`, or `src/run/flows/asset/summary-attempts.ts`.
++6. `src/run/model-attempts.ts` skips missing env for auto mode or errors for fixed models.
++7. `src/run/summary-engine.ts` runs the selected attempt through `src/llm/cli.ts` for `cli/...` or through
++   `src/llm/generate-text.ts` / `src/llm/generate-text-stream.ts` for native/OpenRouter transports.
++
++## Daemon Request Flow
++
++1. `summarize daemon install` writes `~/.summarize/daemon.json` and snapshots selected env in
++   `src/daemon/cli.ts`.
++2. `summarize daemon run` merges the saved env snapshot and starts `runDaemonServer` in `src/daemon/server.ts`.
++3. `POST /v1/summarize` is token-authenticated, parsed by `src/daemon/server-summarize-request.ts`, and executed by
++   `src/daemon/server-summarize-execution.ts`.
++4. `streamSummaryForUrl` and `streamSummaryForVisiblePage` in `src/daemon/summarize.ts` build a
++   `UrlFlowContext` with `src/daemon/flow-context.ts`.
++5. `src/daemon/flow-context.ts` mirrors CLI setup: config/env resolution, output language, model selection, metrics, and
++   `createSummaryEngine`.
++6. Summary output streams through daemon sessions as SSE from `src/daemon/server-session.ts` and
++   `src/daemon/server-session-routes.ts`.
++7. `POST /v1/agent` is handled separately by `src/daemon/server-agent-route.ts`,
++   `src/daemon/agent-model.ts`, and `src/daemon/agent.ts`.
++
++Operational caveat: `/v1/summarize` uses the shared summary engine path, but `/v1/agent` resolves model transport in
++`src/daemon/agent-model.ts` and calls pi-ai directly. Local-only checks and language routing must cover both paths if
++chat is in scope.
++
++## Extension Setting Flow
++
++1. Options UI loads/saves `Settings` through `apps/chrome-extension/src/lib/settings.ts`.
++2. Options form wiring lives in `apps/chrome-extension/src/entrypoints/options/main.ts`,
++   `form-state.ts`, `bindings.ts`, and `model-presets.ts`.
++3. Side-panel summarization runs in `apps/chrome-extension/src/entrypoints/background/panel-summarize.ts`.
++4. Summary request bodies are built by `apps/chrome-extension/src/lib/daemon-payload.ts`, which sends `model`, `length`,
++   `language`, prompt overrides, and advanced overrides to `/v1/summarize`.
++5. Hover summaries use `apps/chrome-extension/src/entrypoints/background/hover-controller.ts`; they reuse settings but
++   force `length: "short"`, `mode: "url"`, and a short timeout.
++6. Automation's `summarize` tool builds a direct `/v1/summarize` body in
++   `apps/chrome-extension/src/automation/tools.ts`.
++7. Side-panel chat sends `model`, `length`, and `language` to `/v1/agent` from
++   `apps/chrome-extension/src/entrypoints/background/panel-chat.ts`.
++
++Operational caveat: the extension always sends a model setting, whose default is `auto`. Future routing should treat
++`model: "auto"` as routeable rather than as an explicit fixed-model override.
++
++## Local-only Safety Check Locations
++
++Local-only enforcement should run after model selection has produced a concrete transport/model attempt and before any
++provider transport or remote model probe starts.
++
++- Shared attempt classification: add reusable local-runtime predicates near future local runtime registry code in
++  `@steipete/summarize-core`; consume them from the CLI package.
++- CLI URL and asset summaries: enforce against `ModelAttempt` values before `runSummaryAttempt` in
++  `src/run/flows/url/summary-resolution.ts` and `src/run/flows/asset/summary.ts`, or centralize it in
++  `src/run/model-attempts.ts` with enough context to produce useful errors.
++- Summary engine fallback: keep a defensive check in `src/run/summary-engine.ts` before CLI/native transport setup, since
++  this is the final shared choke point for CLI and daemon summary runs.
++- Daemon `/v1/summarize`: parse a future request override in `src/daemon/server-summarize-request.ts`, thread it through
++  `src/daemon/flow-context.ts`, and rely on the shared attempt-level guard.
++- Daemon `/v1/agent`: add equivalent enforcement in `src/daemon/agent-model.ts` because agent model resolution bypasses
++  `ModelAttempt` execution for non-summary chat.
++- Extension-initiated runs: add settings and payload fields in `apps/chrome-extension/src/lib/settings.ts` and
++  `apps/chrome-extension/src/lib/daemon-payload.ts`, but keep the daemon as the authority. Cover side panel, hover,
++  automation summarize tool, and chat requests.
++
++Classification should distinguish:
++
++- Local OpenAI-compatible HTTP endpoints: `openai/...` with a base URL whose hostname is `localhost`, `127.0.0.1`, or
++  another explicitly allowed loopback/local host.
++- Remote OpenAI-compatible gateways: `api.openai.com`, OpenRouter, GitHub Models, NVIDIA, Z.AI, or arbitrary nonlocal
++  base URLs.
++- Local process transports: `cli/...`, subject to separate policy because provider CLIs may themselves call cloud models.
++
++## Language-aware Routing Locations
++
++Existing language parsing lives in `packages/core/src/language.ts`; CLI and daemon flows consume it through
++`src/run/run-config.ts`, `src/run/run-settings.ts`, and `src/daemon/flow-context.ts`.
++
++Routing should happen before concrete model attempts are built, while preserving explicit model precedence:
++
++- CLI: `src/run/runner-plan.ts` already resolves `outputLanguage` before calling `resolveModelSelection`. A routing
++  helper can be applied there when no explicit `--model` / `--cli` fixed model is supplied.
++- Daemon summaries: `src/daemon/flow-context.ts` has `languageRaw`, config fallback language, and `modelOverride`.
++  Compute final output language before `resolveModelSelection` if routing needs the same explicit-model precedence as
++  CLI.
++- Auto attempts: use existing `ModelConfig` and `AutoRule` shapes from `src/config/types.ts` if routing is implemented
++  as model presets or auto-rule selection; add a dedicated config section if routing needs named language buckets.
++- Recommended config extension point: `SummarizeConfig` in `src/config/types.ts`, parsed by `src/config/sections.ts`.
++  Runtime descriptor primitives should live in `packages/core` once LLR-003 adds them, but persisted CLI config parsing
++  currently lives in the CLI package.
++- Agent chat: `apps/chrome-extension/src/entrypoints/background/panel-chat.ts` sends `language`, but
++  `src/daemon/server-agent-route.ts` and `src/daemon/agent-model.ts` do not currently consume it. If chat should route
++  by output language, the agent route must parse and thread language first.
++
++Suggested route buckets for later stories:
++
++- English: match `OutputLanguage` fixed tags/labels for English aliases.
++- Traditional Chinese: match `zh-TW`, `zh-Hant`, and labels containing Traditional Chinese.
++- Bilingual: add an explicit config/request hint; current `OutputLanguage` has no structured bilingual mode beyond
++  free-form labels.
++- Fallback local model: use when language is `auto`, unknown, or a bucket-specific model is not configured.
++
++## Relevant Tests For Future Changes
++
++- Config parsing and model selection: existing Vitest coverage under `tests/` for config, model auto, run models, and
++  daemon payload/request behavior.
++- Extension settings and payloads: `apps/chrome-extension/tests/options.spec.ts` and side-panel tests.
++- Extension automated path: `pnpm -C apps/chrome-extension test:chrome`.
++- Default repository gates: `pnpm -s typecheck`, `pnpm -s build`, and `pnpm -s check` for runtime/config/daemon changes.
+
+exec
+/bin/zsh -lc 'git show -s --format="%h %s" HEAD' in /Users/shh/proj/summarize succeeded in 0ms:
+06e79045 docs: audit local model capabilities
+file update:
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-1.md b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04df3e29fe3
+--- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+@@ -47,4 +47,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/docs/README.md b/docs/README.md
+index 9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b..af16efa1320cdf08dc06b2bb2430253152b0eb32
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -12,6 +12,7 @@
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
++- `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+ - `docs/manual-tests.md` — manual end-to-end test checklist
+ - `docs/model-auto.md` — automatic model selection (`--model auto`)
+diff --git a/docs/index.md b/docs/index.md
+index 6341b450b2e2922bac076dac022951bd1b5a9da9..8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -12,6 +12,7 @@
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
+ - [Local-first roadmap](local-first-roadmap.md)
++- [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+ - [Manual tests](manual-tests.md)
+ - [Model auto](model-auto.md)
+diff --git a/docs/local-model-capabilities-audit.md b/docs/local-model-capabilities-audit.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6dbcc524b9ab65d2175ec7f3e9f80d1b8ac18c6
+--- /dev/null
++++ b/docs/local-model-capabilities-audit.md
+@@ -0,0 +1,176 @@
++---
++summary: "Source-grounded audit of local and OpenAI-compatible model paths."
++read_when:
++  - "When adding local runtime descriptors, probes, local-only privacy checks, or language-aware routing."
++  - "When changing daemon or extension model request flow."
++---
++
++# Local Model Capabilities Audit
++
++Audit date: 2026-04-22. Scope: source inspection only; no runtime behavior changes.
++
++## Current Provider Paths
++
++### OpenAI-compatible HTTP paths
++
++- `openai/...` model IDs are parsed by `src/model-spec.ts` and `src/llm/model-id.ts`.
++- `OPENAI_BASE_URL` or `openai.baseUrl` in `~/.summarize/config.json` overrides the OpenAI endpoint through
++  `src/run/run-env.ts`, `packages/core/src/openai/base-url.ts`, and `src/llm/providers/openai.ts`.
++- `src/llm/providers/openai.ts` treats custom OpenAI base URLs as chat-completions endpoints. This is the current path
++  for llama.cpp-style OpenAI-compatible local servers.
++- `openai/...` still requires an `OPENAI_API_KEY` before transport setup, even when `OPENAI_BASE_URL` points at
++  localhost and the server ignores bearer auth.
++- OpenAI document attachments are only allowed for `api.openai.com`; `src/llm/providers/openai.ts` rejects attachments
++  when the OpenAI base URL host is not `api.openai.com`.
++- `openrouter/...` is a separate forced transport in `src/model-spec.ts` and `src/model-auto.ts`; it resolves to the
++  OpenAI-compatible OpenRouter API with `OPENROUTER_API_KEY`.
++- `zai/...`, `nvidia/...`, and `github-copilot/...` use OpenAI-compatible transport helpers through
++  `src/llm/provider-profile.ts`, `src/llm/providers/models.ts`, and `src/run/summary-engine.ts`, but they carry their
++  own required env keys and default base URLs.
++
++There is no dedicated Ollama provider, llama.cpp provider, or local runtime registry in the current source. Local model
++server usage is therefore configured as an OpenAI-compatible `openai/...` endpoint override.
++
++### Local CLI model paths
++
++- `cli/<provider>/<model>` is parsed in `src/model-spec.ts`; supported CLI providers are declared in
++  `src/config/types.ts`.
++- CLI execution lives in `src/llm/cli.ts`, with binary overrides from provider-specific config or env such as
++  `CODEX_PATH`, `GEMINI_PATH`, `OPENCLAW_PATH`, and `OPENCODE_PATH`.
++- Auto CLI fallback is configured by `cli.autoFallback` and implemented by `src/model-auto-cli.ts`.
++- CLI transports are local process executions, not OpenAI-compatible HTTP runtimes. They should be considered separately
++  from localhost model servers for probing and local-only policy.
++
++## Config Files And Env
++
++- User defaults: `~/.summarize/config.json`, parsed by `src/config.ts`, `src/config/types.ts`,
++  `src/config/model.ts`, and `src/config/sections.ts`.
++- Config env defaults: `env` and legacy `apiKeys` are merged by `src/config/env.ts`; process env wins.
++- OpenAI-compatible endpoint config: `openai.baseUrl`, `openai.useChatCompletions`, and env
++  `OPENAI_BASE_URL` / `OPENAI_USE_CHAT_COMPLETIONS`.
++- Provider endpoint overrides: `nvidia.baseUrl`, `anthropic.baseUrl`, `google.baseUrl`, `xai.baseUrl`, `zai.baseUrl`,
++  plus corresponding env variables in `src/run/run-env.ts`.
++- Daemon pairing and env snapshot: `~/.summarize/daemon.json`, read/written by `src/daemon/config.ts`. Installed daemon
++  env keys are selected in `src/daemon/env-snapshot.ts` and merged in `src/daemon/env-merge.ts`.
++- Extension settings: `chrome.storage.local` key `settings`, normalized and saved by
++  `apps/chrome-extension/src/lib/settings.ts`.
++
++Operational caveat: daemon installs snapshot the environment. Changing `OPENAI_BASE_URL`, local server API keys, PATH, or
++CLI binary paths requires reinstalling or restarting the daemon with an updated snapshot, depending on how the service was
++installed.
++
++## CLI Request Flow
++
++1. `src/run/runner.ts` normalizes argv and calls `prepareRunEnvironment` in `src/run/runner-setup.ts`.
++2. `prepareRunEnvironment` loads config and merges config env defaults before Commander parses flags.
++3. `src/run/runner-plan.ts` resolves flags, output language, env status, and model selection.
++4. `src/run/run-models.ts` resolves explicit model, env `SUMMARIZE_MODEL`, config `model`, named presets, or default
++   `auto`.
++5. Fixed and auto choices become `ModelAttempt` objects in `src/model-spec.ts`, `src/model-auto.ts`,
++   `src/run/flows/url/summary-resolution.ts`, or `src/run/flows/asset/summary-attempts.ts`.
++6. `src/run/model-attempts.ts` skips missing env for auto mode or errors for fixed models.
++7. `src/run/summary-engine.ts` runs the selected attempt through `src/llm/cli.ts` for `cli/...` or through
++   `src/llm/generate-text.ts` / `src/llm/generate-text-stream.ts` for native/OpenRouter transports.
++
++## Daemon Request Flow
++
++1. `summarize daemon install` writes `~/.summarize/daemon.json` and snapshots selected env in
++   `src/daemon/cli.ts`.
++2. `summarize daemon run` merges the saved env snapshot and starts `runDaemonServer` in `src/daemon/server.ts`.
++3. `POST /v1/summarize` is token-authenticated, parsed by `src/daemon/server-summarize-request.ts`, and executed by
++   `src/daemon/server-summarize-execution.ts`.
++4. `streamSummaryForUrl` and `streamSummaryForVisiblePage` in `src/daemon/summarize.ts` build a
++   `UrlFlowContext` with `src/daemon/flow-context.ts`.
++5. `src/daemon/flow-context.ts` mirrors CLI setup: config/env resolution, output language, model selection, metrics, and
++   `createSummaryEngine`.
++6. Summary output streams through daemon sessions as SSE from `src/daemon/server-session.ts` and
++   `src/daemon/server-session-routes.ts`.
++7. `POST /v1/agent` is handled separately by `src/daemon/server-agent-route.ts`,
++   `src/daemon/agent-model.ts`, and `src/daemon/agent.ts`.
++
++Operational caveat: `/v1/summarize` uses the shared summary engine path, but `/v1/agent` resolves model transport in
++`src/daemon/agent-model.ts` and calls pi-ai directly. Local-only checks and language routing must cover both paths if
++chat is in scope.
++
++## Extension Setting Flow
++
++1. Options UI loads/saves `Settings` through `apps/chrome-extension/src/lib/settings.ts`.
++2. Options form wiring lives in `apps/chrome-extension/src/entrypoints/options/main.ts`,
++   `form-state.ts`, `bindings.ts`, and `model-presets.ts`.
++3. Side-panel summarization runs in `apps/chrome-extension/src/entrypoints/background/panel-summarize.ts`.
++4. Summary request bodies are built by `apps/chrome-extension/src/lib/daemon-payload.ts`, which sends `model`, `length`,
++   `language`, prompt overrides, and advanced overrides to `/v1/summarize`.
++5. Hover summaries use `apps/chrome-extension/src/entrypoints/background/hover-controller.ts`; they reuse settings but
++   force `length: "short"`, `mode: "url"`, and a short timeout.
++6. Automation's `summarize` tool builds a direct `/v1/summarize` body in
++   `apps/chrome-extension/src/automation/tools.ts`.
++7. Side-panel chat sends `model`, `length`, and `language` to `/v1/agent` from
++   `apps/chrome-extension/src/entrypoints/background/panel-chat.ts`.
++
++Operational caveat: the extension always sends a model setting, whose default is `auto`. Future routing should treat
++`model: "auto"` as routeable rather than as an explicit fixed-model override.
++
++## Local-only Safety Check Locations
++
++Local-only enforcement should run after model selection has produced a concrete transport/model attempt and before any
++provider transport or remote model probe starts.
++
++- Shared attempt classification: add reusable local-runtime predicates near future local runtime registry code in
++  `@steipete/summarize-core`; consume them from the CLI package.
++- CLI URL and asset summaries: enforce against `ModelAttempt` values before `runSummaryAttempt` in
++  `src/run/flows/url/summary-resolution.ts` and `src/run/flows/asset/summary.ts`, or centralize it in
++  `src/run/model-attempts.ts` with enough context to produce useful errors.
++- Summary engine fallback: keep a defensive check in `src/run/summary-engine.ts` before CLI/native transport setup, since
++  this is the final shared choke point for CLI and daemon summary runs.
++- Daemon `/v1/summarize`: parse a future request override in `src/daemon/server-summarize-request.ts`, thread it through
++  `src/daemon/flow-context.ts`, and rely on the shared attempt-level guard.
++- Daemon `/v1/agent`: add equivalent enforcement in `src/daemon/agent-model.ts` because agent model resolution bypasses
++  `ModelAttempt` execution for non-summary chat.
++- Extension-initiated runs: add settings and payload fields in `apps/chrome-extension/src/lib/settings.ts` and
++  `apps/chrome-extension/src/lib/daemon-payload.ts`, but keep the daemon as the authority. Cover side panel, hover,
++  automation summarize tool, and chat requests.
++
++Classification should distinguish:
++
++- Local OpenAI-compatible HTTP endpoints: `openai/...` with a base URL whose hostname is `localhost`, `127.0.0.1`, or
++  another explicitly allowed loopback/local host.
++- Remote OpenAI-compatible gateways: `api.openai.com`, OpenRouter, GitHub Models, NVIDIA, Z.AI, or arbitrary nonlocal
++  base URLs.
++- Local process transports: `cli/...`, subject to separate policy because provider CLIs may themselves call cloud models.
++
++## Language-aware Routing Locations
++
++Existing language parsing lives in `packages/core/src/language.ts`; CLI and daemon flows consume it through
++`src/run/run-config.ts`, `src/run/run-settings.ts`, and `src/daemon/flow-context.ts`.
++
++Routing should happen before concrete model attempts are built, while preserving explicit model precedence:
++
++- CLI: `src/run/runner-plan.ts` already resolves `outputLanguage` before calling `resolveModelSelection`. A routing
++  helper can be applied there when no explicit `--model` / `--cli` fixed model is supplied.
++- Daemon summaries: `src/daemon/flow-context.ts` has `languageRaw`, config fallback language, and `modelOverride`.
++  Compute final output language before `resolveModelSelection` if routing needs the same explicit-model precedence as
++  CLI.
++- Auto attempts: use existing `ModelConfig` and `AutoRule` shapes from `src/config/types.ts` if routing is implemented
++  as model presets or auto-rule selection; add a dedicated config section if routing needs named language buckets.
++- Recommended config extension point: `SummarizeConfig` in `src/config/types.ts`, parsed by `src/config/sections.ts`.
++  Runtime descriptor primitives should live in `packages/core` once LLR-003 adds them, but persisted CLI config parsing
++  currently lives in the CLI package.
++- Agent chat: `apps/chrome-extension/src/entrypoints/background/panel-chat.ts` sends `language`, but
++  `src/daemon/server-agent-route.ts` and `src/daemon/agent-model.ts` do not currently consume it. If chat should route
++  by output language, the agent route must parse and thread language first.
++
++Suggested route buckets for later stories:
++
++- English: match `OutputLanguage` fixed tags/labels for English aliases.
++- Traditional Chinese: match `zh-TW`, `zh-Hant`, and labels containing Traditional Chinese.
++- Bilingual: add an explicit config/request hint; current `OutputLanguage` has no structured bilingual mode beyond
++  free-form labels.
++- Fallback local model: use when language is `auto`, unknown, or a bucket-specific model is not configured.
++
++## Relevant Tests For Future Changes
++
++- Config parsing and model selection: existing Vitest coverage under `tests/` for config, model auto, run models, and
++  daemon payload/request behavior.
++- Extension settings and payloads: `apps/chrome-extension/tests/options.spec.ts` and side-panel tests.
++- Extension automated path: `pnpm -C apps/chrome-extension test:chrome`.
++- Default repository gates: `pnpm -s typecheck`, `pnpm -s build`, and `pnpm -s check` for runtime/config/daemon changes.
+
+exec
+/bin/zsh -lc 'git status --porcelain=v1' in /Users/shh/proj/summarize succeeded in 0ms:
+ M .ralph/runs/run-20260422-085058-72504-iter-2.log
+file update:
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-1.md b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04df3e29fe3
+--- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+@@ -47,4 +47,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/docs/README.md b/docs/README.md
+index 9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b..af16efa1320cdf08dc06b2bb2430253152b0eb32
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -12,6 +12,7 @@
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
++- `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+ - `docs/manual-tests.md` — manual end-to-end test checklist
+ - `docs/model-auto.md` — automatic model selection (`--model auto`)
+diff --git a/docs/index.md b/docs/index.md
+index 6341b450b2e2922bac076dac022951bd1b5a9da9..8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -12,6 +12,7 @@
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
+ - [Local-first roadmap](local-first-roadmap.md)
++- [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+ - [Manual tests](manual-tests.md)
+ - [Model auto](model-auto.md)
+diff --git a/docs/local-model-capabilities-audit.md b/docs/local-model-capabilities-audit.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6dbcc524b9ab65d2175ec7f3e9f80d1b8ac18c6
+--- /dev/null
++++ b/docs/local-model-capabilities-audit.md
+@@ -0,0 +1,176 @@
++---
++summary: "Source-grounded audit of local and OpenAI-compatible model paths."
++read_when:
++  - "When adding local runtime descriptors, probes, local-only privacy checks, or language-aware routing."
++  - "When changing daemon or extension model request flow."
++---
++
++# Local Model Capabilities Audit
++
++Audit date: 2026-04-22. Scope: source inspection only; no runtime behavior changes.
++
++## Current Provider Paths
++
++### OpenAI-compatible HTTP paths
++
++- `openai/...` model IDs are parsed by `src/model-spec.ts` and `src/llm/model-id.ts`.
++- `OPENAI_BASE_URL` or `openai.baseUrl` in `~/.summarize/config.json` overrides the OpenAI endpoint through
++  `src/run/run-env.ts`, `packages/core/src/openai/base-url.ts`, and `src/llm/providers/openai.ts`.
++- `src/llm/providers/openai.ts` treats custom OpenAI base URLs as chat-completions endpoints. This is the current path
++  for llama.cpp-style OpenAI-compatible local servers.
++- `openai/...` still requires an `OPENAI_API_KEY` before transport setup, even when `OPENAI_BASE_URL` points at
++  localhost and the server ignores bearer auth.
++- OpenAI document attachments are only allowed for `api.openai.com`; `src/llm/providers/openai.ts` rejects attachments
++  when the OpenAI base URL host is not `api.openai.com`.
++- `openrouter/...` is a separate forced transport in `src/model-spec.ts` and `src/model-auto.ts`; it resolves to the
++  OpenAI-compatible OpenRouter API with `OPENROUTER_API_KEY`.
++- `zai/...`, `nvidia/...`, and `github-copilot/...` use OpenAI-compatible transport helpers through
++  `src/llm/provider-profile.ts`, `src/llm/providers/models.ts`, and `src/run/summary-engine.ts`, but they carry their
++  own required env keys and default base URLs.
++
++There is no dedicated Ollama provider, llama.cpp provider, or local runtime registry in the current source. Local model
++server usage is therefore configured as an OpenAI-compatible `openai/...` endpoint override.
++
++### Local CLI model paths
++
++- `cli/<provider>/<model>` is parsed in `src/model-spec.ts`; supported CLI providers are declared in
++  `src/config/types.ts`.
++- CLI execution lives in `src/llm/cli.ts`, with binary overrides from provider-specific config or env such as
++  `CODEX_PATH`, `GEMINI_PATH`, `OPENCLAW_PATH`, and `OPENCODE_PATH`.
++- Auto CLI fallback is configured by `cli.autoFallback` and implemented by `src/model-auto-cli.ts`.
++- CLI transports are local process executions, not OpenAI-compatible HTTP runtimes. They should be considered separately
++  from localhost model servers for probing and local-only policy.
++
++## Config Files And Env
++
++- User defaults: `~/.summarize/config.json`, parsed by `src/config.ts`, `src/config/types.ts`,
++  `src/config/model.ts`, and `src/config/sections.ts`.
++- Config env defaults: `env` and legacy `apiKeys` are merged by `src/config/env.ts`; process env wins.
++- OpenAI-compatible endpoint config: `openai.baseUrl`, `openai.useChatCompletions`, and env
++  `OPENAI_BASE_URL` / `OPENAI_USE_CHAT_COMPLETIONS`.
++- Provider endpoint overrides: `nvidia.baseUrl`, `anthropic.baseUrl`, `google.baseUrl`, `xai.baseUrl`, `zai.baseUrl`,
++  plus corresponding env variables in `src/run/run-env.ts`.
++- Daemon pairing and env snapshot: `~/.summarize/daemon.json`, read/written by `src/daemon/config.ts`. Installed daemon
++  env keys are selected in `src/daemon/env-snapshot.ts` and merged in `src/daemon/env-merge.ts`.
++- Extension settings: `chrome.storage.local` key `settings`, normalized and saved by
++  `apps/chrome-extension/src/lib/settings.ts`.
++
++Operational caveat: daemon installs snapshot the environment. Changing `OPENAI_BASE_URL`, local server API keys, PATH, or
++CLI binary paths requires reinstalling or restarting the daemon with an updated snapshot, depending on how the service was
++installed.
++
++## CLI Request Flow
++
++1. `src/run/runner.ts` normalizes argv and calls `prepareRunEnvironment` in `src/run/runner-setup.ts`.
++2. `prepareRunEnvironment` loads config and merges config env defaults before Commander parses flags.
++3. `src/run/runner-plan.ts` resolves flags, output language, env status, and model selection.
++4. `src/run/run-models.ts` resolves explicit model, env `SUMMARIZE_MODEL`, config `model`, named presets, or default
++   `auto`.
++5. Fixed and auto choices become `ModelAttempt` objects in `src/model-spec.ts`, `src/model-auto.ts`,
++   `src/run/flows/url/summary-resolution.ts`, or `src/run/flows/asset/summary-attempts.ts`.
++6. `src/run/model-attempts.ts` skips missing env for auto mode or errors for fixed models.
++7. `src/run/summary-engine.ts` runs the selected attempt through `src/llm/cli.ts` for `cli/...` or through
++   `src/llm/generate-text.ts` / `src/llm/generate-text-stream.ts` for native/OpenRouter transports.
++
++## Daemon Request Flow
++
++1. `summarize daemon install` writes `~/.summarize/daemon.json` and snapshots selected env in
++   `src/daemon/cli.ts`.
++2. `summarize daemon run` merges the saved env snapshot and starts `runDaemonServer` in `src/daemon/server.ts`.
++3. `POST /v1/summarize` is token-authenticated, parsed by `src/daemon/server-summarize-request.ts`, and executed by
++   `src/daemon/server-summarize-execution.ts`.
++4. `streamSummaryForUrl` and `streamSummaryForVisiblePage` in `src/daemon/summarize.ts` build a
++   `UrlFlowContext` with `src/daemon/flow-context.ts`.
++5. `src/daemon/flow-context.ts` mirrors CLI setup: config/env resolution, output language, model selection, metrics, and
++   `createSummaryEngine`.
++6. Summary output streams through daemon sessions as SSE from `src/daemon/server-session.ts` and
++   `src/daemon/server-session-routes.ts`.
++7. `POST /v1/agent` is handled separately by `src/daemon/server-agent-route.ts`,
++   `src/daemon/agent-model.ts`, and `src/daemon/agent.ts`.
++
++Operational caveat: `/v1/summarize` uses the shared summary engine path, but `/v1/agent` resolves model transport in
++`src/daemon/agent-model.ts` and calls pi-ai directly. Local-only checks and language routing must cover both paths if
++chat is in scope.
++
++## Extension Setting Flow
++
++1. Options UI loads/saves `Settings` through `apps/chrome-extension/src/lib/settings.ts`.
++2. Options form wiring lives in `apps/chrome-extension/src/entrypoints/options/main.ts`,
++   `form-state.ts`, `bindings.ts`, and `model-presets.ts`.
++3. Side-panel summarization runs in `apps/chrome-extension/src/entrypoints/background/panel-summarize.ts`.
++4. Summary request bodies are built by `apps/chrome-extension/src/lib/daemon-payload.ts`, which sends `model`, `length`,
++   `language`, prompt overrides, and advanced overrides to `/v1/summarize`.
++5. Hover summaries use `apps/chrome-extension/src/entrypoints/background/hover-controller.ts`; they reuse settings but
++   force `length: "short"`, `mode: "url"`, and a short timeout.
++6. Automation's `summarize` tool builds a direct `/v1/summarize` body in
++   `apps/chrome-extension/src/automation/tools.ts`.
++7. Side-panel chat sends `model`, `length`, and `language` to `/v1/agent` from
++   `apps/chrome-extension/src/entrypoints/background/panel-chat.ts`.
++
++Operational caveat: the extension always sends a model setting, whose default is `auto`. Future routing should treat
++`model: "auto"` as routeable rather than as an explicit fixed-model override.
++
++## Local-only Safety Check Locations
++
++Local-only enforcement should run after model selection has produced a concrete transport/model attempt and before any
++provider transport or remote model probe starts.
++
++- Shared attempt classification: add reusable local-runtime predicates near future local runtime registry code in
++  `@steipete/summarize-core`; consume them from the CLI package.
++- CLI URL and asset summaries: enforce against `ModelAttempt` values before `runSummaryAttempt` in
++  `src/run/flows/url/summary-resolution.ts` and `src/run/flows/asset/summary.ts`, or centralize it in
++  `src/run/model-attempts.ts` with enough context to produce useful errors.
++- Summary engine fallback: keep a defensive check in `src/run/summary-engine.ts` before CLI/native transport setup, since
++  this is the final shared choke point for CLI and daemon summary runs.
++- Daemon `/v1/summarize`: parse a future request override in `src/daemon/server-summarize-request.ts`, thread it through
++  `src/daemon/flow-context.ts`, and rely on the shared attempt-level guard.
++- Daemon `/v1/agent`: add equivalent enforcement in `src/daemon/agent-model.ts` because agent model resolution bypasses
++  `ModelAttempt` execution for non-summary chat.
++- Extension-initiated runs: add settings and payload fields in `apps/chrome-extension/src/lib/settings.ts` and
++  `apps/chrome-extension/src/lib/daemon-payload.ts`, but keep the daemon as the authority. Cover side panel, hover,
++  automation summarize tool, and chat requests.
++
++Classification should distinguish:
++
++- Local OpenAI-compatible HTTP endpoints: `openai/...` with a base URL whose hostname is `localhost`, `127.0.0.1`, or
++  another explicitly allowed loopback/local host.
++- Remote OpenAI-compatible gateways: `api.openai.com`, OpenRouter, GitHub Models, NVIDIA, Z.AI, or arbitrary nonlocal
++  base URLs.
++- Local process transports: `cli/...`, subject to separate policy because provider CLIs may themselves call cloud models.
++
++## Language-aware Routing Locations
++
++Existing language parsing lives in `packages/core/src/language.ts`; CLI and daemon flows consume it through
++`src/run/run-config.ts`, `src/run/run-settings.ts`, and `src/daemon/flow-context.ts`.
++
++Routing should happen before concrete model attempts are built, while preserving explicit model precedence:
++
++- CLI: `src/run/runner-plan.ts` already resolves `outputLanguage` before calling `resolveModelSelection`. A routing
++  helper can be applied there when no explicit `--model` / `--cli` fixed model is supplied.
++- Daemon summaries: `src/daemon/flow-context.ts` has `languageRaw`, config fallback language, and `modelOverride`.
++  Compute final output language before `resolveModelSelection` if routing needs the same explicit-model precedence as
++  CLI.
++- Auto attempts: use existing `ModelConfig` and `AutoRule` shapes from `src/config/types.ts` if routing is implemented
++  as model presets or auto-rule selection; add a dedicated config section if routing needs named language buckets.
++- Recommended config extension point: `SummarizeConfig` in `src/config/types.ts`, parsed by `src/config/sections.ts`.
++  Runtime descriptor primitives should live in `packages/core` once LLR-003 adds them, but persisted CLI config parsing
++  currently lives in the CLI package.
++- Agent chat: `apps/chrome-extension/src/entrypoints/background/panel-chat.ts` sends `language`, but
++  `src/daemon/server-agent-route.ts` and `src/daemon/agent-model.ts` do not currently consume it. If chat should route
++  by output language, the agent route must parse and thread language first.
++
++Suggested route buckets for later stories:
++
++- English: match `OutputLanguage` fixed tags/labels for English aliases.
++- Traditional Chinese: match `zh-TW`, `zh-Hant`, and labels containing Traditional Chinese.
++- Bilingual: add an explicit config/request hint; current `OutputLanguage` has no structured bilingual mode beyond
++  free-form labels.
++- Fallback local model: use when language is `auto`, unknown, or a bucket-specific model is not configured.
++
++## Relevant Tests For Future Changes
++
++- Config parsing and model selection: existing Vitest coverage under `tests/` for config, model auto, run models, and
++  daemon payload/request behavior.
++- Extension settings and payloads: `apps/chrome-extension/tests/options.spec.ts` and side-panel tests.
++- Extension automated path: `pnpm -C apps/chrome-extension test:chrome`.
++- Default repository gates: `pnpm -s typecheck`, `pnpm -s build`, and `pnpm -s check` for runtime/config/daemon changes.
+
+codex
+The implementation commit is `06e79045 docs: audit local model capabilities`. I’m appending the required Ralph progress entry and run summary now, including the operational caveats discovered during the audit, then I’ll make the final progress-record commit and verify the tree is clean.
+file update
+A /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.md
+# Run 20260422-085058-72504 Iteration 2
+
+Story: LLR-002 - Audit Existing Local Model Capabilities
+
+Outcome: complete.
+
+Implementation commit:
+
+- `06e79045 docs: audit local model capabilities`
+
+Verification:
+
+- `pnpm -s docs:list` -> PASS
+- `pnpm -s typecheck` -> PASS
+- `pnpm -s build` -> PASS
+- `git diff --check` -> PASS
+
+Summary:
+
+- Added `docs/local-model-capabilities-audit.md` with source-grounded maps for OpenAI-compatible local endpoint support,
+  CLI-local transports, config/env files, CLI flow, daemon flow, and extension settings flow.
+- Identified guard locations for future local-only enforcement across CLI, daemon `/v1/summarize`, daemon `/v1/agent`,
+  side panel, hover summaries, automation summarize, and chat.
+- Identified language-aware routing points and reusable config types for later stories.
+- Linked the audit from `docs/index.md` and `docs/README.md`.
+
+Operational caveats captured:
+
+- Current localhost model-server support is the generic `openai/...` path plus `OPENAI_BASE_URL` or `openai.baseUrl`;
+  there is no dedicated Ollama or llama.cpp runtime registry yet.
+- `openai/...` still requires `OPENAI_API_KEY` before transport setup, even for localhost endpoints that ignore bearer
+  auth.
+- Installed daemons use a saved env snapshot, so endpoint, key, PATH, or CLI binary changes need a daemon restart or
+  reinstall with updated env.
+- `/v1/agent` has a separate model resolution path from summary runs, so future local-only and language routing work must
+  cover it explicitly.
+M /Users/shh/proj/summarize/.ralph/progress.md
+@@ -8,2 +8,46 @@
+
++## 2026-04-22 09:03:48 PDT - LLR-002: Audit Existing Local Model Capabilities
++Thread:
++Run: 20260422-085058-72504 (iteration 2)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 06e79045 docs: audit local model capabilities
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - docs/local-model-capabilities-audit.md
++  - docs/index.md
++  - docs/README.md
++  - .ralph/activity.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.log
++  - .agents/tasks/prd.json
++  - .ralph/errors.log
++  - .ralph/.tmp/prompt-20260422-085058-72504-2.md
++  - .ralph/.tmp/story-20260422-085058-72504-2.json
++  - .ralph/.tmp/story-20260422-085058-72504-2.md
++- What was implemented
++  Added a source-grounded audit documenting current OpenAI-compatible/local provider paths, CLI-local transports,
++  config/env files, daemon `/v1/summarize` and `/v1/agent` flow, extension settings and request flow, local-only safety
++  check locations, and language-aware routing extension points. Linked the audit from the docs indexes. No runtime
++  behavior was changed.
++- **Learnings for future iterations:**
++  - Patterns discovered: concrete summary runs converge on `ModelAttempt` and `createSummaryEngine`, while daemon chat
++    uses a separate `resolveAgentModel` path.
++  - Gotchas encountered: local OpenAI-compatible HTTP servers currently use `openai/...` plus `OPENAI_BASE_URL` or
++    `openai.baseUrl`; `OPENAI_API_KEY` is still required before transport setup, even for localhost endpoints.
++  - Useful context: installed daemons use a saved env snapshot, so local endpoint, key, PATH, or CLI binary changes need
++    restart/reinstall with updated env. The extension always sends `model`, defaulting to `auto`, so future routing must
++    treat `auto` as routeable instead of an explicit fixed model.
++  - Operational caveats: there is no dedicated Ollama or llama.cpp runtime registry yet; `/v1/agent` must be covered
++    separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
++---
++
+ ## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
+apply_patch(auto_approved=true) exited 0 in 69ms:
+Success. Updated the following files:
+A .ralph/runs/run-20260422-085058-72504-iter-2.md
+M .ralph/progress.md
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index b6b02d9378c9f79e15e3031d3f8231824144d345..b384f4f692b1506c8bcbc5536becc7032317dd2d
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,50 @@
+
+ ---
+
++## 2026-04-22 09:03:48 PDT - LLR-002: Audit Existing Local Model Capabilities
++Thread:
++Run: 20260422-085058-72504 (iteration 2)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 06e79045 docs: audit local model capabilities
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - docs/local-model-capabilities-audit.md
++  - docs/index.md
++  - docs/README.md
++  - .ralph/activity.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.log
++  - .agents/tasks/prd.json
++  - .ralph/errors.log
++  - .ralph/.tmp/prompt-20260422-085058-72504-2.md
++  - .ralph/.tmp/story-20260422-085058-72504-2.json
++  - .ralph/.tmp/story-20260422-085058-72504-2.md
++- What was implemented
++  Added a source-grounded audit documenting current OpenAI-compatible/local provider paths, CLI-local transports,
++  config/env files, daemon `/v1/summarize` and `/v1/agent` flow, extension settings and request flow, local-only safety
++  check locations, and language-aware routing extension points. Linked the audit from the docs indexes. No runtime
++  behavior was changed.
++- **Learnings for future iterations:**
++  - Patterns discovered: concrete summary runs converge on `ModelAttempt` and `createSummaryEngine`, while daemon chat
++    uses a separate `resolveAgentModel` path.
++  - Gotchas encountered: local OpenAI-compatible HTTP servers currently use `openai/...` plus `OPENAI_BASE_URL` or
++    `openai.baseUrl`; `OPENAI_API_KEY` is still required before transport setup, even for localhost endpoints.
++  - Useful context: installed daemons use a saved env snapshot, so local endpoint, key, PATH, or CLI binary changes need
++    restart/reinstall with updated env. The extension always sends `model`, defaulting to `auto`, so future routing must
++    treat `auto` as routeable instead of an explicit fixed model.
++  - Operational caveats: there is no dedicated Ollama or llama.cpp runtime registry yet; `/v1/agent` must be covered
++    separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
++---
++
+ ## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
+ Thread: 019db5e3-33a6-7350-92dc-add32e3e321a
+ Run: 20260422-085058-72504 (iteration 1)
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-1.md b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04df3e29fe3
+--- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+@@ -47,4 +47,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ed5b7e61a2df64f95bed42818709a12dce65afa5
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -0,0 +1,36 @@
++# Run 20260422-085058-72504 Iteration 2
++
++Story: LLR-002 - Audit Existing Local Model Capabilities
++
++Outcome: complete.
++
++Implementation commit:
++
++- `06e79045 docs: audit local model capabilities`
++
++Verification:
++
++- `pnpm -s docs:list` -> PASS
++- `pnpm -s typecheck` -> PASS
++- `pnpm -s build` -> PASS
++- `git diff --check` -> PASS
++
++Summary:
++
++- Added `docs/local-model-capabilities-audit.md` with source-grounded maps for OpenAI-compatible local endpoint support,
++  CLI-local transports, config/env files, CLI flow, daemon flow, and extension settings flow.
++- Identified guard locations for future local-only enforcement across CLI, daemon `/v1/summarize`, daemon `/v1/agent`,
++  side panel, hover summaries, automation summarize, and chat.
++- Identified language-aware routing points and reusable config types for later stories.
++- Linked the audit from `docs/index.md` and `docs/README.md`.
++
++Operational caveats captured:
++
++- Current localhost model-server support is the generic `openai/...` path plus `OPENAI_BASE_URL` or `openai.baseUrl`;
++  there is no dedicated Ollama or llama.cpp runtime registry yet.
++- `openai/...` still requires `OPENAI_API_KEY` before transport setup, even for localhost endpoints that ignore bearer
++  auth.
++- Installed daemons use a saved env snapshot, so endpoint, key, PATH, or CLI binary changes need a daemon restart or
++  reinstall with updated env.
++- `/v1/agent` has a separate model resolution path from summary runs, so future local-only and language routing work must
++  cover it explicitly.
+diff --git a/docs/README.md b/docs/README.md
+index 9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b..af16efa1320cdf08dc06b2bb2430253152b0eb32
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -12,6 +12,7 @@
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
++- `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+ - `docs/manual-tests.md` — manual end-to-end test checklist
+ - `docs/model-auto.md` — automatic model selection (`--model auto`)
+diff --git a/docs/index.md b/docs/index.md
+index 6341b450b2e2922bac076dac022951bd1b5a9da9..8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -12,6 +12,7 @@
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
+ - [Local-first roadmap](local-first-roadmap.md)
++- [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+ - [Manual tests](manual-tests.md)
+ - [Model auto](model-auto.md)
+diff --git a/docs/local-model-capabilities-audit.md b/docs/local-model-capabilities-audit.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6dbcc524b9ab65d2175ec7f3e9f80d1b8ac18c6
+--- /dev/null
++++ b/docs/local-model-capabilities-audit.md
+@@ -0,0 +1,176 @@
++---
++summary: "Source-grounded audit of local and OpenAI-compatible model paths."
++read_when:
++  - "When adding local runtime descriptors, probes, local-only privacy checks, or language-aware routing."
++  - "When changing daemon or extension model request flow."
++---
++
++# Local Model Capabilities Audit
++
++Audit date: 2026-04-22. Scope: source inspection only; no runtime behavior changes.
++
++## Current Provider Paths
++
++### OpenAI-compatible HTTP paths
++
++- `openai/...` model IDs are parsed by `src/model-spec.ts` and `src/llm/model-id.ts`.
++- `OPENAI_BASE_URL` or `openai.baseUrl` in `~/.summarize/config.json` overrides the OpenAI endpoint through
++  `src/run/run-env.ts`, `packages/core/src/openai/base-url.ts`, and `src/llm/providers/openai.ts`.
++- `src/llm/providers/openai.ts` treats custom OpenAI base URLs as chat-completions endpoints. This is the current path
++  for llama.cpp-style OpenAI-compatible local servers.
++- `openai/...` still requires an `OPENAI_API_KEY` before transport setup, even when `OPENAI_BASE_URL` points at
++  localhost and the server ignores bearer auth.
++- OpenAI document attachments are only allowed for `api.openai.com`; `src/llm/providers/openai.ts` rejects attachments
++  when the OpenAI base URL host is not `api.openai.com`.
++- `openrouter/...` is a separate forced transport in `src/model-spec.ts` and `src/model-auto.ts`; it resolves to the
++  OpenAI-compatible OpenRouter API with `OPENROUTER_API_KEY`.
++- `zai/...`, `nvidia/...`, and `github-copilot/...` use OpenAI-compatible transport helpers through
++  `src/llm/provider-profile.ts`, `src/llm/providers/models.ts`, and `src/run/summary-engine.ts`, but they carry their
++  own required env keys and default base URLs.
++
++There is no dedicated Ollama provider, llama.cpp provider, or local runtime registry in the current source. Local model
++server usage is therefore configured as an OpenAI-compatible `openai/...` endpoint override.
++
++### Local CLI model paths
++
++- `cli/<provider>/<model>` is parsed in `src/model-spec.ts`; supported CLI providers are declared in
++  `src/config/types.ts`.
++- CLI execution lives in `src/llm/cli.ts`, with binary overrides from provider-specific config or env such as
++  `CODEX_PATH`, `GEMINI_PATH`, `OPENCLAW_PATH`, and `OPENCODE_PATH`.
++- Auto CLI fallback is configured by `cli.autoFallback` and implemented by `src/model-auto-cli.ts`.
++- CLI transports are local process executions, not OpenAI-compatible HTTP runtimes. They should be considered separately
++  from localhost model servers for probing and local-only policy.
++
++## Config Files And Env
++
++- User defaults: `~/.summarize/config.json`, parsed by `src/config.ts`, `src/config/types.ts`,
++  `src/config/model.ts`, and `src/config/sections.ts`.
++- Config env defaults: `env` and legacy `apiKeys` are merged by `src/config/env.ts`; process env wins.
++- OpenAI-compatible endpoint config: `openai.baseUrl`, `openai.useChatCompletions`, and env
++  `OPENAI_BASE_URL` / `OPENAI_USE_CHAT_COMPLETIONS`.
++- Provider endpoint overrides: `nvidia.baseUrl`, `anthropic.baseUrl`, `google.baseUrl`, `xai.baseUrl`, `zai.baseUrl`,
++  plus corresponding env variables in `src/run/run-env.ts`.
++- Daemon pairing and env snapshot: `~/.summarize/daemon.json`, read/written by `src/daemon/config.ts`. Installed daemon
++  env keys are selected in `src/daemon/env-snapshot.ts` and merged in `src/daemon/env-merge.ts`.
++- Extension settings: `chrome.storage.local` key `settings`, normalized and saved by
++  `apps/chrome-extension/src/lib/settings.ts`.
++
++Operational caveat: daemon installs snapshot the environment. Changing `OPENAI_BASE_URL`, local server API keys, PATH, or
++CLI binary paths requires reinstalling or restarting the daemon with an updated snapshot, depending on how the service was
++installed.
++
++## CLI Request Flow
++
++1. `src/run/runner.ts` normalizes argv and calls `prepareRunEnvironment` in `src/run/runner-setup.ts`.
++2. `prepareRunEnvironment` loads config and merges config env defaults before Commander parses flags.
++3. `src/run/runner-plan.ts` resolves flags, output language, env status, and model selection.
++4. `src/run/run-models.ts` resolves explicit model, env `SUMMARIZE_MODEL`, config `model`, named presets, or default
++   `auto`.
++5. Fixed and auto choices become `ModelAttempt` objects in `src/model-spec.ts`, `src/model-auto.ts`,
++   `src/run/flows/url/summary-resolution.ts`, or `src/run/flows/asset/summary-attempts.ts`.
++6. `src/run/model-attempts.ts` skips missing env for auto mode or errors for fixed models.
++7. `src/run/summary-engine.ts` runs the selected attempt through `src/llm/cli.ts` for `cli/...` or through
++   `src/llm/generate-text.ts` / `src/llm/generate-text-stream.ts` for native/OpenRouter transports.
++
++## Daemon Request Flow
++
++1. `summarize daemon install` writes `~/.summarize/daemon.json` and snapshots selected env in
++   `src/daemon/cli.ts`.
++2. `summarize daemon run` merges the saved env snapshot and starts `runDaemonServer` in `src/daemon/server.ts`.
++3. `POST /v1/summarize` is token-authenticated, parsed by `src/daemon/server-summarize-request.ts`, and executed by
++   `src/daemon/server-summarize-execution.ts`.
++4. `streamSummaryForUrl` and `streamSummaryForVisiblePage` in `src/daemon/summarize.ts` build a
++   `UrlFlowContext` with `src/daemon/flow-context.ts`.
++5. `src/daemon/flow-context.ts` mirrors CLI setup: config/env resolution, output language, model selection, metrics, and
++   `createSummaryEngine`.
++6. Summary output streams through daemon sessions as SSE from `src/daemon/server-session.ts` and
++   `src/daemon/server-session-routes.ts`.
++7. `POST /v1/agent` is handled separately by `src/daemon/server-agent-route.ts`,
++   `src/daemon/agent-model.ts`, and `src/daemon/agent.ts`.
++
++Operational caveat: `/v1/summarize` uses the shared summary engine path, but `/v1/agent` resolves model transport in
++`src/daemon/agent-model.ts` and calls pi-ai directly. Local-only checks and language routing must cover both paths if
++chat is in scope.
++
++## Extension Setting Flow
++
++1. Options UI loads/saves `Settings` through `apps/chrome-extension/src/lib/settings.ts`.
++2. Options form wiring lives in `apps/chrome-extension/src/entrypoints/options/main.ts`,
++   `form-state.ts`, `bindings.ts`, and `model-presets.ts`.
++3. Side-panel summarization runs in `apps/chrome-extension/src/entrypoints/background/panel-summarize.ts`.
++4. Summary request bodies are built by `apps/chrome-extension/src/lib/daemon-payload.ts`, which sends `model`, `length`,
++   `language`, prompt overrides, and advanced overrides to `/v1/summarize`.
++5. Hover summaries use `apps/chrome-extension/src/entrypoints/background/hover-controller.ts`; they reuse settings but
++   force `length: "short"`, `mode: "url"`, and a short timeout.
++6. Automation's `summarize` tool builds a direct `/v1/summarize` body in
++   `apps/chrome-extension/src/automation/tools.ts`.
++7. Side-panel chat sends `model`, `length`, and `language` to `/v1/agent` from
++   `apps/chrome-extension/src/entrypoints/background/panel-chat.ts`.
++
++Operational caveat: the extension always sends a model setting, whose default is `auto`. Future routing should treat
++`model: "auto"` as routeable rather than as an explicit fixed-model override.
++
++## Local-only Safety Check Locations
++
++Local-only enforcement should run after model selection has produced a concrete transport/model attempt and before any
++provider transport or remote model probe starts.
++
++- Shared attempt classification: add reusable local-runtime predicates near future local runtime registry code in
++  `@steipete/summarize-core`; consume them from the CLI package.
++- CLI URL and asset summaries: enforce against `ModelAttempt` values before `runSummaryAttempt` in
++  `src/run/flows/url/summary-resolution.ts` and `src/run/flows/asset/summary.ts`, or centralize it in
++  `src/run/model-attempts.ts` with enough context to produce useful errors.
++- Summary engine fallback: keep a defensive check in `src/run/summary-engine.ts` before CLI/native transport setup, since
++  this is the final shared choke point for CLI and daemon summary runs.
++- Daemon `/v1/summarize`: parse a future request override in `src/daemon/server-summarize-request.ts`, thread it through
++  `src/daemon/flow-context.ts`, and rely on the shared attempt-level guard.
++- Daemon `/v1/agent`: add equivalent enforcement in `src/daemon/agent-model.ts` because agent model resolution bypasses
++  `ModelAttempt` execution for non-summary chat.
++- Extension-initiated runs: add settings and payload fields in `apps/chrome-extension/src/lib/settings.ts` and
++  `apps/chrome-extension/src/lib/daemon-payload.ts`, but keep the daemon as the authority. Cover side panel, hover,
++  automation summarize tool, and chat requests.
++
++Classification should distinguish:
++
++- Local OpenAI-compatible HTTP endpoints: `openai/...` with a base URL whose hostname is `localhost`, `127.0.0.1`, or
++  another explicitly allowed loopback/local host.
++- Remote OpenAI-compatible gateways: `api.openai.com`, OpenRouter, GitHub Models, NVIDIA, Z.AI, or arbitrary nonlocal
++  base URLs.
++- Local process transports: `cli/...`, subject to separate policy because provider CLIs may themselves call cloud models.
++
++## Language-aware Routing Locations
++
++Existing language parsing lives in `packages/core/src/language.ts`; CLI and daemon flows consume it through
++`src/run/run-config.ts`, `src/run/run-settings.ts`, and `src/daemon/flow-context.ts`.
++
++Routing should happen before concrete model attempts are built, while preserving explicit model precedence:
++
++- CLI: `src/run/runner-plan.ts` already resolves `outputLanguage` before calling `resolveModelSelection`. A routing
++  helper can be applied there when no explicit `--model` / `--cli` fixed model is supplied.
++- Daemon summaries: `src/daemon/flow-context.ts` has `languageRaw`, config fallback language, and `modelOverride`.
++  Compute final output language before `resolveModelSelection` if routing needs the same explicit-model precedence as
++  CLI.
++- Auto attempts: use existing `ModelConfig` and `AutoRule` shapes from `src/config/types.ts` if routing is implemented
++  as model presets or auto-rule selection; add a dedicated config section if routing needs named language buckets.
++- Recommended config extension point: `SummarizeConfig` in `src/config/types.ts`, parsed by `src/config/sections.ts`.
++  Runtime descriptor primitives should live in `packages/core` once LLR-003 adds them, but persisted CLI config parsing
++  currently lives in the CLI package.
++- Agent chat: `apps/chrome-extension/src/entrypoints/background/panel-chat.ts` sends `language`, but
++  `src/daemon/server-agent-route.ts` and `src/daemon/agent-model.ts` do not currently consume it. If chat should route
++  by output language, the agent route must parse and thread language first.
++
++Suggested route buckets for later stories:
++
++- English: match `OutputLanguage` fixed tags/labels for English aliases.
++- Traditional Chinese: match `zh-TW`, `zh-Hant`, and labels containing Traditional Chinese.
++- Bilingual: add an explicit config/request hint; current `OutputLanguage` has no structured bilingual mode beyond
++  free-form labels.
++- Fallback local model: use when language is `auto`, unknown, or a bucket-specific model is not configured.
++
++## Relevant Tests For Future Changes
++
++- Config parsing and model selection: existing Vitest coverage under `tests/` for config, model auto, run models, and
++  daemon payload/request behavior.
++- Extension settings and payloads: `apps/chrome-extension/tests/options.spec.ts` and side-panel tests.
++- Extension automated path: `pnpm -C apps/chrome-extension test:chrome`.
++- Default repository gates: `pnpm -s typecheck`, `pnpm -s build`, and `pnpm -s check` for runtime/config/daemon changes.
+
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index b6b02d9378c9f79e15e3031d3f8231824144d345..b384f4f692b1506c8bcbc5536becc7032317dd2d
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,50 @@
+
+ ---
+
++## 2026-04-22 09:03:48 PDT - LLR-002: Audit Existing Local Model Capabilities
++Thread:
++Run: 20260422-085058-72504 (iteration 2)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 06e79045 docs: audit local model capabilities
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - docs/local-model-capabilities-audit.md
++  - docs/index.md
++  - docs/README.md
++  - .ralph/activity.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.log
++  - .agents/tasks/prd.json
++  - .ralph/errors.log
++  - .ralph/.tmp/prompt-20260422-085058-72504-2.md
++  - .ralph/.tmp/story-20260422-085058-72504-2.json
++  - .ralph/.tmp/story-20260422-085058-72504-2.md
++- What was implemented
++  Added a source-grounded audit documenting current OpenAI-compatible/local provider paths, CLI-local transports,
++  config/env files, daemon `/v1/summarize` and `/v1/agent` flow, extension settings and request flow, local-only safety
++  check locations, and language-aware routing extension points. Linked the audit from the docs indexes. No runtime
++  behavior was changed.
++- **Learnings for future iterations:**
++  - Patterns discovered: concrete summary runs converge on `ModelAttempt` and `createSummaryEngine`, while daemon chat
++    uses a separate `resolveAgentModel` path.
++  - Gotchas encountered: local OpenAI-compatible HTTP servers currently use `openai/...` plus `OPENAI_BASE_URL` or
++    `openai.baseUrl`; `OPENAI_API_KEY` is still required before transport setup, even for localhost endpoints.
++  - Useful context: installed daemons use a saved env snapshot, so local endpoint, key, PATH, or CLI binary changes need
++    restart/reinstall with updated env. The extension always sends `model`, defaulting to `auto`, so future routing must
++    treat `auto` as routeable instead of an explicit fixed model.
++  - Operational caveats: there is no dedicated Ollama or llama.cpp runtime registry yet; `/v1/agent` must be covered
++    separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
++---
++
+ ## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
+ Thread: 019db5e3-33a6-7350-92dc-add32e3e321a
+ Run: 20260422-085058-72504 (iteration 1)
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-1.md b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04df3e29fe3
+--- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+@@ -47,4 +47,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ed5b7e61a2df64f95bed42818709a12dce65afa5
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -0,0 +1,36 @@
++# Run 20260422-085058-72504 Iteration 2
++
++Story: LLR-002 - Audit Existing Local Model Capabilities
++
++Outcome: complete.
++
++Implementation commit:
++
++- `06e79045 docs: audit local model capabilities`
++
++Verification:
++
++- `pnpm -s docs:list` -> PASS
++- `pnpm -s typecheck` -> PASS
++- `pnpm -s build` -> PASS
++- `git diff --check` -> PASS
++
++Summary:
++
++- Added `docs/local-model-capabilities-audit.md` with source-grounded maps for OpenAI-compatible local endpoint support,
++  CLI-local transports, config/env files, CLI flow, daemon flow, and extension settings flow.
++- Identified guard locations for future local-only enforcement across CLI, daemon `/v1/summarize`, daemon `/v1/agent`,
++  side panel, hover summaries, automation summarize, and chat.
++- Identified language-aware routing points and reusable config types for later stories.
++- Linked the audit from `docs/index.md` and `docs/README.md`.
++
++Operational caveats captured:
++
++- Current localhost model-server support is the generic `openai/...` path plus `OPENAI_BASE_URL` or `openai.baseUrl`;
++  there is no dedicated Ollama or llama.cpp runtime registry yet.
++- `openai/...` still requires `OPENAI_API_KEY` before transport setup, even for localhost endpoints that ignore bearer
++  auth.
++- Installed daemons use a saved env snapshot, so endpoint, key, PATH, or CLI binary changes need a daemon restart or
++  reinstall with updated env.
++- `/v1/agent` has a separate model resolution path from summary runs, so future local-only and language routing work must
++  cover it explicitly.
+diff --git a/docs/README.md b/docs/README.md
+index 9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b..af16efa1320cdf08dc06b2bb2430253152b0eb32
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -12,6 +12,7 @@
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
++- `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+ - `docs/manual-tests.md` — manual end-to-end test checklist
+ - `docs/model-auto.md` — automatic model selection (`--model auto`)
+diff --git a/docs/index.md b/docs/index.md
+index 6341b450b2e2922bac076dac022951bd1b5a9da9..8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -12,6 +12,7 @@
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
+ - [Local-first roadmap](local-first-roadmap.md)
++- [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+ - [Manual tests](manual-tests.md)
+ - [Model auto](model-auto.md)
+diff --git a/docs/local-model-capabilities-audit.md b/docs/local-model-capabilities-audit.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6dbcc524b9ab65d2175ec7f3e9f80d1b8ac18c6
+--- /dev/null
++++ b/docs/local-model-capabilities-audit.md
+@@ -0,0 +1,176 @@
++---
++summary: "Source-grounded audit of local and OpenAI-compatible model paths."
++read_when:
++  - "When adding local runtime descriptors, probes, local-only privacy checks, or language-aware routing."
++  - "When changing daemon or extension model request flow."
++---
++
++# Local Model Capabilities Audit
++
++Audit date: 2026-04-22. Scope: source inspection only; no runtime behavior changes.
++
++## Current Provider Paths
++
++### OpenAI-compatible HTTP paths
++
++- `openai/...` model IDs are parsed by `src/model-spec.ts` and `src/llm/model-id.ts`.
++- `OPENAI_BASE_URL` or `openai.baseUrl` in `~/.summarize/config.json` overrides the OpenAI endpoint through
++  `src/run/run-env.ts`, `packages/core/src/openai/base-url.ts`, and `src/llm/providers/openai.ts`.
++- `src/llm/providers/openai.ts` treats custom OpenAI base URLs as chat-completions endpoints. This is the current path
++  for llama.cpp-style OpenAI-compatible local servers.
++- `openai/...` still requires an `OPENAI_API_KEY` before transport setup, even when `OPENAI_BASE_URL` points at
++  localhost and the server ignores bearer auth.
++- OpenAI document attachments are only allowed for `api.openai.com`; `src/llm/providers/openai.ts` rejects attachments
++  when the OpenAI base URL host is not `api.openai.com`.
++- `openrouter/...` is a separate forced transport in `src/model-spec.ts` and `src/model-auto.ts`; it resolves to the
++  OpenAI-compatible OpenRouter API with `OPENROUTER_API_KEY`.
++- `zai/...`, `nvidia/...`, and `github-copilot/...` use OpenAI-compatible transport helpers through
++  `src/llm/provider-profile.ts`, `src/llm/providers/models.ts`, and `src/run/summary-engine.ts`, but they carry their
++  own required env keys and default base URLs.
++
++There is no dedicated Ollama provider, llama.cpp provider, or local runtime registry in the current source. Local model
++server usage is therefore configured as an OpenAI-compatible `openai/...` endpoint override.
++
++### Local CLI model paths
++
++- `cli/<provider>/<model>` is parsed in `src/model-spec.ts`; supported CLI providers are declared in
++  `src/config/types.ts`.
++- CLI execution lives in `src/llm/cli.ts`, with binary overrides from provider-specific config or env such as
++  `CODEX_PATH`, `GEMINI_PATH`, `OPENCLAW_PATH`, and `OPENCODE_PATH`.
++- Auto CLI fallback is configured by `cli.autoFallback` and implemented by `src/model-auto-cli.ts`.
++- CLI transports are local process executions, not OpenAI-compatible HTTP runtimes. They should be considered separately
++  from localhost model servers for probing and local-only policy.
++
++## Config Files And Env
++
++- User defaults: `~/.summarize/config.json`, parsed by `src/config.ts`, `src/config/types.ts`,
++  `src/config/model.ts`, and `src/config/sections.ts`.
++- Config env defaults: `env` and legacy `apiKeys` are merged by `src/config/env.ts`; process env wins.
++- OpenAI-compatible endpoint config: `openai.baseUrl`, `openai.useChatCompletions`, and env
++  `OPENAI_BASE_URL` / `OPENAI_USE_CHAT_COMPLETIONS`.
++- Provider endpoint overrides: `nvidia.baseUrl`, `anthropic.baseUrl`, `google.baseUrl`, `xai.baseUrl`, `zai.baseUrl`,
++  plus corresponding env variables in `src/run/run-env.ts`.
++- Daemon pairing and env snapshot: `~/.summarize/daemon.json`, read/written by `src/daemon/config.ts`. Installed daemon
++  env keys are selected in `src/daemon/env-snapshot.ts` and merged in `src/daemon/env-merge.ts`.
++- Extension settings: `chrome.storage.local` key `settings`, normalized and saved by
++  `apps/chrome-extension/src/lib/settings.ts`.
++
++Operational caveat: daemon installs snapshot the environment. Changing `OPENAI_BASE_URL`, local server API keys, PATH, or
++CLI binary paths requires reinstalling or restarting the daemon with an updated snapshot, depending on how the service was
++installed.
++
++## CLI Request Flow
++
++1. `src/run/runner.ts` normalizes argv and calls `prepareRunEnvironment` in `src/run/runner-setup.ts`.
++2. `prepareRunEnvironment` loads config and merges config env defaults before Commander parses flags.
++3. `src/run/runner-plan.ts` resolves flags, output language, env status, and model selection.
++4. `src/run/run-models.ts` resolves explicit model, env `SUMMARIZE_MODEL`, config `model`, named presets, or default
++   `auto`.
++5. Fixed and auto choices become `ModelAttempt` objects in `src/model-spec.ts`, `src/model-auto.ts`,
++   `src/run/flows/url/summary-resolution.ts`, or `src/run/flows/asset/summary-attempts.ts`.
++6. `src/run/model-attempts.ts` skips missing env for auto mode or errors for fixed models.
++7. `src/run/summary-engine.ts` runs the selected attempt through `src/llm/cli.ts` for `cli/...` or through
++   `src/llm/generate-text.ts` / `src/llm/generate-text-stream.ts` for native/OpenRouter transports.
++
++## Daemon Request Flow
++
++1. `summarize daemon install` writes `~/.summarize/daemon.json` and snapshots selected env in
++   `src/daemon/cli.ts`.
++2. `summarize daemon run` merges the saved env snapshot and starts `runDaemonServer` in `src/daemon/server.ts`.
++3. `POST /v1/summarize` is token-authenticated, parsed by `src/daemon/server-summarize-request.ts`, and executed by
++   `src/daemon/server-summarize-execution.ts`.
++4. `streamSummaryForUrl` and `streamSummaryForVisiblePage` in `src/daemon/summarize.ts` build a
++   `UrlFlowContext` with `src/daemon/flow-context.ts`.
++5. `src/daemon/flow-context.ts` mirrors CLI setup: config/env resolution, output language, model selection, metrics, and
++   `createSummaryEngine`.
++6. Summary output streams through daemon sessions as SSE from `src/daemon/server-session.ts` and
++   `src/daemon/server-session-routes.ts`.
++7. `POST /v1/agent` is handled separately by `src/daemon/server-agent-route.ts`,
++   `src/daemon/agent-model.ts`, and `src/daemon/agent.ts`.
++
++Operational caveat: `/v1/summarize` uses the shared summary engine path, but `/v1/agent` resolves model transport in
++`src/daemon/agent-model.ts` and calls pi-ai directly. Local-only checks and language routing must cover both paths if
++chat is in scope.
++
++## Extension Setting Flow
++
++1. Options UI loads/saves `Settings` through `apps/chrome-extension/src/lib/settings.ts`.
++2. Options form wiring lives in `apps/chrome-extension/src/entrypoints/options/main.ts`,
++   `form-state.ts`, `bindings.ts`, and `model-presets.ts`.
++3. Side-panel summarization runs in `apps/chrome-extension/src/entrypoints/background/panel-summarize.ts`.
++4. Summary request bodies are built by `apps/chrome-extension/src/lib/daemon-payload.ts`, which sends `model`, `length`,
++   `language`, prompt overrides, and advanced overrides to `/v1/summarize`.
++5. Hover summaries use `apps/chrome-extension/src/entrypoints/background/hover-controller.ts`; they reuse settings but
++   force `length: "short"`, `mode: "url"`, and a short timeout.
++6. Automation's `summarize` tool builds a direct `/v1/summarize` body in
++   `apps/chrome-extension/src/automation/tools.ts`.
++7. Side-panel chat sends `model`, `length`, and `language` to `/v1/agent` from
++   `apps/chrome-extension/src/entrypoints/background/panel-chat.ts`.
++
++Operational caveat: the extension always sends a model setting, whose default is `auto`. Future routing should treat
++`model: "auto"` as routeable rather than as an explicit fixed-model override.
++
++## Local-only Safety Check Locations
++
++Local-only enforcement should run after model selection has produced a concrete transport/model attempt and before any
++provider transport or remote model probe starts.
++
++- Shared attempt classification: add reusable local-runtime predicates near future local runtime registry code in
++  `@steipete/summarize-core`; consume them from the CLI package.
++- CLI URL and asset summaries: enforce against `ModelAttempt` values before `runSummaryAttempt` in
++  `src/run/flows/url/summary-resolution.ts` and `src/run/flows/asset/summary.ts`, or centralize it in
++  `src/run/model-attempts.ts` with enough context to produce useful errors.
++- Summary engine fallback: keep a defensive check in `src/run/summary-engine.ts` before CLI/native transport setup, since
++  this is the final shared choke point for CLI and daemon summary runs.
++- Daemon `/v1/summarize`: parse a future request override in `src/daemon/server-summarize-request.ts`, thread it through
++  `src/daemon/flow-context.ts`, and rely on the shared attempt-level guard.
++- Daemon `/v1/agent`: add equivalent enforcement in `src/daemon/agent-model.ts` because agent model resolution bypasses
++  `ModelAttempt` execution for non-summary chat.
++- Extension-initiated runs: add settings and payload fields in `apps/chrome-extension/src/lib/settings.ts` and
++  `apps/chrome-extension/src/lib/daemon-payload.ts`, but keep the daemon as the authority. Cover side panel, hover,
++  automation summarize tool, and chat requests.
++
++Classification should distinguish:
++
++- Local OpenAI-compatible HTTP endpoints: `openai/...` with a base URL whose hostname is `localhost`, `127.0.0.1`, or
++  another explicitly allowed loopback/local host.
++- Remote OpenAI-compatible gateways: `api.openai.com`, OpenRouter, GitHub Models, NVIDIA, Z.AI, or arbitrary nonlocal
++  base URLs.
++- Local process transports: `cli/...`, subject to separate policy because provider CLIs may themselves call cloud models.
++
++## Language-aware Routing Locations
++
++Existing language parsing lives in `packages/core/src/language.ts`; CLI and daemon flows consume it through
++`src/run/run-config.ts`, `src/run/run-settings.ts`, and `src/daemon/flow-context.ts`.
++
++Routing should happen before concrete model attempts are built, while preserving explicit model precedence:
++
++- CLI: `src/run/runner-plan.ts` already resolves `outputLanguage` before calling `resolveModelSelection`. A routing
++  helper can be applied there when no explicit `--model` / `--cli` fixed model is supplied.
++- Daemon summaries: `src/daemon/flow-context.ts` has `languageRaw`, config fallback language, and `modelOverride`.
++  Compute final output language before `resolveModelSelection` if routing needs the same explicit-model precedence as
++  CLI.
++- Auto attempts: use existing `ModelConfig` and `AutoRule` shapes from `src/config/types.ts` if routing is implemented
++  as model presets or auto-rule selection; add a dedicated config section if routing needs named language buckets.
++- Recommended config extension point: `SummarizeConfig` in `src/config/types.ts`, parsed by `src/config/sections.ts`.
++  Runtime descriptor primitives should live in `packages/core` once LLR-003 adds them, but persisted CLI config parsing
++  currently lives in the CLI package.
++- Agent chat: `apps/chrome-extension/src/entrypoints/background/panel-chat.ts` sends `language`, but
++  `src/daemon/server-agent-route.ts` and `src/daemon/agent-model.ts` do not currently consume it. If chat should route
++  by output language, the agent route must parse and thread language first.
++
++Suggested route buckets for later stories:
++
++- English: match `OutputLanguage` fixed tags/labels for English aliases.
++- Traditional Chinese: match `zh-TW`, `zh-Hant`, and labels containing Traditional Chinese.
++- Bilingual: add an explicit config/request hint; current `OutputLanguage` has no structured bilingual mode beyond
++  free-form labels.
++- Fallback local model: use when language is `auto`, unknown, or a bucket-specific model is not configured.
++
++## Relevant Tests For Future Changes
++
++- Config parsing and model selection: existing Vitest coverage under `tests/` for config, model auto, run models, and
++  daemon payload/request behavior.
++- Extension settings and payloads: `apps/chrome-extension/tests/options.spec.ts` and side-panel tests.
++- Extension automated path: `pnpm -C apps/chrome-extension test:chrome`.
++- Default repository gates: `pnpm -s typecheck`, `pnpm -s build`, and `pnpm -s check` for runtime/config/daemon changes.
+
+exec
+/bin/zsh -lc 'ralph log "Updated progress log for LLR-002"' in /Users/shh/proj/summarize succeeded in 0ms:
+Using local templates: /Users/shh/proj/summarize/.agents/ralph
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index b6b02d9378c9f79e15e3031d3f8231824144d345..b384f4f692b1506c8bcbc5536becc7032317dd2d
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,50 @@
+
+ ---
+
++## 2026-04-22 09:03:48 PDT - LLR-002: Audit Existing Local Model Capabilities
++Thread:
++Run: 20260422-085058-72504 (iteration 2)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 06e79045 docs: audit local model capabilities
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - docs/local-model-capabilities-audit.md
++  - docs/index.md
++  - docs/README.md
++  - .ralph/activity.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.log
++  - .agents/tasks/prd.json
++  - .ralph/errors.log
++  - .ralph/.tmp/prompt-20260422-085058-72504-2.md
++  - .ralph/.tmp/story-20260422-085058-72504-2.json
++  - .ralph/.tmp/story-20260422-085058-72504-2.md
++- What was implemented
++  Added a source-grounded audit documenting current OpenAI-compatible/local provider paths, CLI-local transports,
++  config/env files, daemon `/v1/summarize` and `/v1/agent` flow, extension settings and request flow, local-only safety
++  check locations, and language-aware routing extension points. Linked the audit from the docs indexes. No runtime
++  behavior was changed.
++- **Learnings for future iterations:**
++  - Patterns discovered: concrete summary runs converge on `ModelAttempt` and `createSummaryEngine`, while daemon chat
++    uses a separate `resolveAgentModel` path.
++  - Gotchas encountered: local OpenAI-compatible HTTP servers currently use `openai/...` plus `OPENAI_BASE_URL` or
++    `openai.baseUrl`; `OPENAI_API_KEY` is still required before transport setup, even for localhost endpoints.
++  - Useful context: installed daemons use a saved env snapshot, so local endpoint, key, PATH, or CLI binary changes need
++    restart/reinstall with updated env. The extension always sends `model`, defaulting to `auto`, so future routing must
++    treat `auto` as routeable instead of an explicit fixed model.
++  - Operational caveats: there is no dedicated Ollama or llama.cpp runtime registry yet; `/v1/agent` must be covered
++    separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
++---
++
+ ## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
+ Thread: 019db5e3-33a6-7350-92dc-add32e3e321a
+ Run: 20260422-085058-72504 (iteration 1)
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-1.md b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04df3e29fe3
+--- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+@@ -47,4 +47,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ed5b7e61a2df64f95bed42818709a12dce65afa5
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -0,0 +1,36 @@
++# Run 20260422-085058-72504 Iteration 2
++
++Story: LLR-002 - Audit Existing Local Model Capabilities
++
++Outcome: complete.
++
++Implementation commit:
++
++- `06e79045 docs: audit local model capabilities`
++
++Verification:
++
++- `pnpm -s docs:list` -> PASS
++- `pnpm -s typecheck` -> PASS
++- `pnpm -s build` -> PASS
++- `git diff --check` -> PASS
++
++Summary:
++
++- Added `docs/local-model-capabilities-audit.md` with source-grounded maps for OpenAI-compatible local endpoint support,
++  CLI-local transports, config/env files, CLI flow, daemon flow, and extension settings flow.
++- Identified guard locations for future local-only enforcement across CLI, daemon `/v1/summarize`, daemon `/v1/agent`,
++  side panel, hover summaries, automation summarize, and chat.
++- Identified language-aware routing points and reusable config types for later stories.
++- Linked the audit from `docs/index.md` and `docs/README.md`.
++
++Operational caveats captured:
++
++- Current localhost model-server support is the generic `openai/...` path plus `OPENAI_BASE_URL` or `openai.baseUrl`;
++  there is no dedicated Ollama or llama.cpp runtime registry yet.
++- `openai/...` still requires `OPENAI_API_KEY` before transport setup, even for localhost endpoints that ignore bearer
++  auth.
++- Installed daemons use a saved env snapshot, so endpoint, key, PATH, or CLI binary changes need a daemon restart or
++  reinstall with updated env.
++- `/v1/agent` has a separate model resolution path from summary runs, so future local-only and language routing work must
++  cover it explicitly.
+diff --git a/docs/README.md b/docs/README.md
+index 9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b..af16efa1320cdf08dc06b2bb2430253152b0eb32
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -12,6 +12,7 @@
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
++- `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+ - `docs/manual-tests.md` — manual end-to-end test checklist
+ - `docs/model-auto.md` — automatic model selection (`--model auto`)
+diff --git a/docs/index.md b/docs/index.md
+index 6341b450b2e2922bac076dac022951bd1b5a9da9..8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -12,6 +12,7 @@
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
+ - [Local-first roadmap](local-first-roadmap.md)
++- [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+ - [Manual tests](manual-tests.md)
+ - [Model auto](model-auto.md)
+diff --git a/docs/local-model-capabilities-audit.md b/docs/local-model-capabilities-audit.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6dbcc524b9ab65d2175ec7f3e9f80d1b8ac18c6
+--- /dev/null
++++ b/docs/local-model-capabilities-audit.md
+@@ -0,0 +1,176 @@
++---
++summary: "Source-grounded audit of local and OpenAI-compatible model paths."
++read_when:
++  - "When adding local runtime descriptors, probes, local-only privacy checks, or language-aware routing."
++  - "When changing daemon or extension model request flow."
++---
++
++# Local Model Capabilities Audit
++
++Audit date: 2026-04-22. Scope: source inspection only; no runtime behavior changes.
++
++## Current Provider Paths
++
++### OpenAI-compatible HTTP paths
++
++- `openai/...` model IDs are parsed by `src/model-spec.ts` and `src/llm/model-id.ts`.
++- `OPENAI_BASE_URL` or `openai.baseUrl` in `~/.summarize/config.json` overrides the OpenAI endpoint through
++  `src/run/run-env.ts`, `packages/core/src/openai/base-url.ts`, and `src/llm/providers/openai.ts`.
++- `src/llm/providers/openai.ts` treats custom OpenAI base URLs as chat-completions endpoints. This is the current path
++  for llama.cpp-style OpenAI-compatible local servers.
++- `openai/...` still requires an `OPENAI_API_KEY` before transport setup, even when `OPENAI_BASE_URL` points at
++  localhost and the server ignores bearer auth.
++- OpenAI document attachments are only allowed for `api.openai.com`; `src/llm/providers/openai.ts` rejects attachments
++  when the OpenAI base URL host is not `api.openai.com`.
++- `openrouter/...` is a separate forced transport in `src/model-spec.ts` and `src/model-auto.ts`; it resolves to the
++  OpenAI-compatible OpenRouter API with `OPENROUTER_API_KEY`.
++- `zai/...`, `nvidia/...`, and `github-copilot/...` use OpenAI-compatible transport helpers through
++  `src/llm/provider-profile.ts`, `src/llm/providers/models.ts`, and `src/run/summary-engine.ts`, but they carry their
++  own required env keys and default base URLs.
++
++There is no dedicated Ollama provider, llama.cpp provider, or local runtime registry in the current source. Local model
++server usage is therefore configured as an OpenAI-compatible `openai/...` endpoint override.
++
++### Local CLI model paths
++
++- `cli/<provider>/<model>` is parsed in `src/model-spec.ts`; supported CLI providers are declared in
++  `src/config/types.ts`.
++- CLI execution lives in `src/llm/cli.ts`, with binary overrides from provider-specific config or env such as
++  `CODEX_PATH`, `GEMINI_PATH`, `OPENCLAW_PATH`, and `OPENCODE_PATH`.
++- Auto CLI fallback is configured by `cli.autoFallback` and implemented by `src/model-auto-cli.ts`.
++- CLI transports are local process executions, not OpenAI-compatible HTTP runtimes. They should be considered separately
++  from localhost model servers for probing and local-only policy.
++
++## Config Files And Env
++
++- User defaults: `~/.summarize/config.json`, parsed by `src/config.ts`, `src/config/types.ts`,
++  `src/config/model.ts`, and `src/config/sections.ts`.
++- Config env defaults: `env` and legacy `apiKeys` are merged by `src/config/env.ts`; process env wins.
++- OpenAI-compatible endpoint config: `openai.baseUrl`, `openai.useChatCompletions`, and env
++  `OPENAI_BASE_URL` / `OPENAI_USE_CHAT_COMPLETIONS`.
++- Provider endpoint overrides: `nvidia.baseUrl`, `anthropic.baseUrl`, `google.baseUrl`, `xai.baseUrl`, `zai.baseUrl`,
++  plus corresponding env variables in `src/run/run-env.ts`.
++- Daemon pairing and env snapshot: `~/.summarize/daemon.json`, read/written by `src/daemon/config.ts`. Installed daemon
++  env keys are selected in `src/daemon/env-snapshot.ts` and merged in `src/daemon/env-merge.ts`.
++- Extension settings: `chrome.storage.local` key `settings`, normalized and saved by
++  `apps/chrome-extension/src/lib/settings.ts`.
++
++Operational caveat: daemon installs snapshot the environment. Changing `OPENAI_BASE_URL`, local server API keys, PATH, or
++CLI binary paths requires reinstalling or restarting the daemon with an updated snapshot, depending on how the service was
++installed.
++
++## CLI Request Flow
++
++1. `src/run/runner.ts` normalizes argv and calls `prepareRunEnvironment` in `src/run/runner-setup.ts`.
++2. `prepareRunEnvironment` loads config and merges config env defaults before Commander parses flags.
++3. `src/run/runner-plan.ts` resolves flags, output language, env status, and model selection.
++4. `src/run/run-models.ts` resolves explicit model, env `SUMMARIZE_MODEL`, config `model`, named presets, or default
++   `auto`.
++5. Fixed and auto choices become `ModelAttempt` objects in `src/model-spec.ts`, `src/model-auto.ts`,
++   `src/run/flows/url/summary-resolution.ts`, or `src/run/flows/asset/summary-attempts.ts`.
++6. `src/run/model-attempts.ts` skips missing env for auto mode or errors for fixed models.
++7. `src/run/summary-engine.ts` runs the selected attempt through `src/llm/cli.ts` for `cli/...` or through
++   `src/llm/generate-text.ts` / `src/llm/generate-text-stream.ts` for native/OpenRouter transports.
++
++## Daemon Request Flow
++
++1. `summarize daemon install` writes `~/.summarize/daemon.json` and snapshots selected env in
++   `src/daemon/cli.ts`.
++2. `summarize daemon run` merges the saved env snapshot and starts `runDaemonServer` in `src/daemon/server.ts`.
++3. `POST /v1/summarize` is token-authenticated, parsed by `src/daemon/server-summarize-request.ts`, and executed by
++   `src/daemon/server-summarize-execution.ts`.
++4. `streamSummaryForUrl` and `streamSummaryForVisiblePage` in `src/daemon/summarize.ts` build a
++   `UrlFlowContext` with `src/daemon/flow-context.ts`.
++5. `src/daemon/flow-context.ts` mirrors CLI setup: config/env resolution, output language, model selection, metrics, and
++   `createSummaryEngine`.
++6. Summary output streams through daemon sessions as SSE from `src/daemon/server-session.ts` and
++   `src/daemon/server-session-routes.ts`.
++7. `POST /v1/agent` is handled separately by `src/daemon/server-agent-route.ts`,
++   `src/daemon/agent-model.ts`, and `src/daemon/agent.ts`.
++
++Operational caveat: `/v1/summarize` uses the shared summary engine path, but `/v1/agent` resolves model transport in
++`src/daemon/agent-model.ts` and calls pi-ai directly. Local-only checks and language routing must cover both paths if
++chat is in scope.
++
++## Extension Setting Flow
++
++1. Options UI loads/saves `Settings` through `apps/chrome-extension/src/lib/settings.ts`.
++2. Options form wiring lives in `apps/chrome-extension/src/entrypoints/options/main.ts`,
++   `form-state.ts`, `bindings.ts`, and `model-presets.ts`.
++3. Side-panel summarization runs in `apps/chrome-extension/src/entrypoints/background/panel-summarize.ts`.
++4. Summary request bodies are built by `apps/chrome-extension/src/lib/daemon-payload.ts`, which sends `model`, `length`,
++   `language`, prompt overrides, and advanced overrides to `/v1/summarize`.
++5. Hover summaries use `apps/chrome-extension/src/entrypoints/background/hover-controller.ts`; they reuse settings but
++   force `length: "short"`, `mode: "url"`, and a short timeout.
++6. Automation's `summarize` tool builds a direct `/v1/summarize` body in
++   `apps/chrome-extension/src/automation/tools.ts`.
++7. Side-panel chat sends `model`, `length`, and `language` to `/v1/agent` from
++   `apps/chrome-extension/src/entrypoints/background/panel-chat.ts`.
++
++Operational caveat: the extension always sends a model setting, whose default is `auto`. Future routing should treat
++`model: "auto"` as routeable rather than as an explicit fixed-model override.
++
++## Local-only Safety Check Locations
++
++Local-only enforcement should run after model selection has produced a concrete transport/model attempt and before any
++provider transport or remote model probe starts.
++
++- Shared attempt classification: add reusable local-runtime predicates near future local runtime registry code in
++  `@steipete/summarize-core`; consume them from the CLI package.
++- CLI URL and asset summaries: enforce against `ModelAttempt` values before `runSummaryAttempt` in
++  `src/run/flows/url/summary-resolution.ts` and `src/run/flows/asset/summary.ts`, or centralize it in
++  `src/run/model-attempts.ts` with enough context to produce useful errors.
++- Summary engine fallback: keep a defensive check in `src/run/summary-engine.ts` before CLI/native transport setup, since
++  this is the final shared choke point for CLI and daemon summary runs.
++- Daemon `/v1/summarize`: parse a future request override in `src/daemon/server-summarize-request.ts`, thread it through
++  `src/daemon/flow-context.ts`, and rely on the shared attempt-level guard.
++- Daemon `/v1/agent`: add equivalent enforcement in `src/daemon/agent-model.ts` because agent model resolution bypasses
++  `ModelAttempt` execution for non-summary chat.
++- Extension-initiated runs: add settings and payload fields in `apps/chrome-extension/src/lib/settings.ts` and
++  `apps/chrome-extension/src/lib/daemon-payload.ts`, but keep the daemon as the authority. Cover side panel, hover,
++  automation summarize tool, and chat requests.
++
++Classification should distinguish:
++
++- Local OpenAI-compatible HTTP endpoints: `openai/...` with a base URL whose hostname is `localhost`, `127.0.0.1`, or
++  another explicitly allowed loopback/local host.
++- Remote OpenAI-compatible gateways: `api.openai.com`, OpenRouter, GitHub Models, NVIDIA, Z.AI, or arbitrary nonlocal
++  base URLs.
++- Local process transports: `cli/...`, subject to separate policy because provider CLIs may themselves call cloud models.
++
++## Language-aware Routing Locations
++
++Existing language parsing lives in `packages/core/src/language.ts`; CLI and daemon flows consume it through
++`src/run/run-config.ts`, `src/run/run-settings.ts`, and `src/daemon/flow-context.ts`.
++
++Routing should happen before concrete model attempts are built, while preserving explicit model precedence:
++
++- CLI: `src/run/runner-plan.ts` already resolves `outputLanguage` before calling `resolveModelSelection`. A routing
++  helper can be applied there when no explicit `--model` / `--cli` fixed model is supplied.
++- Daemon summaries: `src/daemon/flow-context.ts` has `languageRaw`, config fallback language, and `modelOverride`.
++  Compute final output language before `resolveModelSelection` if routing needs the same explicit-model precedence as
++  CLI.
++- Auto attempts: use existing `ModelConfig` and `AutoRule` shapes from `src/config/types.ts` if routing is implemented
++  as model presets or auto-rule selection; add a dedicated config section if routing needs named language buckets.
++- Recommended config extension point: `SummarizeConfig` in `src/config/types.ts`, parsed by `src/config/sections.ts`.
++  Runtime descriptor primitives should live in `packages/core` once LLR-003 adds them, but persisted CLI config parsing
++  currently lives in the CLI package.
++- Agent chat: `apps/chrome-extension/src/entrypoints/background/panel-chat.ts` sends `language`, but
++  `src/daemon/server-agent-route.ts` and `src/daemon/agent-model.ts` do not currently consume it. If chat should route
++  by output language, the agent route must parse and thread language first.
++
++Suggested route buckets for later stories:
++
++- English: match `OutputLanguage` fixed tags/labels for English aliases.
++- Traditional Chinese: match `zh-TW`, `zh-Hant`, and labels containing Traditional Chinese.
++- Bilingual: add an explicit config/request hint; current `OutputLanguage` has no structured bilingual mode beyond
++  free-form labels.
++- Fallback local model: use when language is `auto`, unknown, or a bucket-specific model is not configured.
++
++## Relevant Tests For Future Changes
++
++- Config parsing and model selection: existing Vitest coverage under `tests/` for config, model auto, run models, and
++  daemon payload/request behavior.
++- Extension settings and payloads: `apps/chrome-extension/tests/options.spec.ts` and side-panel tests.
++- Extension automated path: `pnpm -C apps/chrome-extension test:chrome`.
++- Default repository gates: `pnpm -s typecheck`, `pnpm -s build`, and `pnpm -s check` for runtime/config/daemon changes.
+
+exec
+/bin/zsh -lc 'git status --porcelain=v1' in /Users/shh/proj/summarize succeeded in 0ms:
+ M .ralph/activity.log
+ M .ralph/progress.md
+ M .ralph/runs/run-20260422-085058-72504-iter-2.log
+?? .ralph/runs/run-20260422-085058-72504-iter-2.md
+exec
+/bin/zsh -lc 'git diff --check' in /Users/shh/proj/summarize exited 2 in 0ms:
+.ralph/runs/run-20260422-085058-72504-iter-2.log:6143: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-2.log:6363: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-2.log:6583: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-2.log:6836: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-2.log:6892: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-2.log:6894: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-2.log:6947: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-2.log:7206: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-2.log:7208: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-2.log:7261: trailing whitespace.
++
+exec
+/bin/zsh -lc 'tail -n 80 .ralph/progress.md' in /Users/shh/proj/summarizeexec
+/bin/zsh -lc "sed -n '1,180p' .ralph/runs/run-20260422-085058-72504-iter-2.md" in /Users/shh/proj/summarize succeeded in 0ms:
+# Run 20260422-085058-72504 Iteration 2
+
+Story: LLR-002 - Audit Existing Local Model Capabilities
+
+Outcome: complete.
+
+Implementation commit:
+
+- `06e79045 docs: audit local model capabilities`
+
+Verification:
+
+- `pnpm -s docs:list` -> PASS
+- `pnpm -s typecheck` -> PASS
+- `pnpm -s build` -> PASS
+- `git diff --check` -> PASS
+
+Summary:
+
+- Added `docs/local-model-capabilities-audit.md` with source-grounded maps for OpenAI-compatible local endpoint support,
+ succeeded in 0ms:
+---
+
+## 2026-04-22 09:03:48 PDT - LLR-002: Audit Existing Local Model Capabilities
+Thread:
+Run: 20260422-085058-72504 (iteration 2)
+Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.log
+Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 06e79045 docs: audit local model capabilities
+- Post-commit status: `clean`
+- Verification:
+  - Command: `pnpm -s docs:list` -> PASS
+  - Command: `pnpm -s typecheck` -> PASS
+  - Command: `pnpm -s build` -> PASS
+  - Command: `git diff --check` -> PASS
+- Files changed:
+  - docs/local-model-capabilities-audit.md
+  - docs/index.md
+  - docs/README.md
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index b6b02d9378c9f79e15e3031d3f8231824144d345..b384f4f692b1506c8bcbc5536becc7032317dd2d
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,50 @@
+
+ ---
+
++## 2026-04-22 09:03:48 PDT - LLR-002: Audit Existing Local Model Capabilities
++Thread:
++Run: 20260422-085058-72504 (iteration 2)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 06e79045 docs: audit local model capabilities
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - docs/local-model-capabilities-audit.md
++  - docs/index.md
++  - docs/README.md
++  - .ralph/activity.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.log
++  - .agents/tasks/prd.json
++  - .ralph/errors.log
++  - .ralph/.tmp/prompt-20260422-085058-72504-2.md
++  - .ralph/.tmp/story-20260422-085058-72504-2.json
++  - .ralph/.tmp/story-20260422-085058-72504-2.md
++- What was implemented
++  Added a source-grounded audit documenting current OpenAI-compatible/local provider paths, CLI-local transports,
++  config/env files, daemon `/v1/summarize` and `/v1/agent` flow, extension settings and request flow, local-only safety
++  check locations, and language-aware routing extension points. Linked the audit from the docs indexes. No runtime
++  behavior was changed.
++- **Learnings for future iterations:**
++  - Patterns discovered: concrete summary runs converge on `ModelAttempt` and `createSummaryEngine`, while daemon chat
++    uses a separate `resolveAgentModel` path.
++  - Gotchas encountered: local OpenAI-compatible HTTP servers currently use `openai/...` plus `OPENAI_BASE_URL` or
++    `openai.baseUrl`; `OPENAI_API_KEY` is still required before transport setup, even for localhost endpoints.
++  - Useful context: installed daemons use a saved env snapshot, so local endpoint, key, PATH, or CLI binary changes need
++    restart/reinstall with updated env. The extension always sends `model`, defaulting to `auto`, so future routing must
++    treat `auto` as routeable instead of an explicit fixed model.
++  - Operational caveats: there is no dedicated Ollama or llama.cpp runtime registry yet; `/v1/agent` must be covered
++    separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
++---
++
+ ## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
+ Thread: 019db5e3-33a6-7350-92dc-add32e3e321a
+ Run: 20260422-085058-72504 (iteration 1)
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-1.md b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04df3e29fe3
+--- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+@@ -47,4 +47,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ed5b7e61a2df64f95bed42818709a12dce65afa5
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -0,0 +1,36 @@
++# Run 20260422-085058-72504 Iteration 2
++
++Story: LLR-002 - Audit Existing Local Model Capabilities
++
++Outcome: complete.
++
++Implementation commit:
++
++- `06e79045 docs: audit local model capabilities`
++
++Verification:
++
++- `pnpm -s docs:list` -> PASS
++- `pnpm -s typecheck` -> PASS
++- `pnpm -s build` -> PASS
++- `git diff --check` -> PASS
++
++Summary:
++
++- Added `docs/local-model-capabilities-audit.md` with source-grounded maps for OpenAI-compatible local endpoint support,
++  CLI-local transports, config/env files, CLI flow, daemon flow, and extension settings flow.
++- Identified guard locations for future local-only enforcement across CLI, daemon `/v1/summarize`, daemon `/v1/agent`,
++  side panel, hover summaries, automation summarize, and chat.
++- Identified language-aware routing points and reusable config types for later stories.
++- Linked the audit from `docs/index.md` and `docs/README.md`.
++
++Operational caveats captured:
++
++- Current localhost model-server support is the generic `openai/...` path plus `OPENAI_BASE_URL` or `openai.baseUrl`;
++  there is no dedicated Ollama or llama.cpp runtime registry yet.
++- `openai/...` still requires `OPENAI_API_KEY` before transport setup, even for localhost endpoints that ignore bearer
++  auth.
++- Installed daemons use a saved env snapshot, so endpoint, key, PATH, or CLI binary changes need a daemon restart or
++  reinstall with updated env.
++- `/v1/agent` has a separate model resolution path from summary runs, so future local-only and language routing work must
++  cover it explicitly.
+diff --git a/docs/README.md b/docs/README.md
+index 9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b..af16efa1320cdf08dc06b2bb2430253152b0eb32
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -12,6 +12,7 @@
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
++- `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+ - `docs/manual-tests.md` — manual end-to-end test checklist
+ - `docs/model-auto.md` — automatic model selection (`--model auto`)
+diff --git a/docs/index.md b/docs/index.md
+index 6341b450b2e2922bac076dac022951bd1b5a9da9..8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -12,6 +12,7 @@
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
+ - [Local-first roadmap](local-first-roadmap.md)
++- [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+ - [Manual tests](manual-tests.md)
+ - [Model auto](model-auto.md)
+diff --git a/docs/local-model-capabilities-audit.md b/docs/local-model-capabilities-audit.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6dbcc524b9ab65d2175ec7f3e9f80d1b8ac18c6
+--- /dev/null
++++ b/docs/local-model-capabilities-audit.md
+@@ -0,0 +1,176 @@
++---
++summary: "Source-grounded audit of local and OpenAI-compatible model paths."
++read_when:
++  - "When adding local runtime descriptors, probes, local-only privacy checks, or language-aware routing."
++  - "When changing daemon or extension model request flow."
++---
++
++# Local Model Capabilities Audit
++
++Audit date: 2026-04-22. Scope: source inspection only; no runtime behavior changes.
++
++## Current Provider Paths
++
++### OpenAI-compatible HTTP paths
++
++- `openai/...` model IDs are parsed by `src/model-spec.ts` and `src/llm/model-id.ts`.
++- `OPENAI_BASE_URL` or `openai.baseUrl` in `~/.summarize/config.json` overrides the OpenAI endpoint through
++  `src/run/run-env.ts`, `packages/core/src/openai/base-url.ts`, and `src/llm/providers/openai.ts`.
++- `src/llm/providers/openai.ts` treats custom OpenAI base URLs as chat-completions endpoints. This is the current path
++  for llama.cpp-style OpenAI-compatible local servers.
++- `openai/...` still requires an `OPENAI_API_KEY` before transport setup, even when `OPENAI_BASE_URL` points at
++  localhost and the server ignores bearer auth.
++- OpenAI document attachments are only allowed for `api.openai.com`; `src/llm/providers/openai.ts` rejects attachments
++  when the OpenAI base URL host is not `api.openai.com`.
++- `openrouter/...` is a separate forced transport in `src/model-spec.ts` and `src/model-auto.ts`; it resolves to the
++  OpenAI-compatible OpenRouter API with `OPENROUTER_API_KEY`.
++- `zai/...`, `nvidia/...`, and `github-copilot/...` use OpenAI-compatible transport helpers through
++  `src/llm/provider-profile.ts`, `src/llm/providers/models.ts`, and `src/run/summary-engine.ts`, but they carry their
++  own required env keys and default base URLs.
++
++There is no dedicated Ollama provider, llama.cpp provider, or local runtime registry in the current source. Local model
++server usage is therefore configured as an OpenAI-compatible `openai/...` endpoint override.
++
++### Local CLI model paths
++
++- `cli/<provider>/<model>` is parsed in `src/model-spec.ts`; supported CLI providers are declared in
++  `src/config/types.ts`.
++- CLI execution lives in `src/llm/cli.ts`, with binary overrides from provider-specific config or env such as
++  `CODEX_PATH`, `GEMINI_PATH`, `OPENCLAW_PATH`, and `OPENCODE_PATH`.
++- Auto CLI fallback is configured by `cli.autoFallback` and implemented by `src/model-auto-cli.ts`.
++- CLI transports are local process executions, not OpenAI-compatible HTTP runtimes. They should be considered separately
++  from localhost model servers for probing and local-only policy.
++
++## Config Files And Env
++
++- User defaults: `~/.summarize/config.json`, parsed by `src/config.ts`, `src/config/types.ts`,
++  `src/config/model.ts`, and `src/config/sections.ts`.
++- Config env defaults: `env` and legacy `apiKeys` are merged by `src/config/env.ts`; process env wins.
++- OpenAI-compatible endpoint config: `openai.baseUrl`, `openai.useChatCompletions`, and env
++  `OPENAI_BASE_URL` / `OPENAI_USE_CHAT_COMPLETIONS`.
++- Provider endpoint overrides: `nvidia.baseUrl`, `anthropic.baseUrl`, `google.baseUrl`, `xai.baseUrl`, `zai.baseUrl`,
++  plus corresponding env variables in `src/run/run-env.ts`.
++- Daemon pairing and env snapshot: `~/.summarize/daemon.json`, read/written by `src/daemon/config.ts`. Installed daemon
++  env keys are selected in `src/daemon/env-snapshot.ts` and merged in `src/daemon/env-merge.ts`.
++- Extension settings: `chrome.storage.local` key `settings`, normalized and saved by
++  `apps/chrome-extension/src/lib/settings.ts`.
++
++Operational caveat: daemon installs snapshot the environment. Changing `OPENAI_BASE_URL`, local server API keys, PATH, or
++CLI binary paths requires reinstalling or restarting the daemon with an updated snapshot, depending on how the service was
++installed.
++
++## CLI Request Flow
++
++1. `src/run/runner.ts` normalizes argv and calls `prepareRunEnvironment` in `src/run/runner-setup.ts`.
++2. `prepareRunEnvironment` loads config and merges config env defaults before Commander parses flags.
++3. `src/run/runner-plan.ts` resolves flags, output language, env status, and model selection.
++4. `src/run/run-models.ts` resolves explicit model, env `SUMMARIZE_MODEL`, config `model`, named presets, or default
++   `auto`.
++5. Fixed and auto choices become `ModelAttempt` objects in `src/model-spec.ts`, `src/model-auto.ts`,
++   `src/run/flows/url/summary-resolution.ts`, or `src/run/flows/asset/summary-attempts.ts`.
++6. `src/run/model-attempts.ts` skips missing env for auto mode or errors for fixed models.
++7. `src/run/summary-engine.ts` runs the selected attempt through `src/llm/cli.ts` for `cli/...` or through
++   `src/llm/generate-text.ts` / `src/llm/generate-text-stream.ts` for native/OpenRouter transports.
++
++## Daemon Request Flow
++
++1. `summarize daemon install` writes `~/.summarize/daemon.json` and snapshots selected env in
++   `src/daemon/cli.ts`.
++2. `summarize daemon run` merges the saved env snapshot and starts `runDaemonServer` in `src/daemon/server.ts`.
++3. `POST /v1/summarize` is token-authenticated, parsed by `src/daemon/server-summarize-request.ts`, and executed by
++   `src/daemon/server-summarize-execution.ts`.
++4. `streamSummaryForUrl` and `streamSummaryForVisiblePage` in `src/daemon/summarize.ts` build a
++   `UrlFlowContext` with `src/daemon/flow-context.ts`.
++5. `src/daemon/flow-context.ts` mirrors CLI setup: config/env resolution, output language, model selection, metrics, and
++   `createSummaryEngine`.
++6. Summary output streams through daemon sessions as SSE from `src/daemon/server-session.ts` and
++   `src/daemon/server-session-routes.ts`.
++7. `POST /v1/agent` is handled separately by `src/daemon/server-agent-route.ts`,
++   `src/daemon/agent-model.ts`, and `src/daemon/agent.ts`.
++
++Operational caveat: `/v1/summarize` uses the shared summary engine path, but `/v1/agent` resolves model transport in
++`src/daemon/agent-model.ts` and calls pi-ai directly. Local-only checks and language routing must cover both paths if
++chat is in scope.
++
++## Extension Setting Flow
++
++1. Options UI loads/saves `Settings` through `apps/chrome-extension/src/lib/settings.ts`.
++2. Options form wiring lives in `apps/chrome-extension/src/entrypoints/options/main.ts`,
++   `form-state.ts`, `bindings.ts`, and `model-presets.ts`.
++3. Side-panel summarization runs in `apps/chrome-extension/src/entrypoints/background/panel-summarize.ts`.
++4. Summary request bodies are built by `apps/chrome-extension/src/lib/daemon-payload.ts`, which sends `model`, `length`,
++   `language`, prompt overrides, and advanced overrides to `/v1/summarize`.
++5. Hover summaries use `apps/chrome-extension/src/entrypoints/background/hover-controller.ts`; they reuse settings but
++   force `length: "short"`, `mode: "url"`, and a short timeout.
++6. Automation's `summarize` tool builds a direct `/v1/summarize` body in
++   `apps/chrome-extension/src/automation/tools.ts`.
++7. Side-panel chat sends `model`, `length`, and `language` to `/v1/agent` from
++   `apps/chrome-extension/src/entrypoints/background/panel-chat.ts`.
++
++Operational caveat: the extension always sends a model setting, whose default is `auto`. Future routing should treat
++`model: "auto"` as routeable rather than as an explicit fixed-model override.
++
++## Local-only Safety Check Locations
++
++Local-only enforcement should run after model selection has produced a concrete transport/model attempt and before any
++provider transport or remote model probe starts.
++
++- Shared attempt classification: add reusable local-runtime predicates near future local runtime registry code in
++  `@steipete/summarize-core`; consume them from the CLI package.
++- CLI URL and asset summaries: enforce against `ModelAttempt` values before `runSummaryAttempt` in
++  `src/run/flows/url/summary-resolution.ts` and `src/run/flows/asset/summary.ts`, or centralize it in
++  `src/run/model-attempts.ts` with enough context to produce useful errors.
++- Summary engine fallback: keep a defensive check in `src/run/summary-engine.ts` before CLI/native transport setup, since
++  this is the final shared choke point for CLI and daemon summary runs.
++- Daemon `/v1/summarize`: parse a future request override in `src/daemon/server-summarize-request.ts`, thread it through
++  `src/daemon/flow-context.ts`, and rely on the shared attempt-level guard.
++- Daemon `/v1/agent`: add equivalent enforcement in `src/daemon/agent-model.ts` because agent model resolution bypasses
++  `ModelAttempt` execution for non-summary chat.
++- Extension-initiated runs: add settings and payload fields in `apps/chrome-extension/src/lib/settings.ts` and
++  `apps/chrome-extension/src/lib/daemon-payload.ts`, but keep the daemon as the authority. Cover side panel, hover,
++  automation summarize tool, and chat requests.
++
++Classification should distinguish:
++
++- Local OpenAI-compatible HTTP endpoints: `openai/...` with a base URL whose hostname is `localhost`, `127.0.0.1`, or
++  another explicitly allowed loopback/local host.
++- Remote OpenAI-compatible gateways: `api.openai.com`, OpenRouter, GitHub Models, NVIDIA, Z.AI, or arbitrary nonlocal
++  base URLs.
++- Local process transports: `cli/...`, subject to separate policy because provider CLIs may themselves call cloud models.
++
++## Language-aware Routing Locations
++
++Existing language parsing lives in `packages/core/src/language.ts`; CLI and daemon flows consume it through
++`src/run/run-config.ts`, `src/run/run-settings.ts`, and `src/daemon/flow-context.ts`.
++
++Routing should happen before concrete model attempts are built, while preserving explicit model precedence:
++
++- CLI: `src/run/runner-plan.ts` already resolves `outputLanguage` before calling `resolveModelSelection`. A routing
++  helper can be applied there when no explicit `--model` / `--cli` fixed model is supplied.
++- Daemon summaries: `src/daemon/flow-context.ts` has `languageRaw`, config fallback language, and `modelOverride`.
++  Compute final output language before `resolveModelSelection` if routing needs the same explicit-model precedence as
++  CLI.
++- Auto attempts: use existing `ModelConfig` and `AutoRule` shapes from `src/config/types.ts` if routing is implemented
++  as model presets or auto-rule selection; add a dedicated config section if routing needs named language buckets.
++- Recommended config extension point: `SummarizeConfig` in `src/config/types.ts`, parsed by `src/config/sections.ts`.
++  Runtime descriptor primitives should live in `packages/core` once LLR-003 adds them, but persisted CLI config parsing
++  currently lives in the CLI package.
++- Agent chat: `apps/chrome-extension/src/entrypoints/background/panel-chat.ts` sends `language`, but
++  `src/daemon/server-agent-route.ts` and `src/daemon/agent-model.ts` do not currently consume it. If chat should route
++  by output language, the agent route must parse and thread language first.
++
++Suggested route buckets for later stories:
++
++- English: match `OutputLanguage` fixed tags/labels for English aliases.
++- Traditional Chinese: match `zh-TW`, `zh-Hant`, and labels containing Traditional Chinese.
++- Bilingual: add an explicit config/request hint; current `OutputLanguage` has no structured bilingual mode beyond
++  free-form labels.
++- Fallback local model: use when language is `auto`, unknown, or a bucket-specific model is not configured.
++
++## Relevant Tests For Future Changes
++
++- Config parsing and model selection: existing Vitest coverage under `tests/` for config, model auto, run models, and
++  daemon payload/request behavior.
++- Extension settings and payloads: `apps/chrome-extension/tests/options.spec.ts` and side-panel tests.
++- Extension automated path: `pnpm -C apps/chrome-extension test:chrome`.
++- Default repository gates: `pnpm -s typecheck`, `pnpm -s build`, and `pnpm -s check` for runtime/config/daemon changes.
+
+exec
+/bin/zsh -lc "sed -n '1,180p' .ralph/progress.md" in /Users/shh/proj/summarize succeeded in 0ms:
+# Progress Log
+Started: Wed Apr 22 08:50:58 PDT 2026
+
+## Codebase Patterns
+- (add reusable patterns here)
+
+---
+
+## 2026-04-22 09:03:48 PDT - LLR-002: Audit Existing Local Model Capabilities
+Thread:
+Run: 20260422-085058-72504 (iteration 2)
+Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.log
+Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 06e79045 docs: audit local model capabilities
+- Post-commit status: `clean`
+- Verification:
+  - Command: `pnpm -s docs:list` -> PASS
+  - Command: `pnpm -s typecheck` -> PASS
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index b6b02d9378c9f79e15e3031d3f8231824144d345..b384f4f692b1506c8bcbc5536becc7032317dd2d
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,50 @@
+
+ ---
+
++## 2026-04-22 09:03:48 PDT - LLR-002: Audit Existing Local Model Capabilities
++Thread:
++Run: 20260422-085058-72504 (iteration 2)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 06e79045 docs: audit local model capabilities
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - docs/local-model-capabilities-audit.md
++  - docs/index.md
++  - docs/README.md
++  - .ralph/activity.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.log
++  - .agents/tasks/prd.json
++  - .ralph/errors.log
++  - .ralph/.tmp/prompt-20260422-085058-72504-2.md
++  - .ralph/.tmp/story-20260422-085058-72504-2.json
++  - .ralph/.tmp/story-20260422-085058-72504-2.md
++- What was implemented
++  Added a source-grounded audit documenting current OpenAI-compatible/local provider paths, CLI-local transports,
++  config/env files, daemon `/v1/summarize` and `/v1/agent` flow, extension settings and request flow, local-only safety
++  check locations, and language-aware routing extension points. Linked the audit from the docs indexes. No runtime
++  behavior was changed.
++- **Learnings for future iterations:**
++  - Patterns discovered: concrete summary runs converge on `ModelAttempt` and `createSummaryEngine`, while daemon chat
++    uses a separate `resolveAgentModel` path.
++  - Gotchas encountered: local OpenAI-compatible HTTP servers currently use `openai/...` plus `OPENAI_BASE_URL` or
++    `openai.baseUrl`; `OPENAI_API_KEY` is still required before transport setup, even for localhost endpoints.
++  - Useful context: installed daemons use a saved env snapshot, so local endpoint, key, PATH, or CLI binary changes need
++    restart/reinstall with updated env. The extension always sends `model`, defaulting to `auto`, so future routing must
++    treat `auto` as routeable instead of an explicit fixed model.
++  - Operational caveats: there is no dedicated Ollama or llama.cpp runtime registry yet; `/v1/agent` must be covered
++    separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
++---
++
+ ## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
+ Thread: 019db5e3-33a6-7350-92dc-add32e3e321a
+ Run: 20260422-085058-72504 (iteration 1)
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-1.md b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04df3e29fe3
+--- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+@@ -47,4 +47,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ed5b7e61a2df64f95bed42818709a12dce65afa5
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -0,0 +1,36 @@
++# Run 20260422-085058-72504 Iteration 2
++
++Story: LLR-002 - Audit Existing Local Model Capabilities
++
++Outcome: complete.
++
++Implementation commit:
++
++- `06e79045 docs: audit local model capabilities`
++
++Verification:
++
++- `pnpm -s docs:list` -> PASS
++- `pnpm -s typecheck` -> PASS
++- `pnpm -s build` -> PASS
++- `git diff --check` -> PASS
++
++Summary:
++
++- Added `docs/local-model-capabilities-audit.md` with source-grounded maps for OpenAI-compatible local endpoint support,
++  CLI-local transports, config/env files, CLI flow, daemon flow, and extension settings flow.
++- Identified guard locations for future local-only enforcement across CLI, daemon `/v1/summarize`, daemon `/v1/agent`,
++  side panel, hover summaries, automation summarize, and chat.
++- Identified language-aware routing points and reusable config types for later stories.
++- Linked the audit from `docs/index.md` and `docs/README.md`.
++
++Operational caveats captured:
++
++- Current localhost model-server support is the generic `openai/...` path plus `OPENAI_BASE_URL` or `openai.baseUrl`;
++  there is no dedicated Ollama or llama.cpp runtime registry yet.
++- `openai/...` still requires `OPENAI_API_KEY` before transport setup, even for localhost endpoints that ignore bearer
++  auth.
++- Installed daemons use a saved env snapshot, so endpoint, key, PATH, or CLI binary changes need a daemon restart or
++  reinstall with updated env.
++- `/v1/agent` has a separate model resolution path from summary runs, so future local-only and language routing work must
++  cover it explicitly.
+diff --git a/docs/README.md b/docs/README.md
+index 9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b..af16efa1320cdf08dc06b2bb2430253152b0eb32
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -12,6 +12,7 @@
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
++- `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+ - `docs/manual-tests.md` — manual end-to-end test checklist
+ - `docs/model-auto.md` — automatic model selection (`--model auto`)
+diff --git a/docs/index.md b/docs/index.md
+index 6341b450b2e2922bac076dac022951bd1b5a9da9..8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -12,6 +12,7 @@
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
+ - [Local-first roadmap](local-first-roadmap.md)
++- [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+ - [Manual tests](manual-tests.md)
+ - [Model auto](model-auto.md)
+diff --git a/docs/local-model-capabilities-audit.md b/docs/local-model-capabilities-audit.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6dbcc524b9ab65d2175ec7f3e9f80d1b8ac18c6
+--- /dev/null
++++ b/docs/local-model-capabilities-audit.md
+@@ -0,0 +1,176 @@
++---
++summary: "Source-grounded audit of local and OpenAI-compatible model paths."
++read_when:
++  - "When adding local runtime descriptors, probes, local-only privacy checks, or language-aware routing."
++  - "When changing daemon or extension model request flow."
++---
++
++# Local Model Capabilities Audit
++
++Audit date: 2026-04-22. Scope: source inspection only; no runtime behavior changes.
++
++## Current Provider Paths
++
++### OpenAI-compatible HTTP paths
++
++- `openai/...` model IDs are parsed by `src/model-spec.ts` and `src/llm/model-id.ts`.
++- `OPENAI_BASE_URL` or `openai.baseUrl` in `~/.summarize/config.json` overrides the OpenAI endpoint through
++  `src/run/run-env.ts`, `packages/core/src/openai/base-url.ts`, and `src/llm/providers/openai.ts`.
++- `src/llm/providers/openai.ts` treats custom OpenAI base URLs as chat-completions endpoints. This is the current path
++  for llama.cpp-style OpenAI-compatible local servers.
++- `openai/...` still requires an `OPENAI_API_KEY` before transport setup, even when `OPENAI_BASE_URL` points at
++  localhost and the server ignores bearer auth.
++- OpenAI document attachments are only allowed for `api.openai.com`; `src/llm/providers/openai.ts` rejects attachments
++  when the OpenAI base URL host is not `api.openai.com`.
++- `openrouter/...` is a separate forced transport in `src/model-spec.ts` and `src/model-auto.ts`; it resolves to the
++  OpenAI-compatible OpenRouter API with `OPENROUTER_API_KEY`.
++- `zai/...`, `nvidia/...`, and `github-copilot/...` use OpenAI-compatible transport helpers through
++  `src/llm/provider-profile.ts`, `src/llm/providers/models.ts`, and `src/run/summary-engine.ts`, but they carry their
++  own required env keys and default base URLs.
++
++There is no dedicated Ollama provider, llama.cpp provider, or local runtime registry in the current source. Local model
++server usage is therefore configured as an OpenAI-compatible `openai/...` endpoint override.
++
++### Local CLI model paths
++
++- `cli/<provider>/<model>` is parsed in `src/model-spec.ts`; supported CLI providers are declared in
++  `src/config/types.ts`.
++- CLI execution lives in `src/llm/cli.ts`, with binary overrides from provider-specific config or env such as
++  `CODEX_PATH`, `GEMINI_PATH`, `OPENCLAW_PATH`, and `OPENCODE_PATH`.
++- Auto CLI fallback is configured by `cli.autoFallback` and implemented by `src/model-auto-cli.ts`.
++- CLI transports are local process executions, not OpenAI-compatible HTTP runtimes. They should be considered separately
++  from localhost model servers for probing and local-only policy.
++
++## Config Files And Env
++
++- User defaults: `~/.summarize/config.json`, parsed by `src/config.ts`, `src/config/types.ts`,
++  `src/config/model.ts`, and `src/config/sections.ts`.
++- Config env defaults: `env` and legacy `apiKeys` are merged by `src/config/env.ts`; process env wins.
++- OpenAI-compatible endpoint config: `openai.baseUrl`, `openai.useChatCompletions`, and env
++  `OPENAI_BASE_URL` / `OPENAI_USE_CHAT_COMPLETIONS`.
++- Provider endpoint overrides: `nvidia.baseUrl`, `anthropic.baseUrl`, `google.baseUrl`, `xai.baseUrl`, `zai.baseUrl`,
++  plus corresponding env variables in `src/run/run-env.ts`.
++- Daemon pairing and env snapshot: `~/.summarize/daemon.json`, read/written by `src/daemon/config.ts`. Installed daemon
++  env keys are selected in `src/daemon/env-snapshot.ts` and merged in `src/daemon/env-merge.ts`.
++- Extension settings: `chrome.storage.local` key `settings`, normalized and saved by
++  `apps/chrome-extension/src/lib/settings.ts`.
++
++Operational caveat: daemon installs snapshot the environment. Changing `OPENAI_BASE_URL`, local server API keys, PATH, or
++CLI binary paths requires reinstalling or restarting the daemon with an updated snapshot, depending on how the service was
++installed.
++
++## CLI Request Flow
++
++1. `src/run/runner.ts` normalizes argv and calls `prepareRunEnvironment` in `src/run/runner-setup.ts`.
++2. `prepareRunEnvironment` loads config and merges config env defaults before Commander parses flags.
++3. `src/run/runner-plan.ts` resolves flags, output language, env status, and model selection.
++4. `src/run/run-models.ts` resolves explicit model, env `SUMMARIZE_MODEL`, config `model`, named presets, or default
++   `auto`.
++5. Fixed and auto choices become `ModelAttempt` objects in `src/model-spec.ts`, `src/model-auto.ts`,
++   `src/run/flows/url/summary-resolution.ts`, or `src/run/flows/asset/summary-attempts.ts`.
++6. `src/run/model-attempts.ts` skips missing env for auto mode or errors for fixed models.
++7. `src/run/summary-engine.ts` runs the selected attempt through `src/llm/cli.ts` for `cli/...` or through
++   `src/llm/generate-text.ts` / `src/llm/generate-text-stream.ts` for native/OpenRouter transports.
++
++## Daemon Request Flow
++
++1. `summarize daemon install` writes `~/.summarize/daemon.json` and snapshots selected env in
++   `src/daemon/cli.ts`.
++2. `summarize daemon run` merges the saved env snapshot and starts `runDaemonServer` in `src/daemon/server.ts`.
++3. `POST /v1/summarize` is token-authenticated, parsed by `src/daemon/server-summarize-request.ts`, and executed by
++   `src/daemon/server-summarize-execution.ts`.
++4. `streamSummaryForUrl` and `streamSummaryForVisiblePage` in `src/daemon/summarize.ts` build a
++   `UrlFlowContext` with `src/daemon/flow-context.ts`.
++5. `src/daemon/flow-context.ts` mirrors CLI setup: config/env resolution, output language, model selection, metrics, and
++   `createSummaryEngine`.
++6. Summary output streams through daemon sessions as SSE from `src/daemon/server-session.ts` and
++   `src/daemon/server-session-routes.ts`.
++7. `POST /v1/agent` is handled separately by `src/daemon/server-agent-route.ts`,
++   `src/daemon/agent-model.ts`, and `src/daemon/agent.ts`.
++
++Operational caveat: `/v1/summarize` uses the shared summary engine path, but `/v1/agent` resolves model transport in
++`src/daemon/agent-model.ts` and calls pi-ai directly. Local-only checks and language routing must cover both paths if
++chat is in scope.
++
++## Extension Setting Flow
++
++1. Options UI loads/saves `Settings` through `apps/chrome-extension/src/lib/settings.ts`.
++2. Options form wiring lives in `apps/chrome-extension/src/entrypoints/options/main.ts`,
++   `form-state.ts`, `bindings.ts`, and `model-presets.ts`.
++3. Side-panel summarization runs in `apps/chrome-extension/src/entrypoints/background/panel-summarize.ts`.
++4. Summary request bodies are built by `apps/chrome-extension/src/lib/daemon-payload.ts`, which sends `model`, `length`,
++   `language`, prompt overrides, and advanced overrides to `/v1/summarize`.
++5. Hover summaries use `apps/chrome-extension/src/entrypoints/background/hover-controller.ts`; they reuse settings but
++   force `length: "short"`, `mode: "url"`, and a short timeout.
++6. Automation's `summarize` tool builds a direct `/v1/summarize` body in
++   `apps/chrome-extension/src/automation/tools.ts`.
++7. Side-panel chat sends `model`, `length`, and `language` to `/v1/agent` from
++   `apps/chrome-extension/src/entrypoints/background/panel-chat.ts`.
++
++Operational caveat: the extension always sends a model setting, whose default is `auto`. Future routing should treat
++`model: "auto"` as routeable rather than as an explicit fixed-model override.
++
++## Local-only Safety Check Locations
++
++Local-only enforcement should run after model selection has produced a concrete transport/model attempt and before any
++provider transport or remote model probe starts.
++
++- Shared attempt classification: add reusable local-runtime predicates near future local runtime registry code in
++  `@steipete/summarize-core`; consume them from the CLI package.
++- CLI URL and asset summaries: enforce against `ModelAttempt` values before `runSummaryAttempt` in
++  `src/run/flows/url/summary-resolution.ts` and `src/run/flows/asset/summary.ts`, or centralize it in
++  `src/run/model-attempts.ts` with enough context to produce useful errors.
++- Summary engine fallback: keep a defensive check in `src/run/summary-engine.ts` before CLI/native transport setup, since
++  this is the final shared choke point for CLI and daemon summary runs.
++- Daemon `/v1/summarize`: parse a future request override in `src/daemon/server-summarize-request.ts`, thread it through
++  `src/daemon/flow-context.ts`, and rely on the shared attempt-level guard.
++- Daemon `/v1/agent`: add equivalent enforcement in `src/daemon/agent-model.ts` because agent model resolution bypasses
++  `ModelAttempt` execution for non-summary chat.
++- Extension-initiated runs: add settings and payload fields in `apps/chrome-extension/src/lib/settings.ts` and
++  `apps/chrome-extension/src/lib/daemon-payload.ts`, but keep the daemon as the authority. Cover side panel, hover,
++  automation summarize tool, and chat requests.
++
++Classification should distinguish:
++
++- Local OpenAI-compatible HTTP endpoints: `openai/...` with a base URL whose hostname is `localhost`, `127.0.0.1`, or
++  another explicitly allowed loopback/local host.
++- Remote OpenAI-compatible gateways: `api.openai.com`, OpenRouter, GitHub Models, NVIDIA, Z.AI, or arbitrary nonlocal
++  base URLs.
++- Local process transports: `cli/...`, subject to separate policy because provider CLIs may themselves call cloud models.
++
++## Language-aware Routing Locations
++
++Existing language parsing lives in `packages/core/src/language.ts`; CLI and daemon flows consume it through
++`src/run/run-config.ts`, `src/run/run-settings.ts`, and `src/daemon/flow-context.ts`.
++
++Routing should happen before concrete model attempts are built, while preserving explicit model precedence:
++
++- CLI: `src/run/runner-plan.ts` already resolves `outputLanguage` before calling `resolveModelSelection`. A routing
++  helper can be applied there when no explicit `--model` / `--cli` fixed model is supplied.
++- Daemon summaries: `src/daemon/flow-context.ts` has `languageRaw`, config fallback language, and `modelOverride`.
++  Compute final output language before `resolveModelSelection` if routing needs the same explicit-model precedence as
++  CLI.
++- Auto attempts: use existing `ModelConfig` and `AutoRule` shapes from `src/config/types.ts` if routing is implemented
++  as model presets or auto-rule selection; add a dedicated config section if routing needs named language buckets.
++- Recommended config extension point: `SummarizeConfig` in `src/config/types.ts`, parsed by `src/config/sections.ts`.
++  Runtime descriptor primitives should live in `packages/core` once LLR-003 adds them, but persisted CLI config parsing
++  currently lives in the CLI package.
++- Agent chat: `apps/chrome-extension/src/entrypoints/background/panel-chat.ts` sends `language`, but
++  `src/daemon/server-agent-route.ts` and `src/daemon/agent-model.ts` do not currently consume it. If chat should route
++  by output language, the agent route must parse and thread language first.
++
++Suggested route buckets for later stories:
++
++- English: match `OutputLanguage` fixed tags/labels for English aliases.
++- Traditional Chinese: match `zh-TW`, `zh-Hant`, and labels containing Traditional Chinese.
++- Bilingual: add an explicit config/request hint; current `OutputLanguage` has no structured bilingual mode beyond
++  free-form labels.
++- Fallback local model: use when language is `auto`, unknown, or a bucket-specific model is not configured.
++
++## Relevant Tests For Future Changes
++
++- Config parsing and model selection: existing Vitest coverage under `tests/` for config, model auto, run models, and
++  daemon payload/request behavior.
++- Extension settings and payloads: `apps/chrome-extension/tests/options.spec.ts` and side-panel tests.
++- Extension automated path: `pnpm -C apps/chrome-extension test:chrome`.
++- Default repository gates: `pnpm -s typecheck`, `pnpm -s build`, and `pnpm -s check` for runtime/config/daemon changes.
+
+file update
+M /Users/shh/proj/summarize/.ralph/progress.md
+@@ -8,2 +8,37 @@
+
++## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
++Thread: 019db5e3-33a6-7350-92dc-add32e3e321a
++Run: 20260422-085058-72504 (iteration 1)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-1.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-1.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: a4d08f11 docs: establish local-first fork positioning
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++- Files changed:
++  - AGENTS.md
++  - README.md
++  - docs/README.md
++  - docs/index.md
++  - docs/local-first-roadmap.md
++  - .ralph/activity.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-1.md
++- What was implemented
++  Added a local-first roadmap documenting the fork thesis, non-goals, staged architecture, implementation intent, and
++  verification intent. Added a concise README fork note, linked the new page from docs indexes, and documented upstream
++  remote workflow plus local fork goals in AGENTS.md without renaming package IDs or binaries.
++- **Learnings for future iterations:**
++  - Patterns discovered: docs pages use YAML front matter with `summary`; `pnpm -s docs:list` validates discovery and
++    read_when hints.
++  - Gotchas encountered: `/Users/shh/proj/summarize/ralph` was not present, but the global `ralph log` command worked;
++    the `$commit` skill and `committer` command were unavailable, so a conventional `git commit` fallback was used.
++  - Useful context: remote `origin` points to this fork and `upstream` points to
++    `https://github.com/steipete/summarize.git`.
++---
++
+ ## 2026-04-22 09:03:48 PDT - LLR-002: Audit Existing Local Model Capabilities
+@@ -50,37 +85,2 @@
+     separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
+----
+-
+-## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
+-Thread: 019db5e3-33a6-7350-92dc-add32e3e321a
+-Run: 20260422-085058-72504 (iteration 1)
+-Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-1.log
+-Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-1.md
+-- Guardrails reviewed: yes
+-- No-commit run: false
+-- Commit: a4d08f11 docs: establish local-first fork positioning
+-- Post-commit status: `clean`
+-- Verification:
+-  - Command: `pnpm -s docs:list` -> PASS
+-  - Command: `pnpm -s typecheck` -> PASS
+-  - Command: `pnpm -s build` -> PASS
+-- Files changed:
+-  - AGENTS.md
+-  - README.md
+-  - docs/README.md
+-  - docs/index.md
+-  - docs/local-first-roadmap.md
+-  - .ralph/activity.log
+-  - .ralph/progress.md
+-  - .ralph/runs/run-20260422-085058-72504-iter-1.md
+-- What was implemented
+-  Added a local-first roadmap documenting the fork thesis, non-goals, staged architecture, implementation intent, and
+-  verification intent. Added a concise README fork note, linked the new page from docs indexes, and documented upstream
+-  remote workflow plus local fork goals in AGENTS.md without renaming package IDs or binaries.
+-- **Learnings for future iterations:**
+-  - Patterns discovered: docs pages use YAML front matter with `summary`; `pnpm -s docs:list` validates discovery and
+-    read_when hints.
+-  - Gotchas encountered: `/Users/shh/proj/summarize/ralph` was not present, but the global `ralph log` command worked;
+-    the `$commit` skill and `committer` command were unavailable, so a conventional `git commit` fallback was used.
+-  - Useful context: remote `origin` points to this fork and `upstream` points to
+-    `https://github.com/steipete/summarize.git`.
+ ---
+apply_patch(auto_approved=true) exited 0 in 75ms:
+Success. Updated the following files:
+M .ralph/progress.md
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index b6b02d9378c9f79e15e3031d3f8231824144d345..5497969406551dde714a89e2f68bc20839d0beb4
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -40,3 +40,47 @@
+   - Useful context: remote `origin` points to this fork and `upstream` points to
+     `https://github.com/steipete/summarize.git`.
+ ---
++
++## 2026-04-22 09:03:48 PDT - LLR-002: Audit Existing Local Model Capabilities
++Thread:
++Run: 20260422-085058-72504 (iteration 2)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 06e79045 docs: audit local model capabilities
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - docs/local-model-capabilities-audit.md
++  - docs/index.md
++  - docs/README.md
++  - .ralph/activity.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.log
++  - .agents/tasks/prd.json
++  - .ralph/errors.log
++  - .ralph/.tmp/prompt-20260422-085058-72504-2.md
++  - .ralph/.tmp/story-20260422-085058-72504-2.json
++  - .ralph/.tmp/story-20260422-085058-72504-2.md
++- What was implemented
++  Added a source-grounded audit documenting current OpenAI-compatible/local provider paths, CLI-local transports,
++  config/env files, daemon `/v1/summarize` and `/v1/agent` flow, extension settings and request flow, local-only safety
++  check locations, and language-aware routing extension points. Linked the audit from the docs indexes. No runtime
++  behavior was changed.
++- **Learnings for future iterations:**
++  - Patterns discovered: concrete summary runs converge on `ModelAttempt` and `createSummaryEngine`, while daemon chat
++    uses a separate `resolveAgentModel` path.
++  - Gotchas encountered: local OpenAI-compatible HTTP servers currently use `openai/...` plus `OPENAI_BASE_URL` or
++    `openai.baseUrl`; `OPENAI_API_KEY` is still required before transport setup, even for localhost endpoints.
++  - Useful context: installed daemons use a saved env snapshot, so local endpoint, key, PATH, or CLI binary changes need
++    restart/reinstall with updated env. The extension always sends `model`, defaulting to `auto`, so future routing must
++    treat `auto` as routeable instead of an explicit fixed model.
++  - Operational caveats: there is no dedicated Ollama or llama.cpp runtime registry yet; `/v1/agent` must be covered
++    separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
++---
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-1.md b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04df3e29fe3
+--- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+@@ -47,4 +47,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ed5b7e61a2df64f95bed42818709a12dce65afa5
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -0,0 +1,36 @@
++# Run 20260422-085058-72504 Iteration 2
++
++Story: LLR-002 - Audit Existing Local Model Capabilities
++
++Outcome: complete.
++
++Implementation commit:
++
++- `06e79045 docs: audit local model capabilities`
++
++Verification:
++
++- `pnpm -s docs:list` -> PASS
++- `pnpm -s typecheck` -> PASS
++- `pnpm -s build` -> PASS
++- `git diff --check` -> PASS
++
++Summary:
++
++- Added `docs/local-model-capabilities-audit.md` with source-grounded maps for OpenAI-compatible local endpoint support,
++  CLI-local transports, config/env files, CLI flow, daemon flow, and extension settings flow.
++- Identified guard locations for future local-only enforcement across CLI, daemon `/v1/summarize`, daemon `/v1/agent`,
++  side panel, hover summaries, automation summarize, and chat.
++- Identified language-aware routing points and reusable config types for later stories.
++- Linked the audit from `docs/index.md` and `docs/README.md`.
++
++Operational caveats captured:
++
++- Current localhost model-server support is the generic `openai/...` path plus `OPENAI_BASE_URL` or `openai.baseUrl`;
++  there is no dedicated Ollama or llama.cpp runtime registry yet.
++- `openai/...` still requires `OPENAI_API_KEY` before transport setup, even for localhost endpoints that ignore bearer
++  auth.
++- Installed daemons use a saved env snapshot, so endpoint, key, PATH, or CLI binary changes need a daemon restart or
++  reinstall with updated env.
++- `/v1/agent` has a separate model resolution path from summary runs, so future local-only and language routing work must
++  cover it explicitly.
+diff --git a/docs/README.md b/docs/README.md
+index 9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b..af16efa1320cdf08dc06b2bb2430253152b0eb32
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -12,6 +12,7 @@
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
++- `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+ - `docs/manual-tests.md` — manual end-to-end test checklist
+ - `docs/model-auto.md` — automatic model selection (`--model auto`)
+diff --git a/docs/index.md b/docs/index.md
+index 6341b450b2e2922bac076dac022951bd1b5a9da9..8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -12,6 +12,7 @@
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
+ - [Local-first roadmap](local-first-roadmap.md)
++- [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+ - [Manual tests](manual-tests.md)
+ - [Model auto](model-auto.md)
+diff --git a/docs/local-model-capabilities-audit.md b/docs/local-model-capabilities-audit.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6dbcc524b9ab65d2175ec7f3e9f80d1b8ac18c6
+--- /dev/null
++++ b/docs/local-model-capabilities-audit.md
+@@ -0,0 +1,176 @@
++---
++summary: "Source-grounded audit of local and OpenAI-compatible model paths."
++read_when:
++  - "When adding local runtime descriptors, probes, local-only privacy checks, or language-aware routing."
++  - "When changing daemon or extension model request flow."
++---
++
++# Local Model Capabilities Audit
++
++Audit date: 2026-04-22. Scope: source inspection only; no runtime behavior changes.
++
++## Current Provider Paths
++
++### OpenAI-compatible HTTP paths
++
++- `openai/...` model IDs are parsed by `src/model-spec.ts` and `src/llm/model-id.ts`.
++- `OPENAI_BASE_URL` or `openai.baseUrl` in `~/.summarize/config.json` overrides the OpenAI endpoint through
++  `src/run/run-env.ts`, `packages/core/src/openai/base-url.ts`, and `src/llm/providers/openai.ts`.
++- `src/llm/providers/openai.ts` treats custom OpenAI base URLs as chat-completions endpoints. This is the current path
++  for llama.cpp-style OpenAI-compatible local servers.
++- `openai/...` still requires an `OPENAI_API_KEY` before transport setup, even when `OPENAI_BASE_URL` points at
++  localhost and the server ignores bearer auth.
++- OpenAI document attachments are only allowed for `api.openai.com`; `src/llm/providers/openai.ts` rejects attachments
++  when the OpenAI base URL host is not `api.openai.com`.
++- `openrouter/...` is a separate forced transport in `src/model-spec.ts` and `src/model-auto.ts`; it resolves to the
++  OpenAI-compatible OpenRouter API with `OPENROUTER_API_KEY`.
++- `zai/...`, `nvidia/...`, and `github-copilot/...` use OpenAI-compatible transport helpers through
++  `src/llm/provider-profile.ts`, `src/llm/providers/models.ts`, and `src/run/summary-engine.ts`, but they carry their
++  own required env keys and default base URLs.
++
++There is no dedicated Ollama provider, llama.cpp provider, or local runtime registry in the current source. Local model
++server usage is therefore configured as an OpenAI-compatible `openai/...` endpoint override.
++
++### Local CLI model paths
++
++- `cli/<provider>/<model>` is parsed in `src/model-spec.ts`; supported CLI providers are declared in
++  `src/config/types.ts`.
++- CLI execution lives in `src/llm/cli.ts`, with binary overrides from provider-specific config or env such as
++  `CODEX_PATH`, `GEMINI_PATH`, `OPENCLAW_PATH`, and `OPENCODE_PATH`.
++- Auto CLI fallback is configured by `cli.autoFallback` and implemented by `src/model-auto-cli.ts`.
++- CLI transports are local process executions, not OpenAI-compatible HTTP runtimes. They should be considered separately
++  from localhost model servers for probing and local-only policy.
++
++## Config Files And Env
++
++- User defaults: `~/.summarize/config.json`, parsed by `src/config.ts`, `src/config/types.ts`,
++  `src/config/model.ts`, and `src/config/sections.ts`.
++- Config env defaults: `env` and legacy `apiKeys` are merged by `src/config/env.ts`; process env wins.
++- OpenAI-compatible endpoint config: `openai.baseUrl`, `openai.useChatCompletions`, and env
++  `OPENAI_BASE_URL` / `OPENAI_USE_CHAT_COMPLETIONS`.
++- Provider endpoint overrides: `nvidia.baseUrl`, `anthropic.baseUrl`, `google.baseUrl`, `xai.baseUrl`, `zai.baseUrl`,
++  plus corresponding env variables in `src/run/run-env.ts`.
++- Daemon pairing and env snapshot: `~/.summarize/daemon.json`, read/written by `src/daemon/config.ts`. Installed daemon
++  env keys are selected in `src/daemon/env-snapshot.ts` and merged in `src/daemon/env-merge.ts`.
++- Extension settings: `chrome.storage.local` key `settings`, normalized and saved by
++  `apps/chrome-extension/src/lib/settings.ts`.
++
++Operational caveat: daemon installs snapshot the environment. Changing `OPENAI_BASE_URL`, local server API keys, PATH, or
++CLI binary paths requires reinstalling or restarting the daemon with an updated snapshot, depending on how the service was
++installed.
++
++## CLI Request Flow
++
++1. `src/run/runner.ts` normalizes argv and calls `prepareRunEnvironment` in `src/run/runner-setup.ts`.
++2. `prepareRunEnvironment` loads config and merges config env defaults before Commander parses flags.
++3. `src/run/runner-plan.ts` resolves flags, output language, env status, and model selection.
++4. `src/run/run-models.ts` resolves explicit model, env `SUMMARIZE_MODEL`, config `model`, named presets, or default
++   `auto`.
++5. Fixed and auto choices become `ModelAttempt` objects in `src/model-spec.ts`, `src/model-auto.ts`,
++   `src/run/flows/url/summary-resolution.ts`, or `src/run/flows/asset/summary-attempts.ts`.
++6. `src/run/model-attempts.ts` skips missing env for auto mode or errors for fixed models.
++7. `src/run/summary-engine.ts` runs the selected attempt through `src/llm/cli.ts` for `cli/...` or through
++   `src/llm/generate-text.ts` / `src/llm/generate-text-stream.ts` for native/OpenRouter transports.
++
++## Daemon Request Flow
++
++1. `summarize daemon install` writes `~/.summarize/daemon.json` and snapshots selected env in
++   `src/daemon/cli.ts`.
++2. `summarize daemon run` merges the saved env snapshot and starts `runDaemonServer` in `src/daemon/server.ts`.
++3. `POST /v1/summarize` is token-authenticated, parsed by `src/daemon/server-summarize-request.ts`, and executed by
++   `src/daemon/server-summarize-execution.ts`.
++4. `streamSummaryForUrl` and `streamSummaryForVisiblePage` in `src/daemon/summarize.ts` build a
++   `UrlFlowContext` with `src/daemon/flow-context.ts`.
++5. `src/daemon/flow-context.ts` mirrors CLI setup: config/env resolution, output language, model selection, metrics, and
++   `createSummaryEngine`.
++6. Summary output streams through daemon sessions as SSE from `src/daemon/server-session.ts` and
++   `src/daemon/server-session-routes.ts`.
++7. `POST /v1/agent` is handled separately by `src/daemon/server-agent-route.ts`,
++   `src/daemon/agent-model.ts`, and `src/daemon/agent.ts`.
++
++Operational caveat: `/v1/summarize` uses the shared summary engine path, but `/v1/agent` resolves model transport in
++`src/daemon/agent-model.ts` and calls pi-ai directly. Local-only checks and language routing must cover both paths if
++chat is in scope.
++
++## Extension Setting Flow
++
++1. Options UI loads/saves `Settings` through `apps/chrome-extension/src/lib/settings.ts`.
++2. Options form wiring lives in `apps/chrome-extension/src/entrypoints/options/main.ts`,
++   `form-state.ts`, `bindings.ts`, and `model-presets.ts`.
++3. Side-panel summarization runs in `apps/chrome-extension/src/entrypoints/background/panel-summarize.ts`.
++4. Summary request bodies are built by `apps/chrome-extension/src/lib/daemon-payload.ts`, which sends `model`, `length`,
++   `language`, prompt overrides, and advanced overrides to `/v1/summarize`.
++5. Hover summaries use `apps/chrome-extension/src/entrypoints/background/hover-controller.ts`; they reuse settings but
++   force `length: "short"`, `mode: "url"`, and a short timeout.
++6. Automation's `summarize` tool builds a direct `/v1/summarize` body in
++   `apps/chrome-extension/src/automation/tools.ts`.
++7. Side-panel chat sends `model`, `length`, and `language` to `/v1/agent` from
++   `apps/chrome-extension/src/entrypoints/background/panel-chat.ts`.
++
++Operational caveat: the extension always sends a model setting, whose default is `auto`. Future routing should treat
++`model: "auto"` as routeable rather than as an explicit fixed-model override.
++
++## Local-only Safety Check Locations
++
++Local-only enforcement should run after model selection has produced a concrete transport/model attempt and before any
++provider transport or remote model probe starts.
++
++- Shared attempt classification: add reusable local-runtime predicates near future local runtime registry code in
++  `@steipete/summarize-core`; consume them from the CLI package.
++- CLI URL and asset summaries: enforce against `ModelAttempt` values before `runSummaryAttempt` in
++  `src/run/flows/url/summary-resolution.ts` and `src/run/flows/asset/summary.ts`, or centralize it in
++  `src/run/model-attempts.ts` with enough context to produce useful errors.
++- Summary engine fallback: keep a defensive check in `src/run/summary-engine.ts` before CLI/native transport setup, since
++  this is the final shared choke point for CLI and daemon summary runs.
++- Daemon `/v1/summarize`: parse a future request override in `src/daemon/server-summarize-request.ts`, thread it through
++  `src/daemon/flow-context.ts`, and rely on the shared attempt-level guard.
++- Daemon `/v1/agent`: add equivalent enforcement in `src/daemon/agent-model.ts` because agent model resolution bypasses
++  `ModelAttempt` execution for non-summary chat.
++- Extension-initiated runs: add settings and payload fields in `apps/chrome-extension/src/lib/settings.ts` and
++  `apps/chrome-extension/src/lib/daemon-payload.ts`, but keep the daemon as the authority. Cover side panel, hover,
++  automation summarize tool, and chat requests.
++
++Classification should distinguish:
++
++- Local OpenAI-compatible HTTP endpoints: `openai/...` with a base URL whose hostname is `localhost`, `127.0.0.1`, or
++  another explicitly allowed loopback/local host.
++- Remote OpenAI-compatible gateways: `api.openai.com`, OpenRouter, GitHub Models, NVIDIA, Z.AI, or arbitrary nonlocal
++  base URLs.
++- Local process transports: `cli/...`, subject to separate policy because provider CLIs may themselves call cloud models.
++
++## Language-aware Routing Locations
++
++Existing language parsing lives in `packages/core/src/language.ts`; CLI and daemon flows consume it through
++`src/run/run-config.ts`, `src/run/run-settings.ts`, and `src/daemon/flow-context.ts`.
++
++Routing should happen before concrete model attempts are built, while preserving explicit model precedence:
++
++- CLI: `src/run/runner-plan.ts` already resolves `outputLanguage` before calling `resolveModelSelection`. A routing
++  helper can be applied there when no explicit `--model` / `--cli` fixed model is supplied.
++- Daemon summaries: `src/daemon/flow-context.ts` has `languageRaw`, config fallback language, and `modelOverride`.
++  Compute final output language before `resolveModelSelection` if routing needs the same explicit-model precedence as
++  CLI.
++- Auto attempts: use existing `ModelConfig` and `AutoRule` shapes from `src/config/types.ts` if routing is implemented
++  as model presets or auto-rule selection; add a dedicated config section if routing needs named language buckets.
++- Recommended config extension point: `SummarizeConfig` in `src/config/types.ts`, parsed by `src/config/sections.ts`.
++  Runtime descriptor primitives should live in `packages/core` once LLR-003 adds them, but persisted CLI config parsing
++  currently lives in the CLI package.
++- Agent chat: `apps/chrome-extension/src/entrypoints/background/panel-chat.ts` sends `language`, but
++  `src/daemon/server-agent-route.ts` and `src/daemon/agent-model.ts` do not currently consume it. If chat should route
++  by output language, the agent route must parse and thread language first.
++
++Suggested route buckets for later stories:
++
++- English: match `OutputLanguage` fixed tags/labels for English aliases.
++- Traditional Chinese: match `zh-TW`, `zh-Hant`, and labels containing Traditional Chinese.
++- Bilingual: add an explicit config/request hint; current `OutputLanguage` has no structured bilingual mode beyond
++  free-form labels.
++- Fallback local model: use when language is `auto`, unknown, or a bucket-specific model is not configured.
++
++## Relevant Tests For Future Changes
++
++- Config parsing and model selection: existing Vitest coverage under `tests/` for config, model auto, run models, and
++  daemon payload/request behavior.
++- Extension settings and payloads: `apps/chrome-extension/tests/options.spec.ts` and side-panel tests.
++- Extension automated path: `pnpm -C apps/chrome-extension test:chrome`.
++- Default repository gates: `pnpm -s typecheck`, `pnpm -s build`, and `pnpm -s check` for runtime/config/daemon changes.
+
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index b6b02d9378c9f79e15e3031d3f8231824144d345..5497969406551dde714a89e2f68bc20839d0beb4
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -40,3 +40,47 @@
+   - Useful context: remote `origin` points to this fork and `upstream` points to
+     `https://github.com/steipete/summarize.git`.
+ ---
++
++## 2026-04-22 09:03:48 PDT - LLR-002: Audit Existing Local Model Capabilities
++Thread:
++Run: 20260422-085058-72504 (iteration 2)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-2.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 06e79045 docs: audit local model capabilities
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - docs/local-model-capabilities-audit.md
++  - docs/index.md
++  - docs/README.md
++  - .ralph/activity.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.log
++  - .agents/tasks/prd.json
++  - .ralph/errors.log
++  - .ralph/.tmp/prompt-20260422-085058-72504-2.md
++  - .ralph/.tmp/story-20260422-085058-72504-2.json
++  - .ralph/.tmp/story-20260422-085058-72504-2.md
++- What was implemented
++  Added a source-grounded audit documenting current OpenAI-compatible/local provider paths, CLI-local transports,
++  config/env files, daemon `/v1/summarize` and `/v1/agent` flow, extension settings and request flow, local-only safety
++  check locations, and language-aware routing extension points. Linked the audit from the docs indexes. No runtime
++  behavior was changed.
++- **Learnings for future iterations:**
++  - Patterns discovered: concrete summary runs converge on `ModelAttempt` and `createSummaryEngine`, while daemon chat
++    uses a separate `resolveAgentModel` path.
++  - Gotchas encountered: local OpenAI-compatible HTTP servers currently use `openai/...` plus `OPENAI_BASE_URL` or
++    `openai.baseUrl`; `OPENAI_API_KEY` is still required before transport setup, even for localhost endpoints.
++  - Useful context: installed daemons use a saved env snapshot, so local endpoint, key, PATH, or CLI binary changes need
++    restart/reinstall with updated env. The extension always sends `model`, defaulting to `auto`, so future routing must
++    treat `auto` as routeable instead of an explicit fixed model.
++  - Operational caveats: there is no dedicated Ollama or llama.cpp runtime registry yet; `/v1/agent` must be covered
++    separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
++---
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-1.md b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+index 693a7c5ec87fb1f658c29eaa8906197101d54d38..aa34575bb1048e64b7caeeb4ef10f04df3e29fe3
+--- a/.ralph/runs/run-20260422-085058-72504-iter-1.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+@@ -47,4 +47,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ed5b7e61a2df64f95bed42818709a12dce65afa5
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -0,0 +1,36 @@
++# Run 20260422-085058-72504 Iteration 2
++
++Story: LLR-002 - Audit Existing Local Model Capabilities
++
++Outcome: complete.
++
++Implementation commit:
++
++- `06e79045 docs: audit local model capabilities`
++
++Verification:
++
++- `pnpm -s docs:list` -> PASS
++- `pnpm -s typecheck` -> PASS
++- `pnpm -s build` -> PASS
++- `git diff --check` -> PASS
++
++Summary:
++
++- Added `docs/local-model-capabilities-audit.md` with source-grounded maps for OpenAI-compatible local endpoint support,
++  CLI-local transports, config/env files, CLI flow, daemon flow, and extension settings flow.
++- Identified guard locations for future local-only enforcement across CLI, daemon `/v1/summarize`, daemon `/v1/agent`,
++  side panel, hover summaries, automation summarize, and chat.
++- Identified language-aware routing points and reusable config types for later stories.
++- Linked the audit from `docs/index.md` and `docs/README.md`.
++
++Operational caveats captured:
++
++- Current localhost model-server support is the generic `openai/...` path plus `OPENAI_BASE_URL` or `openai.baseUrl`;
++  there is no dedicated Ollama or llama.cpp runtime registry yet.
++- `openai/...` still requires `OPENAI_API_KEY` before transport setup, even for localhost endpoints that ignore bearer
++  auth.
++- Installed daemons use a saved env snapshot, so endpoint, key, PATH, or CLI binary changes need a daemon restart or
++  reinstall with updated env.
++- `/v1/agent` has a separate model resolution path from summary runs, so future local-only and language routing work must
++  cover it explicitly.
 diff --git a/docs/README.md b/docs/README.md
 index 9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b..af16efa1320cdf08dc06b2bb2430253152b0eb32
 --- a/docs/README.md
