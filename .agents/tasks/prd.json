@@ -87,7 +87,7 @@
     {
       "id": "LLR-005",
       "title": "Add CLI Local Runtime Probe Command",
-      "status": "in_progress",
+      "status": "done",
       "dependsOn": [
         "LLR-004"
       ],
@@ -101,13 +101,13 @@
         "Run targeted CLI tests plus pnpm -s typecheck."
       ],
       "startedAt": "2026-04-22T16:24:13.334545+00:00",
-      "completedAt": null,
-      "updatedAt": "2026-04-22T16:24:13.334670+00:00"
+      "completedAt": "2026-04-22T16:32:55.027988+00:00",
+      "updatedAt": "2026-04-22T16:32:55.027870+00:00"
     },
     {
       "id": "LLR-006",
       "title": "Add Language-Aware Local Model Routing",
-      "status": "open",
+      "status": "in_progress",
       "dependsOn": [
         "LLR-003"
       ],
@@ -120,7 +120,10 @@
         "English output should be able to prefer a Gemma/Llama-class local model by config/default profile.",
         "Add deterministic unit tests for routing choices and explicit-model precedence.",
         "Run targeted tests plus pnpm -s typecheck."
-      ]
+      ],
+      "startedAt": "2026-04-22T16:32:57.092858+00:00",
+      "completedAt": null,
+      "updatedAt": "2026-04-22T16:32:57.092987+00:00"
     },
     {
       "id": "LLR-007",

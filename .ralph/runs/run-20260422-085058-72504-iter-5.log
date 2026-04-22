@@ -38970,3 +38970,1628 @@ index 0000000000000000000000000000000000000000..53e0e6185233d9c36ef27c5ea4f48d57
 
 codex
 The progress commit was made, but the live run log updated as part of the verification commands. I’m folding that final run-log delta into the progress commit and checking status in the same shell invocation so there isn’t another follow-up command to dirty it.
+exec
+/bin/zsh -lc 'set -e
+git add -A
+git commit --amend --no-edit
+git status --porcelain=v1
+git show -s --format="%h %s" HEAD' in /Users/shh/proj/summarize succeeded in 0ms:
+[main ca76afbc] chore: record LLR-005 progress
+ Date: Wed Apr 22 09:32:06 2026 -0700
+ 3 files changed, 8760 insertions(+)
+ca76afbc chore: record LLR-005 progress
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 62ba4556b06d4e7e1e522756af66971a200fe9ee..02428463ce53cf2c919b18b82b29618dc56409a4
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,56 @@
+ 
+ ---
+ 
++## 2026-04-22 09:31:37 PDT - LLR-005: Add CLI Local Runtime Probe Command
++Thread:
++Run: 20260422-085058-72504 (iteration 5)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-5.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-5.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 330cde38 feat: add local runtime probe cli
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s test -- tests/cli.local-runtime-probe.test.ts` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - README.md
++  - docs/cli.md
++  - src/cli-main.ts
++  - src/run/cli-preflight.ts
++  - src/run/help.ts
++  - src/run/local-runtime-probe-cli.ts
++  - src/run/runner.ts
++  - tests/cli.local-runtime-probe.test.ts
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-5.md
++  - .ralph/.tmp/story-20260422-085058-72504-5.json
++  - .ralph/.tmp/story-20260422-085058-72504-5.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-4.md
++  - .ralph/runs/run-20260422-085058-72504-iter-5.log
++- What was implemented
++  Added `summarize local-runtime probe` as an immediate CLI command that resolves configured `OPENAI_BASE_URL` /
++  `openai.baseUrl`, falls back to default llama.cpp and Ollama localhost endpoints, prints `OK` / `WARN` / `FAIL`
++  diagnostics, supports `--json`, bounded `--timeout`, `--base-url`, and explicit `--allow-remote`, and sets a failing
++  exit code for failed probes through the real CLI entrypoint. Added mocked-fetch CLI tests covering success, warnings,
++  failures, JSON output, and remote-host blocking. Documented the command in README and CLI docs.
++- **Learnings for future iterations:**
++  - Patterns discovered: CLI utility subcommands that should run before normal summary parsing belong in
++    `src/run/cli-preflight.ts`; standalone help text lives in `src/run/help.ts`.
++  - Gotchas encountered: `/Users/shh/proj/summarize/ralph` is absent in this checkout; use
++    `.agents/ralph/log-activity.sh` for activity logging. The `committer` / `$commit` helper is also unavailable, so a
++    conventional `git commit` fallback was required.
++  - Useful context: `pnpm -s test -- tests/cli.local-runtime-probe.test.ts` currently runs the configured repository
++    test suite, not just that file. The probe sends only model-list requests and does not include API keys or source
++    content; non-local hosts stay blocked unless `--allow-remote` is explicit.
++---
++
+ ## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
+ Thread: 019db5e3-33a6-7350-92dc-add32e3e321a
+ Run: 20260422-085058-72504 (iteration 1)
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-4.md b/.ralph/runs/run-20260422-085058-72504-iter-4.md
+index 5650b43401ccc0a1ed293f5a7efbaa2526a0c8e2..0a94236dfd10abe328028bcb79ae711b57b3ecb2
+--- a/.ralph/runs/run-20260422-085058-72504-iter-4.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-4.md
+@@ -34,4 +34,3 @@
+ 
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/README.md b/README.md
+index ea8c6aa2717ea00046cf3a027c0e108b2e6afc01..c2d3a8e012c4cb2f350eef8d7d35fee45f35c848
+--- a/README.md
++++ b/README.md
+@@ -327,6 +327,21 @@
+ - `--verbose`: debug/diagnostics on stderr
+ - `--metrics off|on|detailed`: metrics output (default `on`)
+ 
++### Local runtime probe
++
++Use the probe command to verify a local LLM endpoint before starting the daemon or browser extension:
++
++```bash
++summarize local-runtime probe
++summarize local-runtime probe ollama
++summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1
++summarize local-runtime probe --json
++```
++
++The command checks configured `OPENAI_BASE_URL` / `openai.baseUrl` first, otherwise it probes the default llama.cpp and
++Ollama localhost endpoints. It prints `OK`, `WARN`, or `FAIL` lines and `--json` emits the same diagnostics for scripts
++and tests without requiring a live model server.
++
+ ### Coding CLIs (Codex, Claude, Gemini, Agent, OpenClaw, OpenCode)
+ 
+ Summarize can use common coding CLIs as local model backends:
+diff --git a/docs/cli.md b/docs/cli.md
+index 7877741a31555a7d3b09d624b96dde15da01da52..0f85915e2064284880ed47b33efc8994d9e5bb5a
+--- a/docs/cli.md
++++ b/docs/cli.md
+@@ -149,6 +149,29 @@
+ 
+ If Agent fails with auth, run `agent login` (interactive) or set `CURSOR_API_KEY`.
+ 
++## Local runtime probe
++
++`summarize local-runtime probe` verifies local HTTP model runtimes before daemon or extension use. It only calls the
++runtime model-list endpoint, so it does not start a summarization run or send source content.
++
++Examples:
++
++```bash
++summarize local-runtime probe
++summarize local-runtime probe ollama
++summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1
++summarize local-runtime probe --json
++```
++
++Resolution order:
++
++- If `OPENAI_BASE_URL` or `openai.baseUrl` is configured, probe it as an OpenAI-compatible local runtime.
++- If no endpoint is configured, probe the default llama.cpp and Ollama localhost endpoints.
++- Use `--base-url` to test a specific endpoint and `--allow-remote` only when intentionally probing a non-local host.
++
++Human output uses `OK`, `WARN`, and `FAIL` lines. JSON output is intended for tests and scripts; CLI tests mock the
++probe response and do not require a live model server.
++
+ ## Generate free preset (OpenRouter)
+ 
+ `summarize` ships with a built-in preset `free`, backed by OpenRouter `:free` models.
+diff --git a/src/cli-main.ts b/src/cli-main.ts
+index 96553e2a4641b8784846822d8e146ff471a12463..9447eb6073717a036f53c38a909f0ef67d69437d
+--- a/src/cli-main.ts
++++ b/src/cli-main.ts
+@@ -132,7 +132,7 @@
+ 
+   try {
+     const mergedEnv = env === process.env ? { ...(await loadDotenvFromCwd()), ...env } : env;
+-    await runCli(argv, { env: mergedEnv, fetch, stdout, stderr });
++    await runCli(argv, { env: mergedEnv, fetch, stdout, stderr, setExitCode });
+   } catch (error: unknown) {
+     const isTty = Boolean((stderr as unknown as { isTTY?: boolean }).isTTY);
+     if (isTty) stderr.write("\n");
+diff --git a/src/run/cli-preflight.ts b/src/run/cli-preflight.ts
+index 95d9bf37b4ad91fd1704673289a5a3cad9230000..1ccf21797d8729cf0703bd3e86913d803586f32d
+--- a/src/run/cli-preflight.ts
++++ b/src/run/cli-preflight.ts
+@@ -5,11 +5,13 @@
+   applyHelpStyle,
+   attachRichHelp,
+   buildDaemonHelp,
++  buildLocalRuntimeHelp,
+   buildProgram,
+   buildRefreshFreeHelp,
+   buildSlidesProgram,
+   buildTranscriberHelp,
+ } from "./help.js";
++import { handleLocalRuntimeProbeRequest } from "./local-runtime-probe-cli.js";
+ 
+ type HelpContext = {
+   normalizedArgv: string[];
+@@ -34,6 +36,10 @@
+     stdout.write(`${buildDaemonHelp()}\n`);
+     return true;
+   }
++  if (topic === "local-runtime") {
++    stdout.write(`${buildLocalRuntimeHelp()}\n`);
++    return true;
++  }
+   if (topic === "slides") {
+     const slidesProgram: Command = buildSlidesProgram();
+     slidesProgram.configureOutput({
+@@ -159,3 +165,15 @@
+     stderr: ctx.stderr,
+   });
+ }
++
++export async function handleLocalRuntimeCliRequest(
++  ctx: RefreshContext & { setExitCode?: (code: number) => void },
++): Promise<boolean> {
++  return handleLocalRuntimeProbeRequest({
++    normalizedArgv: ctx.normalizedArgv,
++    envForRun: ctx.envForRun,
++    fetchImpl: ctx.fetchImpl,
++    stdout: ctx.stdout,
++    setExitCode: ctx.setExitCode,
++  });
++}
+diff --git a/src/run/help.ts b/src/run/help.ts
+index 47ac6d48e0740073eb201e95d280e27a9b6e67ee..593e364f291f07e374e42b7f23d75f78a4981b5f
+--- a/src/run/help.ts
++++ b/src/run/help.ts
+@@ -246,6 +246,7 @@
+   ${cmd('summarize "https://www.youtube.com/watch?v=..." --slides --extract')} ${dim("# full transcript + inline slides")}
+   ${cmd('summarize slides "https://www.youtube.com/watch?v=..." --render auto')} ${dim("# slides-only mode with inline thumbnails")}
+   ${cmd("summarize transcriber setup")} ${dim("# configure local ONNX transcription (parakeet/canary)")}
++  ${cmd("summarize local-runtime probe")} ${dim("# probe configured/default local LLM endpoints")}
+   ${cmd('summarize "https://example.com" --length 20k --max-output-tokens 2k --timeout 2m --model openai/gpt-5-mini')}
+   ${cmd('summarize "https://example.com" --model github-copilot/gpt-5.4')} ${dim("# GitHub Models via GITHUB_TOKEN")}
+   ${cmd('summarize "https://example.com" --model mymodel')} ${dim("# config preset")}
+@@ -294,6 +295,7 @@
+ ${heading("Hint")}
+   ${cmd("summarize refresh-free")} ${dim("# refresh free-model candidates into ~/.summarize/config.json")}
+   ${cmd("summarize transcriber setup")} ${dim("# set up local ONNX transcription; auto prefers it when configured")}
++  ${cmd("summarize local-runtime probe --json")} ${dim("# verify local LLM endpoints before daemon/extension use")}
+ 
+ ${heading("Support")}
+   ${SUPPORT_URL}
+@@ -349,6 +351,31 @@
+   ].join("\n");
+ }
+ 
++export function buildLocalRuntimeHelp(): string {
++  return [
++    "Usage: summarize local-runtime probe [runtime] [options]",
++    "",
++    "Probes configured or default local LLM runtime endpoints without starting a summary.",
++    "",
++    "Runtimes:",
++    "  openai-compatible  OpenAI-compatible /v1 models endpoint",
++    "  llama-cpp          llama.cpp OpenAI-compatible server",
++    "  ollama             Ollama /api/tags endpoint",
++    "",
++    "Options:",
++    "  --base-url <url>   Override endpoint base URL for this probe",
++    "  --timeout <dur>    Probe timeout (default: 3s; examples: 500ms, 5s)",
++    "  --json             Print a machine-readable probe result",
++    "  --allow-remote     Allow explicitly probing a non-local host",
++    "",
++    "Examples:",
++    "  summarize local-runtime probe",
++    "  summarize local-runtime probe ollama",
++    "  summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1",
++    "  summarize local-runtime probe --json",
++  ].join("\n");
++}
++
+ export function buildTranscriberHelp(): string {
+   return [
+     "Usage: summarize transcriber setup [--model parakeet|canary] [--theme <name>]",
+diff --git a/src/run/local-runtime-probe-cli.ts b/src/run/local-runtime-probe-cli.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..e53ad740440d3b26db5f23da9972cd239fbe61f0
+--- /dev/null
++++ b/src/run/local-runtime-probe-cli.ts
+@@ -0,0 +1,281 @@
++import {
++  DEFAULT_LOCAL_RUNTIME_PROBE_TIMEOUT_MS,
++  type LocalRuntimeKind,
++  type LocalRuntimeProbeResult,
++  normalizeLocalRuntimeKind,
++  probeLocalRuntime,
++} from "@steipete/summarize-core/local-runtime";
++import { loadSummarizeConfig } from "../config.js";
++import { parseDurationMs } from "../flags.js";
++import { buildLocalRuntimeHelp } from "./help.js";
++
++type LocalRuntimeProbeCliContext = {
++  normalizedArgv: string[];
++  envForRun: Record<string, string | undefined>;
++  fetchImpl: typeof fetch;
++  stdout: NodeJS.WritableStream;
++  setExitCode?: (code: number) => void;
++};
++
++type LocalRuntimeProbeCliOptions = {
++  runtime: LocalRuntimeKind | null;
++  baseUrl: string | null;
++  json: boolean;
++  allowRemote: boolean;
++  timeoutMs: number;
++};
++
++type LocalRuntimeProbeCliTarget = {
++  input:
++    | LocalRuntimeKind
++    | {
++        kind: LocalRuntimeKind;
++        baseUrl?: string;
++      };
++};
++
++type LocalRuntimeProbeCliPayload = {
++  ok: boolean;
++  warnings: string[];
++  results: LocalRuntimeProbeResult[];
++};
++
++function hasArg(argv: string[], name: string): boolean {
++  return argv.includes(name) || argv.some((arg) => arg.startsWith(`${name}=`));
++}
++
++function wantsHelp(argv: string[]): boolean {
++  return argv.includes("--help") || argv.includes("-h") || argv.includes("help");
++}
++
++function readArgValue(argv: string[], name: string): string | null {
++  const eq = argv.find((arg) => arg.startsWith(`${name}=`));
++  if (eq) {
++    const value = eq.slice(`${name}=`.length).trim();
++    if (!value) throw new Error(`Missing value for ${name}`);
++    return value;
++  }
++  const index = argv.indexOf(name);
++  if (index === -1) return null;
++  const next = argv[index + 1];
++  if (!next || next.startsWith("-")) {
++    throw new Error(`Missing value for ${name}`);
++  }
++  return next.trim() || null;
++}
++
++function parseProbeTimeout(raw: string | null): number {
++  if (!raw) return DEFAULT_LOCAL_RUNTIME_PROBE_TIMEOUT_MS;
++  try {
++    return parseDurationMs(raw);
++  } catch {
++    throw new Error(`Unsupported --timeout: ${raw}`);
++  }
++}
++
++function parseLocalRuntimeProbeOptions(argv: string[]): LocalRuntimeProbeCliOptions {
++  const args = argv.slice(2);
++  let runtime: LocalRuntimeKind | null = null;
++
++  for (let index = 0; index < args.length; index += 1) {
++    const arg = args[index];
++    if (!arg) continue;
++    if (arg === "--json" || arg === "--allow-remote" || arg === "--help" || arg === "-h") {
++      continue;
++    }
++    if (arg.startsWith("--timeout=") || arg.startsWith("--base-url=")) {
++      continue;
++    }
++    if (arg === "--timeout" || arg === "--base-url") {
++      const next = args[index + 1];
++      if (!next || next.startsWith("-")) {
++        throw new Error(`Missing value for ${arg}`);
++      }
++      index += 1;
++      continue;
++    }
++    if (arg.startsWith("-")) {
++      throw new Error(`Unknown local-runtime probe option: ${arg}`);
++    }
++    if (runtime) {
++      throw new Error(`Unexpected local-runtime probe argument: ${arg}`);
++    }
++    const normalized = normalizeLocalRuntimeKind(arg);
++    if (!normalized) {
++      throw new Error(`Unsupported local runtime: ${arg}`);
++    }
++    runtime = normalized;
++  }
++
++  return {
++    runtime,
++    baseUrl: readArgValue(args, "--base-url"),
++    json: hasArg(args, "--json"),
++    allowRemote: hasArg(args, "--allow-remote"),
++    timeoutMs: parseProbeTimeout(readArgValue(args, "--timeout")),
++  };
++}
++
++function configuredOpenAiBaseUrl({
++  envForRun,
++}: {
++  envForRun: Record<string, string | undefined>;
++}): string | null {
++  const { config } = loadSummarizeConfig({ env: envForRun });
++  const envValue = envForRun.OPENAI_BASE_URL?.trim() ?? "";
++  if (envValue) return envValue;
++  const configValue = config?.openai?.baseUrl?.trim() ?? "";
++  return configValue || null;
++}
++
++function resolveProbeTargets({
++  options,
++  envForRun,
++}: {
++  options: LocalRuntimeProbeCliOptions;
++  envForRun: Record<string, string | undefined>;
++}): { targets: LocalRuntimeProbeCliTarget[]; warnings: string[] } {
++  const openAiBaseUrl = configuredOpenAiBaseUrl({ envForRun });
++  const warnings: string[] = [];
++
++  if (options.runtime) {
++    const baseUrl = options.baseUrl ?? (options.runtime === "ollama" ? null : openAiBaseUrl);
++    return {
++      targets: [
++        {
++          input: baseUrl ? { kind: options.runtime, baseUrl } : options.runtime,
++        },
++      ],
++      warnings,
++    };
++  }
++
++  if (options.baseUrl) {
++    return {
++      targets: [{ input: { kind: "openai-compatible", baseUrl: options.baseUrl } }],
++      warnings,
++    };
++  }
++
++  if (openAiBaseUrl) {
++    return {
++      targets: [{ input: { kind: "openai-compatible", baseUrl: openAiBaseUrl } }],
++      warnings,
++    };
++  }
++
++  warnings.push(
++    "No local OpenAI-compatible endpoint is configured; probing default llama.cpp and Ollama endpoints.",
++  );
++  return {
++    targets: [{ input: "llama-cpp" }, { input: "ollama" }],
++    warnings,
++  };
++}
++
++function formatModelList(result: LocalRuntimeProbeResult): string {
++  if (!result.ok) return "";
++  if (result.models.length === 0) return "none";
++  const ids = result.models.map((model) => model.id).slice(0, 4);
++  const suffix =
++    result.models.length > ids.length ? `, +${result.models.length - ids.length} more` : "";
++  return `${ids.join(", ")}${suffix}`;
++}
++
++function formatServerLine(result: LocalRuntimeProbeResult): string | null {
++  if (!result.ok) return null;
++  const parts = [`status=${result.server.status}`];
++  if (result.server.name) parts.push(`server=${result.server.name}`);
++  if (result.server.version) parts.push(`version=${result.server.version}`);
++  return parts.join(" ");
++}
++
++function writeHumanProbeResult(
++  stdout: NodeJS.WritableStream,
++  result: LocalRuntimeProbeResult,
++): void {
++  if (!result.ok) {
++    const runtimeLabel = result.runtime
++      ? `${result.runtime.label} (${result.runtime.kind})`
++      : "Local runtime";
++    stdout.write(`FAIL ${runtimeLabel}\n`);
++    if (result.endpoint) stdout.write(`  Endpoint: ${result.endpoint}\n`);
++    stdout.write(`  Error: ${result.error.message} (${result.error.code})\n`);
++    return;
++  }
++
++  const modelCount = result.models.length;
++  const level = modelCount > 0 ? "OK" : "WARN";
++  stdout.write(`${level} ${result.runtime.label} (${result.runtime.kind})\n`);
++  stdout.write(`  Endpoint: ${result.endpoint}\n`);
++  if (modelCount > 0) {
++    stdout.write(`  Models: ${formatModelList(result)} (${modelCount})\n`);
++  } else {
++    stdout.write("  Warning: endpoint is reachable but returned no models.\n");
++  }
++  const server = formatServerLine(result);
++  if (server) stdout.write(`  Server: ${server}\n`);
++}
++
++function writeHumanProbePayload(
++  stdout: NodeJS.WritableStream,
++  payload: LocalRuntimeProbeCliPayload,
++): void {
++  stdout.write("Local runtime probe\n");
++  for (const warning of payload.warnings) {
++    stdout.write(`WARN ${warning}\n`);
++  }
++  for (const result of payload.results) {
++    writeHumanProbeResult(stdout, result);
++  }
++}
++
++export async function handleLocalRuntimeProbeRequest({
++  normalizedArgv,
++  envForRun,
++  fetchImpl,
++  stdout,
++  setExitCode,
++}: LocalRuntimeProbeCliContext): Promise<boolean> {
++  const command = normalizedArgv[0]?.toLowerCase();
++  if (command !== "local-runtime") return false;
++
++  const subcommand = normalizedArgv[1]?.toLowerCase() ?? null;
++  if (!subcommand || wantsHelp(normalizedArgv)) {
++    stdout.write(`${buildLocalRuntimeHelp()}\n`);
++    return true;
++  }
++
++  if (subcommand !== "probe") {
++    stdout.write(`${buildLocalRuntimeHelp()}\n`);
++    return true;
++  }
++
++  const options = parseLocalRuntimeProbeOptions(normalizedArgv);
++  const { targets, warnings } = resolveProbeTargets({ options, envForRun });
++  const results = await Promise.all(
++    targets.map((target) =>
++      probeLocalRuntime(target.input, {
++        fetch: fetchImpl,
++        timeoutMs: options.timeoutMs,
++        allowRemoteBaseUrls: options.allowRemote,
++      }),
++    ),
++  );
++  const payload: LocalRuntimeProbeCliPayload = {
++    ok: results.every((result) => result.ok),
++    warnings,
++    results,
++  };
++
++  if (options.json) {
++    stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
++  } else {
++    writeHumanProbePayload(stdout, payload);
++  }
++
++  if (!payload.ok) {
++    setExitCode?.(1);
++  }
++  return true;
++}
+diff --git a/src/run/runner.ts b/src/run/runner.ts
+index c25c02301fecb3ff1a97f276fe114d4efd35e551..44c4ea7eeb56120a9447a6052a3a01f92e8ace9d
+--- a/src/run/runner.ts
++++ b/src/run/runner.ts
+@@ -4,6 +4,7 @@
+ import {
+   handleDaemonCliRequest,
+   handleHelpRequest,
++  handleLocalRuntimeCliRequest,
+   handleRefreshFreeRequest,
+ } from "./cli-preflight.js";
+ import { attachRichHelp, buildProgram } from "./help.js";
+@@ -25,11 +26,12 @@
+   stdin?: NodeJS.ReadableStream;
+   stdout: NodeJS.WritableStream;
+   stderr: NodeJS.WritableStream;
++  setExitCode?: (code: number) => void;
+ };
+ 
+ export async function runCli(
+   argv: string[],
+-  { env: inputEnv, fetch, execFile: execFileOverride, stdin, stdout, stderr }: RunEnv,
++  { env: inputEnv, fetch, execFile: execFileOverride, stdin, stdout, stderr, setExitCode }: RunEnv,
+ ): Promise<void> {
+   (globalThis as unknown as { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
+ 
+@@ -43,6 +45,7 @@
+       fetchImpl: fetch,
+       stdout,
+       stderr,
++      setExitCode,
+     })
+   ) {
+     return;
+@@ -97,8 +100,9 @@
+   fetchImpl: typeof fetch;
+   stdout: NodeJS.WritableStream;
+   stderr: NodeJS.WritableStream;
++  setExitCode?: (code: number) => void;
+ }) {
+-  const { normalizedArgv, envForRun, fetchImpl, stdout, stderr } = options;
++  const { normalizedArgv, envForRun, fetchImpl, stdout, stderr, setExitCode } = options;
+   if (handleHelpRequest({ normalizedArgv, envForRun, stdout, stderr })) {
+     return true;
+   }
+@@ -108,6 +112,18 @@
+   if (await handleDaemonCliRequest({ normalizedArgv, envForRun, fetchImpl, stdout, stderr })) {
+     return true;
+   }
++  if (
++    await handleLocalRuntimeCliRequest({
++      normalizedArgv,
++      envForRun,
++      fetchImpl,
++      stdout,
++      stderr,
++      setExitCode,
++    })
++  ) {
++    return true;
++  }
+   if (await handleSlidesCliRequest({ normalizedArgv, envForRun, fetchImpl, stdout, stderr })) {
+     return true;
+   }
+diff --git a/tests/cli.local-runtime-probe.test.ts b/tests/cli.local-runtime-probe.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..53e0e6185233d9c36ef27c5ea4f48d57dc4685ed
+--- /dev/null
++++ b/tests/cli.local-runtime-probe.test.ts
+@@ -0,0 +1,206 @@
++import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { Writable } from "node:stream";
++import { describe, expect, it, vi } from "vitest";
++import { runCli } from "../src/run.js";
++
++function captureStream() {
++  let text = "";
++  const stream = new Writable({
++    write(chunk, _encoding, callback) {
++      text += chunk.toString();
++      callback();
++    },
++  });
++  return { stream, getText: () => text };
++}
++
++function noopStream(): Writable {
++  return new Writable({
++    write(_chunk, _encoding, callback) {
++      callback();
++    },
++  });
++}
++
++function resolveFetchUrl(input: RequestInfo | URL): string {
++  if (typeof input === "string") return input;
++  if (input instanceof URL) return input.toString();
++  return input.url;
++}
++
++describe("local runtime probe cli", () => {
++  it("prints a clear success message for reachable OpenAI-compatible runtimes", async () => {
++    const stdout = captureStream();
++    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
++      expect(resolveFetchUrl(input)).toBe("http://127.0.0.1:8080/v1/models");
++      return new Response(
++        JSON.stringify({
++          data: [{ id: "llama-3.2-local", object: "model", owned_by: "llama.cpp" }],
++        }),
++        {
++          status: 200,
++          headers: { "content-type": "application/json", server: "llama.cpp" },
++        },
++      );
++    });
++
++    await runCli(
++      [
++        "local-runtime",
++        "probe",
++        "llama-cpp",
++        "--base-url",
++        "http://127.0.0.1:8080/v1",
++        "--timeout",
++        "50ms",
++      ],
++      {
++        env: {},
++        fetch: fetchMock as unknown as typeof fetch,
++        stdout: stdout.stream,
++        stderr: noopStream(),
++      },
++    );
++
++    expect(fetchMock).toHaveBeenCalledTimes(1);
++    const output = stdout.getText();
++    expect(output).toContain("Local runtime probe");
++    expect(output).toContain("OK llama.cpp server (llama-cpp)");
++    expect(output).toContain("Endpoint: http://127.0.0.1:8080/v1/models");
++    expect(output).toContain("Models: llama-3.2-local (1)");
++  });
++
++  it("prints a warning when a reachable runtime returns no models", async () => {
++    const stdout = captureStream();
++    let exitCode: number | null = null;
++    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
++      expect(resolveFetchUrl(input)).toBe("http://127.0.0.1:11434/api/tags");
++      return new Response(JSON.stringify({ models: [] }), {
++        status: 200,
++        headers: { "content-type": "application/json", "x-ollama-version": "0.12.7" },
++      });
++    });
++
++    await runCli(["local-runtime", "probe", "ollama", "--timeout", "50ms"], {
++      env: {},
++      fetch: fetchMock as unknown as typeof fetch,
++      stdout: stdout.stream,
++      stderr: noopStream(),
++      setExitCode: (code) => {
++        exitCode = code;
++      },
++    });
++
++    expect(exitCode).toBeNull();
++    const output = stdout.getText();
++    expect(output).toContain("WARN Ollama (ollama)");
++    expect(output).toContain("Warning: endpoint is reachable but returned no models.");
++  });
++
++  it("prints a failure message and sets a failing exit code when probes fail", async () => {
++    const stdout = captureStream();
++    let exitCode: number | null = null;
++    const fetchMock = vi.fn(async () => {
++      throw new TypeError("fetch failed");
++    });
++
++    await runCli(["local-runtime", "probe", "llama-cpp", "--timeout", "50ms"], {
++      env: {},
++      fetch: fetchMock as unknown as typeof fetch,
++      stdout: stdout.stream,
++      stderr: noopStream(),
++      setExitCode: (code) => {
++        exitCode = code;
++      },
++    });
++
++    expect(exitCode).toBe(1);
++    const output = stdout.getText();
++    expect(output).toContain("FAIL llama.cpp server (llama-cpp)");
++    expect(output).toContain("Endpoint: http://127.0.0.1:8080/v1/models");
++    expect(output).toContain("Local runtime probe failed: fetch failed (network-error)");
++  });
++
++  it("emits JSON for scripts using configured OpenAI-compatible base URLs", async () => {
++    const tempRoot = mkdtempSync(join(tmpdir(), "summarize-local-runtime-"));
++    mkdirSync(join(tempRoot, ".summarize"), { recursive: true });
++    writeFileSync(
++      join(tempRoot, ".summarize", "config.json"),
++      JSON.stringify({ openai: { baseUrl: "http://localhost:9999/v1" } }),
++      "utf8",
++    );
++
++    const stdout = captureStream();
++    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
++      expect(resolveFetchUrl(input)).toBe("http://localhost:9999/v1/models");
++      return new Response(JSON.stringify({ data: [{ id: "local-model" }] }), {
++        status: 200,
++        headers: { "content-type": "application/json" },
++      });
++    });
++
++    await runCli(["local-runtime", "probe", "--json", "--timeout", "50ms"], {
++      env: { HOME: tempRoot },
++      fetch: fetchMock as unknown as typeof fetch,
++      stdout: stdout.stream,
++      stderr: noopStream(),
++    });
++
++    const payload = JSON.parse(stdout.getText()) as {
++      ok: boolean;
++      warnings: string[];
++      results: Array<{
++        ok: boolean;
++        endpoint: string;
++        runtime: { kind: string; baseUrl: string; baseUrlSource: string };
++        models: Array<{ id: string }>;
++      }>;
++    };
++    expect(payload).toMatchObject({
++      ok: true,
++      warnings: [],
++      results: [
++        {
++          ok: true,
++          endpoint: "http://localhost:9999/v1/models",
++          runtime: {
++            kind: "openai-compatible",
++            baseUrl: "http://localhost:9999/v1",
++            baseUrlSource: "configured",
++          },
++          models: [{ id: "local-model" }],
++        },
++      ],
++    });
++  });
++
++  it("does not fetch remote OpenAI base URLs unless explicitly allowed", async () => {
++    const stdout = captureStream();
++    let exitCode: number | null = null;
++    const fetchMock = vi.fn();
++
++    await runCli(["local-runtime", "probe", "--json"], {
++      env: { OPENAI_BASE_URL: "https://api.openai.com/v1" },
++      fetch: fetchMock as unknown as typeof fetch,
++      stdout: stdout.stream,
++      stderr: noopStream(),
++      setExitCode: (code) => {
++        exitCode = code;
++      },
++    });
++
++    expect(fetchMock).not.toHaveBeenCalled();
++    expect(exitCode).toBe(1);
++    const payload = JSON.parse(stdout.getText()) as {
++      ok: boolean;
++      results: Array<{ ok: boolean; error: { code: string } }>;
++    };
++    expect(payload.ok).toBe(false);
++    expect(payload.results[0]).toMatchObject({
++      ok: false,
++      error: { code: "invalid-runtime" },
++    });
++  });
++});
+
+codex
+<promise>COMPLETE</promise>
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 62ba4556b06d4e7e1e522756af66971a200fe9ee..02428463ce53cf2c919b18b82b29618dc56409a4
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,56 @@
+ 
+ ---
+ 
++## 2026-04-22 09:31:37 PDT - LLR-005: Add CLI Local Runtime Probe Command
++Thread:
++Run: 20260422-085058-72504 (iteration 5)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-5.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-5.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 330cde38 feat: add local runtime probe cli
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s test -- tests/cli.local-runtime-probe.test.ts` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - README.md
++  - docs/cli.md
++  - src/cli-main.ts
++  - src/run/cli-preflight.ts
++  - src/run/help.ts
++  - src/run/local-runtime-probe-cli.ts
++  - src/run/runner.ts
++  - tests/cli.local-runtime-probe.test.ts
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-5.md
++  - .ralph/.tmp/story-20260422-085058-72504-5.json
++  - .ralph/.tmp/story-20260422-085058-72504-5.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-4.md
++  - .ralph/runs/run-20260422-085058-72504-iter-5.log
++- What was implemented
++  Added `summarize local-runtime probe` as an immediate CLI command that resolves configured `OPENAI_BASE_URL` /
++  `openai.baseUrl`, falls back to default llama.cpp and Ollama localhost endpoints, prints `OK` / `WARN` / `FAIL`
++  diagnostics, supports `--json`, bounded `--timeout`, `--base-url`, and explicit `--allow-remote`, and sets a failing
++  exit code for failed probes through the real CLI entrypoint. Added mocked-fetch CLI tests covering success, warnings,
++  failures, JSON output, and remote-host blocking. Documented the command in README and CLI docs.
++- **Learnings for future iterations:**
++  - Patterns discovered: CLI utility subcommands that should run before normal summary parsing belong in
++    `src/run/cli-preflight.ts`; standalone help text lives in `src/run/help.ts`.
++  - Gotchas encountered: `/Users/shh/proj/summarize/ralph` is absent in this checkout; use
++    `.agents/ralph/log-activity.sh` for activity logging. The `committer` / `$commit` helper is also unavailable, so a
++    conventional `git commit` fallback was required.
++  - Useful context: `pnpm -s test -- tests/cli.local-runtime-probe.test.ts` currently runs the configured repository
++    test suite, not just that file. The probe sends only model-list requests and does not include API keys or source
++    content; non-local hosts stay blocked unless `--allow-remote` is explicit.
++---
++
+ ## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
+ Thread: 019db5e3-33a6-7350-92dc-add32e3e321a
+ Run: 20260422-085058-72504 (iteration 1)
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-4.md b/.ralph/runs/run-20260422-085058-72504-iter-4.md
+index 5650b43401ccc0a1ed293f5a7efbaa2526a0c8e2..0a94236dfd10abe328028bcb79ae711b57b3ecb2
+--- a/.ralph/runs/run-20260422-085058-72504-iter-4.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-4.md
+@@ -34,4 +34,3 @@
+ 
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/README.md b/README.md
+index ea8c6aa2717ea00046cf3a027c0e108b2e6afc01..c2d3a8e012c4cb2f350eef8d7d35fee45f35c848
+--- a/README.md
++++ b/README.md
+@@ -327,6 +327,21 @@
+ - `--verbose`: debug/diagnostics on stderr
+ - `--metrics off|on|detailed`: metrics output (default `on`)
+ 
++### Local runtime probe
++
++Use the probe command to verify a local LLM endpoint before starting the daemon or browser extension:
++
++```bash
++summarize local-runtime probe
++summarize local-runtime probe ollama
++summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1
++summarize local-runtime probe --json
++```
++
++The command checks configured `OPENAI_BASE_URL` / `openai.baseUrl` first, otherwise it probes the default llama.cpp and
++Ollama localhost endpoints. It prints `OK`, `WARN`, or `FAIL` lines and `--json` emits the same diagnostics for scripts
++and tests without requiring a live model server.
++
+ ### Coding CLIs (Codex, Claude, Gemini, Agent, OpenClaw, OpenCode)
+ 
+ Summarize can use common coding CLIs as local model backends:
+diff --git a/docs/cli.md b/docs/cli.md
+index 7877741a31555a7d3b09d624b96dde15da01da52..0f85915e2064284880ed47b33efc8994d9e5bb5a
+--- a/docs/cli.md
++++ b/docs/cli.md
+@@ -149,6 +149,29 @@
+ 
+ If Agent fails with auth, run `agent login` (interactive) or set `CURSOR_API_KEY`.
+ 
++## Local runtime probe
++
++`summarize local-runtime probe` verifies local HTTP model runtimes before daemon or extension use. It only calls the
++runtime model-list endpoint, so it does not start a summarization run or send source content.
++
++Examples:
++
++```bash
++summarize local-runtime probe
++summarize local-runtime probe ollama
++summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1
++summarize local-runtime probe --json
++```
++
++Resolution order:
++
++- If `OPENAI_BASE_URL` or `openai.baseUrl` is configured, probe it as an OpenAI-compatible local runtime.
++- If no endpoint is configured, probe the default llama.cpp and Ollama localhost endpoints.
++- Use `--base-url` to test a specific endpoint and `--allow-remote` only when intentionally probing a non-local host.
++
++Human output uses `OK`, `WARN`, and `FAIL` lines. JSON output is intended for tests and scripts; CLI tests mock the
++probe response and do not require a live model server.
++
+ ## Generate free preset (OpenRouter)
+ 
+ `summarize` ships with a built-in preset `free`, backed by OpenRouter `:free` models.
+diff --git a/src/cli-main.ts b/src/cli-main.ts
+index 96553e2a4641b8784846822d8e146ff471a12463..9447eb6073717a036f53c38a909f0ef67d69437d
+--- a/src/cli-main.ts
++++ b/src/cli-main.ts
+@@ -132,7 +132,7 @@
+ 
+   try {
+     const mergedEnv = env === process.env ? { ...(await loadDotenvFromCwd()), ...env } : env;
+-    await runCli(argv, { env: mergedEnv, fetch, stdout, stderr });
++    await runCli(argv, { env: mergedEnv, fetch, stdout, stderr, setExitCode });
+   } catch (error: unknown) {
+     const isTty = Boolean((stderr as unknown as { isTTY?: boolean }).isTTY);
+     if (isTty) stderr.write("\n");
+diff --git a/src/run/cli-preflight.ts b/src/run/cli-preflight.ts
+index 95d9bf37b4ad91fd1704673289a5a3cad9230000..1ccf21797d8729cf0703bd3e86913d803586f32d
+--- a/src/run/cli-preflight.ts
++++ b/src/run/cli-preflight.ts
+@@ -5,11 +5,13 @@
+   applyHelpStyle,
+   attachRichHelp,
+   buildDaemonHelp,
++  buildLocalRuntimeHelp,
+   buildProgram,
+   buildRefreshFreeHelp,
+   buildSlidesProgram,
+   buildTranscriberHelp,
+ } from "./help.js";
++import { handleLocalRuntimeProbeRequest } from "./local-runtime-probe-cli.js";
+ 
+ type HelpContext = {
+   normalizedArgv: string[];
+@@ -34,6 +36,10 @@
+     stdout.write(`${buildDaemonHelp()}\n`);
+     return true;
+   }
++  if (topic === "local-runtime") {
++    stdout.write(`${buildLocalRuntimeHelp()}\n`);
++    return true;
++  }
+   if (topic === "slides") {
+     const slidesProgram: Command = buildSlidesProgram();
+     slidesProgram.configureOutput({
+@@ -159,3 +165,15 @@
+     stderr: ctx.stderr,
+   });
+ }
++
++export async function handleLocalRuntimeCliRequest(
++  ctx: RefreshContext & { setExitCode?: (code: number) => void },
++): Promise<boolean> {
++  return handleLocalRuntimeProbeRequest({
++    normalizedArgv: ctx.normalizedArgv,
++    envForRun: ctx.envForRun,
++    fetchImpl: ctx.fetchImpl,
++    stdout: ctx.stdout,
++    setExitCode: ctx.setExitCode,
++  });
++}
+diff --git a/src/run/help.ts b/src/run/help.ts
+index 47ac6d48e0740073eb201e95d280e27a9b6e67ee..593e364f291f07e374e42b7f23d75f78a4981b5f
+--- a/src/run/help.ts
++++ b/src/run/help.ts
+@@ -246,6 +246,7 @@
+   ${cmd('summarize "https://www.youtube.com/watch?v=..." --slides --extract')} ${dim("# full transcript + inline slides")}
+   ${cmd('summarize slides "https://www.youtube.com/watch?v=..." --render auto')} ${dim("# slides-only mode with inline thumbnails")}
+   ${cmd("summarize transcriber setup")} ${dim("# configure local ONNX transcription (parakeet/canary)")}
++  ${cmd("summarize local-runtime probe")} ${dim("# probe configured/default local LLM endpoints")}
+   ${cmd('summarize "https://example.com" --length 20k --max-output-tokens 2k --timeout 2m --model openai/gpt-5-mini')}
+   ${cmd('summarize "https://example.com" --model github-copilot/gpt-5.4')} ${dim("# GitHub Models via GITHUB_TOKEN")}
+   ${cmd('summarize "https://example.com" --model mymodel')} ${dim("# config preset")}
+@@ -294,6 +295,7 @@
+ ${heading("Hint")}
+   ${cmd("summarize refresh-free")} ${dim("# refresh free-model candidates into ~/.summarize/config.json")}
+   ${cmd("summarize transcriber setup")} ${dim("# set up local ONNX transcription; auto prefers it when configured")}
++  ${cmd("summarize local-runtime probe --json")} ${dim("# verify local LLM endpoints before daemon/extension use")}
+ 
+ ${heading("Support")}
+   ${SUPPORT_URL}
+@@ -349,6 +351,31 @@
+   ].join("\n");
+ }
+ 
++export function buildLocalRuntimeHelp(): string {
++  return [
++    "Usage: summarize local-runtime probe [runtime] [options]",
++    "",
++    "Probes configured or default local LLM runtime endpoints without starting a summary.",
++    "",
++    "Runtimes:",
++    "  openai-compatible  OpenAI-compatible /v1 models endpoint",
++    "  llama-cpp          llama.cpp OpenAI-compatible server",
++    "  ollama             Ollama /api/tags endpoint",
++    "",
++    "Options:",
++    "  --base-url <url>   Override endpoint base URL for this probe",
++    "  --timeout <dur>    Probe timeout (default: 3s; examples: 500ms, 5s)",
++    "  --json             Print a machine-readable probe result",
++    "  --allow-remote     Allow explicitly probing a non-local host",
++    "",
++    "Examples:",
++    "  summarize local-runtime probe",
++    "  summarize local-runtime probe ollama",
++    "  summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1",
++    "  summarize local-runtime probe --json",
++  ].join("\n");
++}
++
+ export function buildTranscriberHelp(): string {
+   return [
+     "Usage: summarize transcriber setup [--model parakeet|canary] [--theme <name>]",
+diff --git a/src/run/local-runtime-probe-cli.ts b/src/run/local-runtime-probe-cli.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..e53ad740440d3b26db5f23da9972cd239fbe61f0
+--- /dev/null
++++ b/src/run/local-runtime-probe-cli.ts
+@@ -0,0 +1,281 @@
++import {
++  DEFAULT_LOCAL_RUNTIME_PROBE_TIMEOUT_MS,
++  type LocalRuntimeKind,
++  type LocalRuntimeProbeResult,
++  normalizeLocalRuntimeKind,
++  probeLocalRuntime,
++} from "@steipete/summarize-core/local-runtime";
++import { loadSummarizeConfig } from "../config.js";
++import { parseDurationMs } from "../flags.js";
++import { buildLocalRuntimeHelp } from "./help.js";
++
++type LocalRuntimeProbeCliContext = {
++  normalizedArgv: string[];
++  envForRun: Record<string, string | undefined>;
++  fetchImpl: typeof fetch;
++  stdout: NodeJS.WritableStream;
++  setExitCode?: (code: number) => void;
++};
++
++type LocalRuntimeProbeCliOptions = {
++  runtime: LocalRuntimeKind | null;
++  baseUrl: string | null;
++  json: boolean;
++  allowRemote: boolean;
++  timeoutMs: number;
++};
++
++type LocalRuntimeProbeCliTarget = {
++  input:
++    | LocalRuntimeKind
++    | {
++        kind: LocalRuntimeKind;
++        baseUrl?: string;
++      };
++};
++
++type LocalRuntimeProbeCliPayload = {
++  ok: boolean;
++  warnings: string[];
++  results: LocalRuntimeProbeResult[];
++};
++
++function hasArg(argv: string[], name: string): boolean {
++  return argv.includes(name) || argv.some((arg) => arg.startsWith(`${name}=`));
++}
++
++function wantsHelp(argv: string[]): boolean {
++  return argv.includes("--help") || argv.includes("-h") || argv.includes("help");
++}
++
++function readArgValue(argv: string[], name: string): string | null {
++  const eq = argv.find((arg) => arg.startsWith(`${name}=`));
++  if (eq) {
++    const value = eq.slice(`${name}=`.length).trim();
++    if (!value) throw new Error(`Missing value for ${name}`);
++    return value;
++  }
++  const index = argv.indexOf(name);
++  if (index === -1) return null;
++  const next = argv[index + 1];
++  if (!next || next.startsWith("-")) {
++    throw new Error(`Missing value for ${name}`);
++  }
++  return next.trim() || null;
++}
++
++function parseProbeTimeout(raw: string | null): number {
++  if (!raw) return DEFAULT_LOCAL_RUNTIME_PROBE_TIMEOUT_MS;
++  try {
++    return parseDurationMs(raw);
++  } catch {
++    throw new Error(`Unsupported --timeout: ${raw}`);
++  }
++}
++
++function parseLocalRuntimeProbeOptions(argv: string[]): LocalRuntimeProbeCliOptions {
++  const args = argv.slice(2);
++  let runtime: LocalRuntimeKind | null = null;
++
++  for (let index = 0; index < args.length; index += 1) {
++    const arg = args[index];
++    if (!arg) continue;
++    if (arg === "--json" || arg === "--allow-remote" || arg === "--help" || arg === "-h") {
++      continue;
++    }
++    if (arg.startsWith("--timeout=") || arg.startsWith("--base-url=")) {
++      continue;
++    }
++    if (arg === "--timeout" || arg === "--base-url") {
++      const next = args[index + 1];
++      if (!next || next.startsWith("-")) {
++        throw new Error(`Missing value for ${arg}`);
++      }
++      index += 1;
++      continue;
++    }
++    if (arg.startsWith("-")) {
++      throw new Error(`Unknown local-runtime probe option: ${arg}`);
++    }
++    if (runtime) {
++      throw new Error(`Unexpected local-runtime probe argument: ${arg}`);
++    }
++    const normalized = normalizeLocalRuntimeKind(arg);
++    if (!normalized) {
++      throw new Error(`Unsupported local runtime: ${arg}`);
++    }
++    runtime = normalized;
++  }
++
++  return {
++    runtime,
++    baseUrl: readArgValue(args, "--base-url"),
++    json: hasArg(args, "--json"),
++    allowRemote: hasArg(args, "--allow-remote"),
++    timeoutMs: parseProbeTimeout(readArgValue(args, "--timeout")),
++  };
++}
++
++function configuredOpenAiBaseUrl({
++  envForRun,
++}: {
++  envForRun: Record<string, string | undefined>;
++}): string | null {
++  const { config } = loadSummarizeConfig({ env: envForRun });
++  const envValue = envForRun.OPENAI_BASE_URL?.trim() ?? "";
++  if (envValue) return envValue;
++  const configValue = config?.openai?.baseUrl?.trim() ?? "";
++  return configValue || null;
++}
++
++function resolveProbeTargets({
++  options,
++  envForRun,
++}: {
++  options: LocalRuntimeProbeCliOptions;
++  envForRun: Record<string, string | undefined>;
++}): { targets: LocalRuntimeProbeCliTarget[]; warnings: string[] } {
++  const openAiBaseUrl = configuredOpenAiBaseUrl({ envForRun });
++  const warnings: string[] = [];
++
++  if (options.runtime) {
++    const baseUrl = options.baseUrl ?? (options.runtime === "ollama" ? null : openAiBaseUrl);
++    return {
++      targets: [
++        {
++          input: baseUrl ? { kind: options.runtime, baseUrl } : options.runtime,
++        },
++      ],
++      warnings,
++    };
++  }
++
++  if (options.baseUrl) {
++    return {
++      targets: [{ input: { kind: "openai-compatible", baseUrl: options.baseUrl } }],
++      warnings,
++    };
++  }
++
++  if (openAiBaseUrl) {
++    return {
++      targets: [{ input: { kind: "openai-compatible", baseUrl: openAiBaseUrl } }],
++      warnings,
++    };
++  }
++
++  warnings.push(
++    "No local OpenAI-compatible endpoint is configured; probing default llama.cpp and Ollama endpoints.",
++  );
++  return {
++    targets: [{ input: "llama-cpp" }, { input: "ollama" }],
++    warnings,
++  };
++}
++
++function formatModelList(result: LocalRuntimeProbeResult): string {
++  if (!result.ok) return "";
++  if (result.models.length === 0) return "none";
++  const ids = result.models.map((model) => model.id).slice(0, 4);
++  const suffix =
++    result.models.length > ids.length ? `, +${result.models.length - ids.length} more` : "";
++  return `${ids.join(", ")}${suffix}`;
++}
++
++function formatServerLine(result: LocalRuntimeProbeResult): string | null {
++  if (!result.ok) return null;
++  const parts = [`status=${result.server.status}`];
++  if (result.server.name) parts.push(`server=${result.server.name}`);
++  if (result.server.version) parts.push(`version=${result.server.version}`);
++  return parts.join(" ");
++}
++
++function writeHumanProbeResult(
++  stdout: NodeJS.WritableStream,
++  result: LocalRuntimeProbeResult,
++): void {
++  if (!result.ok) {
++    const runtimeLabel = result.runtime
++      ? `${result.runtime.label} (${result.runtime.kind})`
++      : "Local runtime";
++    stdout.write(`FAIL ${runtimeLabel}\n`);
++    if (result.endpoint) stdout.write(`  Endpoint: ${result.endpoint}\n`);
++    stdout.write(`  Error: ${result.error.message} (${result.error.code})\n`);
++    return;
++  }
++
++  const modelCount = result.models.length;
++  const level = modelCount > 0 ? "OK" : "WARN";
++  stdout.write(`${level} ${result.runtime.label} (${result.runtime.kind})\n`);
++  stdout.write(`  Endpoint: ${result.endpoint}\n`);
++  if (modelCount > 0) {
++    stdout.write(`  Models: ${formatModelList(result)} (${modelCount})\n`);
++  } else {
++    stdout.write("  Warning: endpoint is reachable but returned no models.\n");
++  }
++  const server = formatServerLine(result);
++  if (server) stdout.write(`  Server: ${server}\n`);
++}
++
++function writeHumanProbePayload(
++  stdout: NodeJS.WritableStream,
++  payload: LocalRuntimeProbeCliPayload,
++): void {
++  stdout.write("Local runtime probe\n");
++  for (const warning of payload.warnings) {
++    stdout.write(`WARN ${warning}\n`);
++  }
++  for (const result of payload.results) {
++    writeHumanProbeResult(stdout, result);
++  }
++}
++
++export async function handleLocalRuntimeProbeRequest({
++  normalizedArgv,
++  envForRun,
++  fetchImpl,
++  stdout,
++  setExitCode,
++}: LocalRuntimeProbeCliContext): Promise<boolean> {
++  const command = normalizedArgv[0]?.toLowerCase();
++  if (command !== "local-runtime") return false;
++
++  const subcommand = normalizedArgv[1]?.toLowerCase() ?? null;
++  if (!subcommand || wantsHelp(normalizedArgv)) {
++    stdout.write(`${buildLocalRuntimeHelp()}\n`);
++    return true;
++  }
++
++  if (subcommand !== "probe") {
++    stdout.write(`${buildLocalRuntimeHelp()}\n`);
++    return true;
++  }
++
++  const options = parseLocalRuntimeProbeOptions(normalizedArgv);
++  const { targets, warnings } = resolveProbeTargets({ options, envForRun });
++  const results = await Promise.all(
++    targets.map((target) =>
++      probeLocalRuntime(target.input, {
++        fetch: fetchImpl,
++        timeoutMs: options.timeoutMs,
++        allowRemoteBaseUrls: options.allowRemote,
++      }),
++    ),
++  );
++  const payload: LocalRuntimeProbeCliPayload = {
++    ok: results.every((result) => result.ok),
++    warnings,
++    results,
++  };
++
++  if (options.json) {
++    stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
++  } else {
++    writeHumanProbePayload(stdout, payload);
++  }
++
++  if (!payload.ok) {
++    setExitCode?.(1);
++  }
++  return true;
++}
+diff --git a/src/run/runner.ts b/src/run/runner.ts
+index c25c02301fecb3ff1a97f276fe114d4efd35e551..44c4ea7eeb56120a9447a6052a3a01f92e8ace9d
+--- a/src/run/runner.ts
++++ b/src/run/runner.ts
+@@ -4,6 +4,7 @@
+ import {
+   handleDaemonCliRequest,
+   handleHelpRequest,
++  handleLocalRuntimeCliRequest,
+   handleRefreshFreeRequest,
+ } from "./cli-preflight.js";
+ import { attachRichHelp, buildProgram } from "./help.js";
+@@ -25,11 +26,12 @@
+   stdin?: NodeJS.ReadableStream;
+   stdout: NodeJS.WritableStream;
+   stderr: NodeJS.WritableStream;
++  setExitCode?: (code: number) => void;
+ };
+ 
+ export async function runCli(
+   argv: string[],
+-  { env: inputEnv, fetch, execFile: execFileOverride, stdin, stdout, stderr }: RunEnv,
++  { env: inputEnv, fetch, execFile: execFileOverride, stdin, stdout, stderr, setExitCode }: RunEnv,
+ ): Promise<void> {
+   (globalThis as unknown as { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
+ 
+@@ -43,6 +45,7 @@
+       fetchImpl: fetch,
+       stdout,
+       stderr,
++      setExitCode,
+     })
+   ) {
+     return;
+@@ -97,8 +100,9 @@
+   fetchImpl: typeof fetch;
+   stdout: NodeJS.WritableStream;
+   stderr: NodeJS.WritableStream;
++  setExitCode?: (code: number) => void;
+ }) {
+-  const { normalizedArgv, envForRun, fetchImpl, stdout, stderr } = options;
++  const { normalizedArgv, envForRun, fetchImpl, stdout, stderr, setExitCode } = options;
+   if (handleHelpRequest({ normalizedArgv, envForRun, stdout, stderr })) {
+     return true;
+   }
+@@ -108,6 +112,18 @@
+   if (await handleDaemonCliRequest({ normalizedArgv, envForRun, fetchImpl, stdout, stderr })) {
+     return true;
+   }
++  if (
++    await handleLocalRuntimeCliRequest({
++      normalizedArgv,
++      envForRun,
++      fetchImpl,
++      stdout,
++      stderr,
++      setExitCode,
++    })
++  ) {
++    return true;
++  }
+   if (await handleSlidesCliRequest({ normalizedArgv, envForRun, fetchImpl, stdout, stderr })) {
+     return true;
+   }
+diff --git a/tests/cli.local-runtime-probe.test.ts b/tests/cli.local-runtime-probe.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..53e0e6185233d9c36ef27c5ea4f48d57dc4685ed
+--- /dev/null
++++ b/tests/cli.local-runtime-probe.test.ts
+@@ -0,0 +1,206 @@
++import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { Writable } from "node:stream";
++import { describe, expect, it, vi } from "vitest";
++import { runCli } from "../src/run.js";
++
++function captureStream() {
++  let text = "";
++  const stream = new Writable({
++    write(chunk, _encoding, callback) {
++      text += chunk.toString();
++      callback();
++    },
++  });
++  return { stream, getText: () => text };
++}
++
++function noopStream(): Writable {
++  return new Writable({
++    write(_chunk, _encoding, callback) {
++      callback();
++    },
++  });
++}
++
++function resolveFetchUrl(input: RequestInfo | URL): string {
++  if (typeof input === "string") return input;
++  if (input instanceof URL) return input.toString();
++  return input.url;
++}
++
++describe("local runtime probe cli", () => {
++  it("prints a clear success message for reachable OpenAI-compatible runtimes", async () => {
++    const stdout = captureStream();
++    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
++      expect(resolveFetchUrl(input)).toBe("http://127.0.0.1:8080/v1/models");
++      return new Response(
++        JSON.stringify({
++          data: [{ id: "llama-3.2-local", object: "model", owned_by: "llama.cpp" }],
++        }),
++        {
++          status: 200,
++          headers: { "content-type": "application/json", server: "llama.cpp" },
++        },
++      );
++    });
++
++    await runCli(
++      [
++        "local-runtime",
++        "probe",
++        "llama-cpp",
++        "--base-url",
++        "http://127.0.0.1:8080/v1",
++        "--timeout",
++        "50ms",
++      ],
++      {
++        env: {},
++        fetch: fetchMock as unknown as typeof fetch,
++        stdout: stdout.stream,
++        stderr: noopStream(),
++      },
++    );
++
++    expect(fetchMock).toHaveBeenCalledTimes(1);
++    const output = stdout.getText();
++    expect(output).toContain("Local runtime probe");
++    expect(output).toContain("OK llama.cpp server (llama-cpp)");
++    expect(output).toContain("Endpoint: http://127.0.0.1:8080/v1/models");
++    expect(output).toContain("Models: llama-3.2-local (1)");
++  });
++
++  it("prints a warning when a reachable runtime returns no models", async () => {
++    const stdout = captureStream();
++    let exitCode: number | null = null;
++    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
++      expect(resolveFetchUrl(input)).toBe("http://127.0.0.1:11434/api/tags");
++      return new Response(JSON.stringify({ models: [] }), {
++        status: 200,
++        headers: { "content-type": "application/json", "x-ollama-version": "0.12.7" },
++      });
++    });
++
++    await runCli(["local-runtime", "probe", "ollama", "--timeout", "50ms"], {
++      env: {},
++      fetch: fetchMock as unknown as typeof fetch,
++      stdout: stdout.stream,
++      stderr: noopStream(),
++      setExitCode: (code) => {
++        exitCode = code;
++      },
++    });
++
++    expect(exitCode).toBeNull();
++    const output = stdout.getText();
++    expect(output).toContain("WARN Ollama (ollama)");
++    expect(output).toContain("Warning: endpoint is reachable but returned no models.");
++  });
++
++  it("prints a failure message and sets a failing exit code when probes fail", async () => {
++    const stdout = captureStream();
++    let exitCode: number | null = null;
++    const fetchMock = vi.fn(async () => {
++      throw new TypeError("fetch failed");
++    });
++
++    await runCli(["local-runtime", "probe", "llama-cpp", "--timeout", "50ms"], {
++      env: {},
++      fetch: fetchMock as unknown as typeof fetch,
++      stdout: stdout.stream,
++      stderr: noopStream(),
++      setExitCode: (code) => {
++        exitCode = code;
++      },
++    });
++
++    expect(exitCode).toBe(1);
++    const output = stdout.getText();
++    expect(output).toContain("FAIL llama.cpp server (llama-cpp)");
++    expect(output).toContain("Endpoint: http://127.0.0.1:8080/v1/models");
++    expect(output).toContain("Local runtime probe failed: fetch failed (network-error)");
++  });
++
++  it("emits JSON for scripts using configured OpenAI-compatible base URLs", async () => {
++    const tempRoot = mkdtempSync(join(tmpdir(), "summarize-local-runtime-"));
++    mkdirSync(join(tempRoot, ".summarize"), { recursive: true });
++    writeFileSync(
++      join(tempRoot, ".summarize", "config.json"),
++      JSON.stringify({ openai: { baseUrl: "http://localhost:9999/v1" } }),
++      "utf8",
++    );
++
++    const stdout = captureStream();
++    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
++      expect(resolveFetchUrl(input)).toBe("http://localhost:9999/v1/models");
++      return new Response(JSON.stringify({ data: [{ id: "local-model" }] }), {
++        status: 200,
++        headers: { "content-type": "application/json" },
++      });
++    });
++
++    await runCli(["local-runtime", "probe", "--json", "--timeout", "50ms"], {
++      env: { HOME: tempRoot },
++      fetch: fetchMock as unknown as typeof fetch,
++      stdout: stdout.stream,
++      stderr: noopStream(),
++    });
++
++    const payload = JSON.parse(stdout.getText()) as {
++      ok: boolean;
++      warnings: string[];
++      results: Array<{
++        ok: boolean;
++        endpoint: string;
++        runtime: { kind: string; baseUrl: string; baseUrlSource: string };
++        models: Array<{ id: string }>;
++      }>;
++    };
++    expect(payload).toMatchObject({
++      ok: true,
++      warnings: [],
++      results: [
++        {
++          ok: true,
++          endpoint: "http://localhost:9999/v1/models",
++          runtime: {
++            kind: "openai-compatible",
++            baseUrl: "http://localhost:9999/v1",
++            baseUrlSource: "configured",
++          },
++          models: [{ id: "local-model" }],
++        },
++      ],
++    });
++  });
++
++  it("does not fetch remote OpenAI base URLs unless explicitly allowed", async () => {
++    const stdout = captureStream();
++    let exitCode: number | null = null;
++    const fetchMock = vi.fn();
++
++    await runCli(["local-runtime", "probe", "--json"], {
++      env: { OPENAI_BASE_URL: "https://api.openai.com/v1" },
++      fetch: fetchMock as unknown as typeof fetch,
++      stdout: stdout.stream,
++      stderr: noopStream(),
++      setExitCode: (code) => {
++        exitCode = code;
++      },
++    });
++
++    expect(fetchMock).not.toHaveBeenCalled();
++    expect(exitCode).toBe(1);
++    const payload = JSON.parse(stdout.getText()) as {
++      ok: boolean;
++      results: Array<{ ok: boolean; error: { code: string } }>;
++    };
++    expect(payload.ok).toBe(false);
++    expect(payload.results[0]).toMatchObject({
++      ok: false,
++      error: { code: "invalid-runtime" },
++    });
++  });
++});
+
+tokens used
+213,091
+<promise>COMPLETE</promise>

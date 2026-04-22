@@ -1,6 +1,7 @@
 # Activity Log
 
 ## Run Summary
+- 2026-04-22 09:32:54 | run=20260422-085058-72504 | iter=5 | mode=build | story=LLR-005 | duration=521s | status=success
 - 2026-04-22 09:24:11 | run=20260422-085058-72504 | iter=4 | mode=build | story=LLR-004 | duration=530s | status=success
 - 2026-04-22 09:15:19 | run=20260422-085058-72504 | iter=3 | mode=build | story=LLR-003 | duration=541s | status=success
 - 2026-04-22 09:06:16 | run=20260422-085058-72504 | iter=2 | mode=build | story=LLR-002 | duration=629s | status=success
@@ -42,3 +43,11 @@
 [2026-04-22 09:31:05] Reverified LLR-005 after CLI dispatch review: tests, typecheck, build, check, diff-check passed
 [2026-04-22 09:31:27] Reviewed LLR-005 changes for security performance and regression risk before commit
 [2026-04-22 09:31:58] Updated progress log for LLR-005 local-runtime probe CLI
+[2026-04-22 09:32:54] ITERATION 5 end (duration=521s)
+[2026-04-22 09:32:57] ITERATION 6 start (mode=build story=LLR-006)
+[2026-04-22 09:33:26] Start work on LLR-006 language-aware local model routing
+[2026-04-22 09:37:16] Implemented LLR-006 config parsing and language-aware local model selection
+[2026-04-22 09:38:03] Formatted LLR-006 local routing helper after check failure
+[2026-04-22 09:38:48] Verified LLR-006 with targeted tests, typecheck, build, and check
+[2026-04-22 09:39:34] Reviewed LLR-006 changes for security performance and regression risk before commit
+[2026-04-22 09:40:48] Updated progress log for LLR-006 language-aware local routing

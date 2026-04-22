@@ -227,3 +227,52 @@ Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-ite
   - Useful context: `pnpm -s test -- tests/local-runtime.test.ts` invokes the repository test script and currently runs
     the full suite; `pnpm exec vitest run tests/local-runtime.test.ts` is the precise single-file test path.
 ---
+
+## 2026-04-22 09:39:46 PDT - LLR-006: Add Language-Aware Local Model Routing
+Thread:
+Run: 20260422-085058-72504 (iteration 6)
+Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-6.log
+Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-6.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: b4ce4f01 feat: add language-aware local routing
+- Post-commit status: dirty with pre-existing/generated Ralph and PRD files listed in this entry
+- Verification:
+  - Command: `pnpm -s test -- tests/run.models.test.ts tests/config.test.ts` -> PASS
+  - Command: `pnpm exec vitest run tests/run.models.test.ts tests/config.test.ts` -> PASS
+  - Command: `pnpm -s typecheck` -> PASS
+  - Command: `pnpm -s build` -> PASS
+  - Command: `pnpm -s check` -> PASS
+  - Command: `git diff --check -- src/config.ts src/config/sections.ts src/config/types.ts src/daemon/flow-context.ts src/run/local-model-routing.ts src/run/run-models.ts src/run/runner-plan.ts tests/config.test.ts tests/run.models.test.ts` -> PASS
+  - Command: `git diff --check` -> FAIL (pre-existing trailing whitespace in `.ralph/runs/run-20260422-085058-72504-iter-5.log`)
+- Files changed:
+  - src/config.ts
+  - src/config/sections.ts
+  - src/config/types.ts
+  - src/daemon/flow-context.ts
+  - src/run/local-model-routing.ts
+  - src/run/run-models.ts
+  - src/run/runner-plan.ts
+  - tests/config.test.ts
+  - tests/run.models.test.ts
+  - .ralph/activity.log
+  - .ralph/progress.md
+- What was implemented
+  Added `localRouting` config with `enabled`, `englishModel`, `traditionalChineseModel`, `bilingualModel`, and
+  `fallbackModel`. Model selection now applies language-aware local routing only when the effective requested model is
+  `auto`, including daemon summary requests, and leaves fixed CLI args, env defaults, config defaults, and bare `--cli`
+  auto behavior unchanged. Default enabled routing prefers a Gemma local model for English, Qwen for Traditional Chinese
+  and bilingual output, and Llama as the fallback. Tests cover config parsing, bucket choices, default profile choices,
+  bare local model normalization to OpenAI-compatible ids, and explicit-model precedence.
+- **Learnings for future iterations:**
+  - Patterns discovered: CLI and daemon summary runs both converge on `resolveModelSelection`; pass resolved
+    `OutputLanguage` there to keep routing behavior shared.
+  - Gotchas encountered: do not run `pnpm -s typecheck` concurrently with `pnpm -s build`; build cleans `packages/core`
+    declaration output while root typecheck resolves workspace package subpaths.
+  - Useful context: `/Users/shh/proj/summarize/ralph` and `committer` are unavailable in this checkout; use
+    `.agents/ralph/log-activity.sh` and conventional `git commit`. Remaining dirty files seen during this run were
+    `.agents/tasks/prd.json`, `.ralph/errors.log`, `.ralph/runs/run-20260422-085058-72504-iter-5.log`,
+    `.ralph/.tmp/prompt-20260422-085058-72504-6.md`, `.ralph/.tmp/story-20260422-085058-72504-6.json`,
+    `.ralph/.tmp/story-20260422-085058-72504-6.md`, `.ralph/runs/run-20260422-085058-72504-iter-5.md`, and
+    `.ralph/runs/run-20260422-085058-72504-iter-6.log`.
+---
