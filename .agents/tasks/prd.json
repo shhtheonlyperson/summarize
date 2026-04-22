@@ -68,7 +68,7 @@
     {
       "id": "LLR-004",
       "title": "Add Local Runtime Probe Logic",
-      "status": "in_progress",
+      "status": "done",
       "dependsOn": [
         "LLR-003"
       ],
@@ -81,13 +81,13 @@
         "Run targeted tests plus pnpm -s typecheck."
       ],
       "startedAt": "2026-04-22T16:15:21.485546+00:00",
-      "completedAt": null,
-      "updatedAt": "2026-04-22T16:15:21.485729+00:00"
+      "completedAt": "2026-04-22T16:24:11.265828+00:00",
+      "updatedAt": "2026-04-22T16:24:11.265714+00:00"
     },
     {
       "id": "LLR-005",
       "title": "Add CLI Local Runtime Probe Command",
-      "status": "open",
+      "status": "in_progress",
       "dependsOn": [
         "LLR-004"
       ],
@@ -99,7 +99,10 @@
         "Add CLI tests that mock probe results and do not require a live model server.",
         "Update docs with the probe command.",
         "Run targeted CLI tests plus pnpm -s typecheck."
-      ]
+      ],
+      "startedAt": "2026-04-22T16:24:13.334545+00:00",
+      "completedAt": null,
+      "updatedAt": "2026-04-22T16:24:13.334670+00:00"
     },
     {
       "id": "LLR-006",

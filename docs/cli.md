@@ -154,6 +154,29 @@ summarize --cli opencode --plain --timeout 2m /tmp/summarize-cli-smoke.txt
 
 If Agent fails with auth, run `agent login` (interactive) or set `CURSOR_API_KEY`.
 
+## Local runtime probe
+
+`summarize local-runtime probe` verifies local HTTP model runtimes before daemon or extension use. It only calls the
+runtime model-list endpoint, so it does not start a summarization run or send source content.
+
+Examples:
+
+```bash
+summarize local-runtime probe
+summarize local-runtime probe ollama
+summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1
+summarize local-runtime probe --json
+```
+
+Resolution order:
+
+- If `OPENAI_BASE_URL` or `openai.baseUrl` is configured, probe it as an OpenAI-compatible local runtime.
+- If no endpoint is configured, probe the default llama.cpp and Ollama localhost endpoints.
+- Use `--base-url` to test a specific endpoint and `--allow-remote` only when intentionally probing a non-local host.
+
+Human output uses `OK`, `WARN`, and `FAIL` lines. JSON output is intended for tests and scripts; CLI tests mock the
+probe response and do not require a live model server.
+
 ## Generate free preset (OpenRouter)
 
 `summarize` ships with a built-in preset `free`, backed by OpenRouter `:free` models.

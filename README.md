@@ -358,6 +358,21 @@ Use `summarize --help` or `summarize help` for the full help text.
 - `--verbose`: debug/diagnostics on stderr
 - `--metrics off|on|detailed`: metrics output (default `on`)
 
+### Local runtime probe
+
+Use the probe command to verify a local LLM endpoint before starting the daemon or browser extension:
+
+```bash
+summarize local-runtime probe
+summarize local-runtime probe ollama
+summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1
+summarize local-runtime probe --json
+```
+
+The command checks configured `OPENAI_BASE_URL` / `openai.baseUrl` first, otherwise it probes the default llama.cpp and
+Ollama localhost endpoints. It prints `OK`, `WARN`, or `FAIL` lines and `--json` emits the same diagnostics for scripts
+and tests without requiring a live model server.
+
 ### Coding CLIs (Codex, Claude, Gemini, Agent, OpenClaw, OpenCode)
 
 Summarize can use common coding CLIs as local model backends:
