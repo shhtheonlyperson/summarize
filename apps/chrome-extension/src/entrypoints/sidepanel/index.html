@@ -27,6 +27,24 @@
       <div id="progress" class="progress" aria-hidden="true">
         <div id="progressFill" class="progressFill"></div>
       </div>
+      <div
+        id="localRuntimeStatus"
+        class="localRuntimeStatus"
+        data-state="neutral"
+        role="status"
+        aria-live="polite"
+      >
+        <span class="localRuntimeStatus__dot" aria-hidden="true"></span>
+        <div class="localRuntimeStatus__body">
+          <div class="localRuntimeStatus__line">
+            <strong id="localRuntimePrivacy">Checking local privacy</strong>
+            <span id="localRuntimeRoute">Model: auto</span>
+          </div>
+          <div id="localRuntimeDetail" class="localRuntimeStatus__detail">
+            Waiting for daemon status.
+          </div>
+        </div>
+      </div>
       <div id="slideNotice" class="slideNotice hidden" role="status" aria-live="polite">
         <span id="slideNoticeMessage" class="slideNotice__message"></span>
         <div class="slideNotice__actions">

@@ -63,6 +63,90 @@ header {
   gap: 8px;
 }
 
+.localRuntimeStatus {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.localRuntimeStatus__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--muted);
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.localRuntimeStatus__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.localRuntimeStatus__line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.localRuntimeStatus__line strong,
+.localRuntimeStatus__line span,
+.localRuntimeStatus__detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.localRuntimeStatus__line strong {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-size: 11px;
+}
+
+.localRuntimeStatus__line span {
+  min-width: 0;
+}
+
+.localRuntimeStatus__detail {
+  min-width: 0;
+}
+
+.localRuntimeStatus[data-state="ok"] {
+  border-color: color-mix(in srgb, #2bb673 35%, var(--border));
+  background: color-mix(in srgb, #2bb673 9%, var(--surface));
+}
+
+.localRuntimeStatus[data-state="ok"] .localRuntimeStatus__dot {
+  background: #2bb673;
+}
+
+.localRuntimeStatus[data-state="warn"] {
+  border-color: color-mix(in srgb, #d99a2b 42%, var(--border));
+  background: color-mix(in srgb, #d99a2b 10%, var(--surface));
+}
+
+.localRuntimeStatus[data-state="warn"] .localRuntimeStatus__dot {
+  background: #d99a2b;
+}
+
+.localRuntimeStatus[data-state="error"] {
+  border-color: color-mix(in srgb, #ff6a6a 52%, var(--border));
+  background: color-mix(in srgb, #ff6a6a 10%, var(--surface));
+}
+
+.localRuntimeStatus[data-state="error"] .localRuntimeStatus__dot {
+  background: #ff6a6a;
+}
+
 .summarizeControlRoot {
   display: flex;
 }

@@ -24,6 +24,10 @@ export type ExtensionHarness = {
 export type UiState = {
   panelOpen: boolean;
   daemon: { ok: boolean; authed: boolean; error?: string };
+  localRuntime: {
+    ok: boolean;
+    [key: string]: unknown;
+  } | null;
   tab: { id: number | null; url: string | null; title: string | null };
   media: { hasVideo: boolean; hasAudio: boolean; hasCaptions: boolean } | null;
   stats: { pageWords: number | null; videoDurationSeconds: number | null };
@@ -46,6 +50,7 @@ export type UiState = {
 const defaultUiState: UiState = {
   panelOpen: true,
   daemon: { ok: true, authed: true },
+  localRuntime: null,
   tab: { id: null, url: null, title: null },
   media: null,
   stats: { pageWords: null, videoDurationSeconds: null },
@@ -70,6 +75,10 @@ export function buildUiState(overrides: Partial<UiState>): UiState {
     ...defaultUiState,
     ...overrides,
     daemon: { ...defaultUiState.daemon, ...overrides.daemon },
+    localRuntime:
+      typeof overrides.localRuntime === "undefined"
+        ? defaultUiState.localRuntime
+        : overrides.localRuntime,
     tab: { ...defaultUiState.tab, ...overrides.tab },
     settings: { ...defaultUiState.settings, ...overrides.settings },
   };

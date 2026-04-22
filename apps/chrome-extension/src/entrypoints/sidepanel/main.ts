@@ -33,6 +33,7 @@ import { createSidepanelDom } from "./dom";
 import { createErrorController } from "./error-controller";
 import { createHeaderController } from "./header-controller";
 import { createSidepanelInteractionRuntime } from "./interaction-runtime";
+import { createLocalRuntimeStatusSurface } from "./local-runtime-status";
 import { createMetricsController } from "./metrics-controller";
 import { createNavigationRuntime } from "./navigation-runtime";
 import { createPanelCacheController, type PanelCachePayload } from "./panel-cache";
@@ -97,6 +98,10 @@ const {
   lengthRoot,
   lineLooseBtn,
   lineTightBtn,
+  localRuntimeDetailEl,
+  localRuntimePrivacyEl,
+  localRuntimeRouteEl,
+  localRuntimeStatusEl,
   mainEl,
   metricsEl,
   metricsHomeEl,
@@ -547,6 +552,14 @@ const headerController = createHeaderController({
     summaryFromCache: panelState.summaryFromCache,
   }),
 });
+
+const localRuntimeStatusSurface = createLocalRuntimeStatusSurface({
+  rootEl: localRuntimeStatusEl,
+  privacyEl: localRuntimePrivacyEl,
+  routeEl: localRuntimeRouteEl,
+  detailEl: localRuntimeDetailEl,
+});
+localRuntimeStatusSurface.render(null);
 
 headerController.updateHeaderOffset();
 window.addEventListener("resize", headerController.updateHeaderOffset);
@@ -1277,6 +1290,8 @@ const uiStateRuntime = createUiStateRuntime({
 
 function updateControls(state: UiState) {
   uiStateRuntime.apply(state);
+  localRuntimeStatusSurface.render(state);
+  headerController.updateHeaderOffset();
 }
 
 const bgMessageRuntime = createSidepanelBgMessageRuntime({
@@ -1284,6 +1299,15 @@ const bgMessageRuntime = createSidepanelBgMessageRuntime({
   applyUiState: updateControls,
   setStatus: (text) => {
     headerController.setStatus(text);
+  },
+  handleLocalRuntimeStatus: (status) => {
+    if (panelState.ui) {
+      panelState.ui = { ...panelState.ui, localRuntime: status };
+      localRuntimeStatusSurface.render(panelState.ui);
+      headerController.updateHeaderOffset();
+    } else {
+      localRuntimeStatusSurface.renderStatus(status);
+    }
   },
   isStreaming,
   setPhase,
