@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "total": 12,
+  "remaining": 9,
+  "quality_gates": [
+    "Follow AGENTS.md operational instructions.",
+    "Run targeted tests for the changed package or app.",
+    "Run pnpm -s typecheck before completing stories that touch TypeScript source.",
+    "Run pnpm -s check before completing stories that touch shared runtime, config, daemon routing, or release-facing behavior.",
+    "For side-panel UI stories, run pnpm -C apps/chrome-extension build and the supported browser/extension test path from AGENTS.md when feasible."
+  ],
+  "id": "LLR-004",
+  "title": "Add Local Runtime Probe Logic"
+}

@@ -49,7 +49,7 @@
     {
       "id": "LLR-003",
       "title": "Add Local Runtime Registry Types",
-      "status": "in_progress",
+      "status": "done",
       "dependsOn": [
         "LLR-002"
       ],
@@ -62,13 +62,13 @@
         "Run targeted tests plus pnpm -s typecheck."
       ],
       "startedAt": "2026-04-22T16:06:18.270143+00:00",
-      "completedAt": null,
-      "updatedAt": "2026-04-22T16:06:18.270270+00:00"
+      "completedAt": "2026-04-22T16:15:19.408335+00:00",
+      "updatedAt": "2026-04-22T16:15:19.408223+00:00"
     },
     {
       "id": "LLR-004",
       "title": "Add Local Runtime Probe Logic",
-      "status": "open",
+      "status": "in_progress",
       "dependsOn": [
         "LLR-003"
       ],
@@ -79,7 +79,10 @@
         "Add tests using mocked fetch for reachable, unreachable, malformed, and timeout cases.",
         "Do not require a live local model server in the default test suite.",
         "Run targeted tests plus pnpm -s typecheck."
-      ]
+      ],
+      "startedAt": "2026-04-22T16:15:21.485546+00:00",
+      "completedAt": null,
+      "updatedAt": "2026-04-22T16:15:21.485729+00:00"
     },
     {
       "id": "LLR-005",

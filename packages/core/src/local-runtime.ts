@@ -356,3 +356,443 @@ export function parseLocalRuntimeDescriptor(
 export const DEFAULT_LOCAL_RUNTIME_DESCRIPTORS = Object.fromEntries(
   LOCAL_RUNTIME_KINDS.map((kind) => [kind, getDefaultLocalRuntimeDescriptor(kind)]),
 ) as Readonly<Record<LocalRuntimeKind, LocalRuntimeDescriptor>>;
+
+export const DEFAULT_LOCAL_RUNTIME_PROBE_TIMEOUT_MS = 3_000;
+
+export type LocalRuntimeProbeErrorCode =
+  | "invalid-runtime"
+  | "http-error"
+  | "malformed-response"
+  | "network-error"
+  | "timeout";
+
+export type LocalRuntimeProbeError = {
+  code: LocalRuntimeProbeErrorCode;
+  message: string;
+  status?: number;
+  cause?: string;
+};
+
+export type LocalRuntimeProbeModel = {
+  id: string;
+  name?: string;
+  object?: string;
+  ownedBy?: string;
+  created?: number;
+  modifiedAt?: string;
+  digest?: string;
+  sizeBytes?: number;
+  family?: string;
+  parameterSize?: string;
+  quantizationLevel?: string;
+};
+
+export type LocalRuntimeProbeServerMetadata = {
+  status: number;
+  name?: string;
+  version?: string;
+};
+
+export type LocalRuntimeProbeSuccess = {
+  ok: true;
+  reachable: true;
+  runtime: LocalRuntimeDescriptor;
+  endpoint: string;
+  timeoutMs: number;
+  models: LocalRuntimeProbeModel[];
+  server: LocalRuntimeProbeServerMetadata;
+};
+
+export type LocalRuntimeProbeFailure = {
+  ok: false;
+  reachable: false;
+  runtime?: LocalRuntimeDescriptor;
+  endpoint?: string;
+  timeoutMs: number;
+  error: LocalRuntimeProbeError;
+};
+
+export type LocalRuntimeProbeResult = LocalRuntimeProbeSuccess | LocalRuntimeProbeFailure;
+
+export type LocalRuntimeProbeOptions = ParseLocalRuntimeDescriptorOptions & {
+  fetch?: typeof fetch;
+  timeoutMs?: number;
+};
+
+type FetchProbeJsonResult =
+  | {
+      ok: true;
+      response: Response;
+      body: unknown;
+    }
+  | {
+      ok: false;
+      error: LocalRuntimeProbeError;
+    };
+
+type ParseProbeModelsResult =
+  | {
+      ok: true;
+      models: LocalRuntimeProbeModel[];
+    }
+  | {
+      ok: false;
+      error: LocalRuntimeProbeError;
+    };
+
+function normalizeProbeTimeoutMs(timeoutMs: number | undefined): number {
+  if (!Number.isFinite(timeoutMs)) return DEFAULT_LOCAL_RUNTIME_PROBE_TIMEOUT_MS;
+  return Math.max(0, timeoutMs ?? DEFAULT_LOCAL_RUNTIME_PROBE_TIMEOUT_MS);
+}
+
+function resolveProbeFetch(fetchImpl: typeof fetch | undefined): typeof fetch {
+  return fetchImpl ?? ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args));
+}
+
+function createTimeoutProbeError(timeoutMs: number): LocalRuntimeProbeError {
+  return {
+    code: "timeout",
+    message: `Local runtime probe timed out after ${timeoutMs}ms.`,
+  };
+}
+
+function describeUnknownError(error: unknown): string | undefined {
+  if (error instanceof Error) return error.message || error.name;
+  if (typeof error === "string" && error.length > 0) return error;
+  return undefined;
+}
+
+function createNetworkProbeError(error: unknown, timeoutMs: number): LocalRuntimeProbeError {
+  if (error instanceof Error && error.name === "AbortError") {
+    return createTimeoutProbeError(timeoutMs);
+  }
+
+  const cause = describeUnknownError(error);
+  return {
+    code: "network-error",
+    message: cause ? `Local runtime probe failed: ${cause}` : "Local runtime probe failed.",
+    ...(cause ? { cause } : {}),
+  };
+}
+
+function createMalformedResponseProbeError(
+  message: string,
+  cause?: unknown,
+): LocalRuntimeProbeError {
+  const describedCause = describeUnknownError(cause);
+  return {
+    code: "malformed-response",
+    message,
+    ...(describedCause ? { cause: describedCause } : {}),
+  };
+}
+
+function createHttpProbeError(response: Response): LocalRuntimeProbeError {
+  const suffix = response.statusText ? ` ${response.statusText}` : "";
+  return {
+    code: "http-error",
+    message: `Local runtime probe failed with HTTP ${response.status}${suffix}.`,
+    status: response.status,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getStringField(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function getNumberField(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function readProbeServerMetadata(response: Response): LocalRuntimeProbeServerMetadata {
+  const server = response.headers.get("server") ?? undefined;
+  const version =
+    response.headers.get("x-ollama-version") ??
+    response.headers.get("x-llama-cpp-version") ??
+    response.headers.get("x-server-version") ??
+    undefined;
+
+  return {
+    status: response.status,
+    ...(server ? { name: server } : {}),
+    ...(version ? { version } : {}),
+  };
+}
+
+async function fetchProbeJson(
+  endpoint: string,
+  options: Pick<LocalRuntimeProbeOptions, "fetch" | "timeoutMs">,
+): Promise<FetchProbeJsonResult> {
+  const timeoutMs = normalizeProbeTimeoutMs(options.timeoutMs);
+  const fetchImpl = resolveProbeFetch(options.fetch);
+  const controller = new AbortController();
+  let timedOut = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const operation = (async (): Promise<FetchProbeJsonResult> => {
+    try {
+      const response = await fetchImpl(endpoint, {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+        },
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        return {
+          ok: false,
+          error: createHttpProbeError(response),
+        };
+      }
+
+      try {
+        return {
+          ok: true,
+          response,
+          body: await response.json(),
+        };
+      } catch (error) {
+        if (timedOut || (error instanceof Error && error.name === "AbortError")) {
+          return {
+            ok: false,
+            error: createTimeoutProbeError(timeoutMs),
+          };
+        }
+
+        return {
+          ok: false,
+          error: createMalformedResponseProbeError(
+            "Local runtime probe response was not valid JSON.",
+            error,
+          ),
+        };
+      }
+    } catch (error) {
+      return {
+        ok: false,
+        error: timedOut
+          ? createTimeoutProbeError(timeoutMs)
+          : createNetworkProbeError(error, timeoutMs),
+      };
+    }
+  })();
+
+  const timeout = new Promise<FetchProbeJsonResult>((resolve) => {
+    timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+      resolve({
+        ok: false,
+        error: createTimeoutProbeError(timeoutMs),
+      });
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([operation, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function parseOpenAiCompatibleProbeModels(body: unknown): ParseProbeModelsResult {
+  if (!isRecord(body) || !Array.isArray(body.data)) {
+    return {
+      ok: false,
+      error: createMalformedResponseProbeError(
+        "OpenAI-compatible models response must include a data array.",
+      ),
+    };
+  }
+
+  const models: LocalRuntimeProbeModel[] = [];
+  for (const item of body.data) {
+    if (!isRecord(item)) {
+      return {
+        ok: false,
+        error: createMalformedResponseProbeError(
+          "OpenAI-compatible models response included a non-object model.",
+        ),
+      };
+    }
+
+    const id = getStringField(item, "id");
+    if (!id) {
+      return {
+        ok: false,
+        error: createMalformedResponseProbeError(
+          "OpenAI-compatible models response included a model without an id.",
+        ),
+      };
+    }
+
+    models.push({
+      id,
+      object: getStringField(item, "object"),
+      ownedBy: getStringField(item, "owned_by"),
+      created: getNumberField(item, "created"),
+    });
+  }
+
+  return {
+    ok: true,
+    models,
+  };
+}
+
+function parseOllamaProbeModels(body: unknown): ParseProbeModelsResult {
+  if (!isRecord(body) || !Array.isArray(body.models)) {
+    return {
+      ok: false,
+      error: createMalformedResponseProbeError("Ollama tags response must include a models array."),
+    };
+  }
+
+  const models: LocalRuntimeProbeModel[] = [];
+  for (const item of body.models) {
+    if (!isRecord(item)) {
+      return {
+        ok: false,
+        error: createMalformedResponseProbeError(
+          "Ollama tags response included a non-object model.",
+        ),
+      };
+    }
+
+    const id = getStringField(item, "model") ?? getStringField(item, "name");
+    if (!id) {
+      return {
+        ok: false,
+        error: createMalformedResponseProbeError(
+          "Ollama tags response included a model without a name.",
+        ),
+      };
+    }
+
+    const details = isRecord(item.details) ? item.details : {};
+    models.push({
+      id,
+      name: getStringField(item, "name"),
+      modifiedAt: getStringField(item, "modified_at"),
+      digest: getStringField(item, "digest"),
+      sizeBytes: getNumberField(item, "size"),
+      family: getStringField(details, "family"),
+      parameterSize: getStringField(details, "parameter_size"),
+      quantizationLevel: getStringField(details, "quantization_level"),
+    });
+  }
+
+  return {
+    ok: true,
+    models,
+  };
+}
+
+function createProbeEndpoint(runtime: LocalRuntimeDescriptor): string {
+  return appendPath(runtime.baseUrl, runtime.modelsPath);
+}
+
+async function probeRuntimeModelsEndpoint(
+  runtime: LocalRuntimeDescriptor,
+  options: LocalRuntimeProbeOptions,
+  parseModels: (body: unknown) => ParseProbeModelsResult,
+): Promise<LocalRuntimeProbeResult> {
+  const timeoutMs = normalizeProbeTimeoutMs(options.timeoutMs);
+  const endpoint = createProbeEndpoint(runtime);
+  const response = await fetchProbeJson(endpoint, options);
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      reachable: false,
+      runtime,
+      endpoint,
+      timeoutMs,
+      error: response.error,
+    };
+  }
+
+  const parsedModels = parseModels(response.body);
+  if (!parsedModels.ok) {
+    return {
+      ok: false,
+      reachable: false,
+      runtime,
+      endpoint,
+      timeoutMs,
+      error: parsedModels.error,
+    };
+  }
+
+  return {
+    ok: true,
+    reachable: true,
+    runtime,
+    endpoint,
+    timeoutMs,
+    models: parsedModels.models,
+    server: readProbeServerMetadata(response.response),
+  };
+}
+
+export async function probeOpenAiCompatibleLocalRuntime(
+  runtime: OpenAiCompatibleLocalRuntimeDescriptor | LlamaCppLocalRuntimeDescriptor,
+  options: LocalRuntimeProbeOptions = {},
+): Promise<LocalRuntimeProbeResult> {
+  return probeRuntimeModelsEndpoint(runtime, options, parseOpenAiCompatibleProbeModels);
+}
+
+export async function probeLlamaCppLocalRuntime(
+  runtime: LlamaCppLocalRuntimeDescriptor,
+  options: LocalRuntimeProbeOptions = {},
+): Promise<LocalRuntimeProbeResult> {
+  return probeOpenAiCompatibleLocalRuntime(runtime, options);
+}
+
+export async function probeOllamaLocalRuntime(
+  runtime: OllamaLocalRuntimeDescriptor,
+  options: LocalRuntimeProbeOptions = {},
+): Promise<LocalRuntimeProbeResult> {
+  return probeRuntimeModelsEndpoint(runtime, options, parseOllamaProbeModels);
+}
+
+export async function probeLocalRuntime(
+  input: unknown,
+  options: LocalRuntimeProbeOptions = {},
+): Promise<LocalRuntimeProbeResult> {
+  const timeoutMs = normalizeProbeTimeoutMs(options.timeoutMs);
+  let runtime: LocalRuntimeDescriptor;
+  try {
+    runtime = parseLocalRuntimeDescriptor(input, {
+      allowedHosts: options.allowedHosts,
+      allowRemoteBaseUrls: options.allowRemoteBaseUrls,
+    });
+  } catch (error) {
+    const cause = describeUnknownError(error);
+    return {
+      ok: false,
+      reachable: false,
+      timeoutMs,
+      error: {
+        code: "invalid-runtime",
+        message: cause
+          ? `Invalid local runtime configuration: ${cause}`
+          : "Invalid local runtime configuration.",
+        ...(cause ? { cause } : {}),
+      },
+    };
+  }
+
+  if (runtime.kind === "ollama") {
+    return probeOllamaLocalRuntime(runtime, options);
+  }
+
+  return probeOpenAiCompatibleLocalRuntime(runtime, options);
+}
