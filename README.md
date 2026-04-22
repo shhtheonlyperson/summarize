@@ -2,6 +2,12 @@
 
 Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side Panel and Firefox Sidebar.
 
+## Local-first fork note
+
+This fork preserves upstream Summarize's generic CLI, media, daemon, and side-panel behavior while documenting a
+local-first direction: private local LLM setup, bilingual model routing, and durable local research memory. See
+[`docs/local-first-roadmap.md`](docs/local-first-roadmap.md) for the fork thesis, non-goals, and staged architecture.
+
 ## Highlights
 
 - Chrome Side Panel **chat** (streaming agent + history) inside the sidebar.

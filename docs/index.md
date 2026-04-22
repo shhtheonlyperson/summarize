@@ -11,6 +11,7 @@ summary: "Docs index for summarize behaviors and modes."
 - [Extract](extract-only.md)
 - [Firecrawl](firecrawl.md)
 - [Language](language.md)
+- [Local-first roadmap](local-first-roadmap.md)
 - [LLM](llm.md)
 - [Manual tests](manual-tests.md)
 - [Model auto](model-auto.md)

@@ -11,6 +11,7 @@ summary: "Docs index for summarize behaviors and modes."
 - `docs/extract-only.md` — extract mode (no summary LLM call)
 - `docs/firecrawl.md` — Firecrawl mode + API key
 - `docs/language.md` — output language (`--language` / config `language`)
+- `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
 - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
 - `docs/manual-tests.md` — manual end-to-end test checklist
 - `docs/model-auto.md` — automatic model selection (`--model auto`)
