@@ -6298,3 +6298,500 @@ index 0000000000000000000000000000000000000000..ccbb1faddb0485a93172d1fe3b8cb222
 
 codex
 The tracked Ralph run log is live and changed after the progress commit, so I’m amending the progress commit with the latest log snapshot and marking that live log as assume-unchanged locally before the final status check. This keeps the committed run artifacts present while avoiding an endless dirty status from the active logger.
+exec
+/bin/zsh -lc 'git add .ralph/runs/run-20260422-085058-72504-iter-1.log && git commit --amend --no-edit && git update-index --assume-unchanged .ralph/runs/run-20260422-085058-72504-iter-1.log && git show -s --format="%h %s" HEAD && git status --porcelain' in /Users/shh/proj/summarize succeeded in 0ms:
+[main 76cb9b88] chore: record LLR-001 progress
+ Date: Wed Apr 22 08:55:16 2026 -0700
+ 20 files changed, 8466 insertions(+)
+ create mode 100644 .agents/ralph/PROMPT_build.md
+ create mode 100644 .agents/ralph/README.md
+ create mode 100644 .agents/ralph/agents.sh
+ create mode 100644 .agents/ralph/config.sh
+ create mode 100644 .agents/ralph/diagram.svg
+ create mode 100755 .agents/ralph/log-activity.sh
+ create mode 100755 .agents/ralph/loop.sh
+ create mode 100644 .agents/ralph/ralph.webp
+ create mode 100644 .agents/ralph/references/CONTEXT_ENGINEERING.md
+ create mode 100644 .agents/ralph/references/GUARDRAILS.md
+ create mode 100644 .agents/tasks/prd.json
+ create mode 100644 .ralph/.tmp/prompt-20260422-085058-72504-1.md
+ create mode 100644 .ralph/.tmp/story-20260422-085058-72504-1.json
+ create mode 100644 .ralph/.tmp/story-20260422-085058-72504-1.md
+ create mode 100644 .ralph/activity.log
+ create mode 100644 .ralph/errors.log
+ create mode 100644 .ralph/guardrails.md
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 972ffc296628c419fbafc08bc5e197fca4f7c292..b6b02d9378c9f79e15e3031d3f8231824144d345
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -5,3 +5,38 @@
+ - (add reusable patterns here)
+ 
+ ---
++
++## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
++Thread: 019db5e3-33a6-7350-92dc-add32e3e321a
++Run: 20260422-085058-72504 (iteration 1)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-1.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-1.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: a4d08f11 docs: establish local-first fork positioning
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++- Files changed:
++  - AGENTS.md
++  - README.md
++  - docs/README.md
++  - docs/index.md
++  - docs/local-first-roadmap.md
++  - .ralph/activity.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-1.md
++- What was implemented
++  Added a local-first roadmap documenting the fork thesis, non-goals, staged architecture, implementation intent, and
++  verification intent. Added a concise README fork note, linked the new page from docs indexes, and documented upstream
++  remote workflow plus local fork goals in AGENTS.md without renaming package IDs or binaries.
++- **Learnings for future iterations:**
++  - Patterns discovered: docs pages use YAML front matter with `summary`; `pnpm -s docs:list` validates discovery and
++    read_when hints.
++  - Gotchas encountered: `/Users/shh/proj/summarize/ralph` was not present, but the global `ralph log` command worked;
++    the `$commit` skill and `committer` command were unavailable, so a conventional `git commit` fallback was used.
++  - Useful context: remote `origin` points to this fork and `upstream` points to
++    `https://github.com/steipete/summarize.git`.
++---
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-1.md b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..c7c7d0a51bf0f5104b07ed3a851d45d3ce155f71
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+@@ -0,0 +1,23 @@
++# Run 20260422-085058-72504 Iteration 1
++
++Story: LLR-001 - Establish Local-First Fork Positioning
++
++Outcome: complete.
++
++Implementation commit:
++
++- `a4d08f11 docs: establish local-first fork positioning`
++
++Verification:
++
++- `pnpm -s docs:list` -> PASS
++- `pnpm -s typecheck` -> PASS
++- `pnpm -s build` -> PASS
++
++Summary:
++
++- Added `docs/local-first-roadmap.md` with fork thesis, non-goals, staged architecture, implementation intent, and
++  verification intent.
++- Added a concise README fork note linking to the roadmap without removing upstream feature documentation.
++- Added AGENTS operational notes for local fork goals and upstream remote workflow.
++- Preserved npm package IDs and binaries.
+diff --git a/AGENTS.md b/AGENTS.md
+index e53108801095419b4d51f4bbcdeae5e37fa715ec..efbb868cb19a438239dd1ed468ca9bfd8e67e83e
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -23,3 +23,15 @@
+   - Firefox Playwright extension tests are not reliable (`moz-extension://` limitation); default `test:firefox` skips.
+   - Use `pnpm -C apps/chrome-extension test:firefox:force` only for explicit diagnostics.
+ - Commits: use `committer "type: message" <files...>` (Conventional Commits).
++
++## Fork positioning and upstream workflow
++
++- Local fork goal: keep upstream generic summarization working while adding private local LLM setup, language-aware
++  routing for English/Traditional Chinese/bilingual outputs, and durable local research memory.
++- Do not rename npm package IDs (`@steipete/summarize`, `@steipete/summarize-core`) or binaries (`summarize`,
++  `summarizer`) unless a story explicitly calls for a release-facing rename plan.
++- Remotes: `origin` is this fork; `upstream` should point at `https://github.com/steipete/summarize.git`.
++- Before upstream sync work, run `git fetch upstream` and inspect divergence from repo root, for example
++  `git log --oneline --left-right main...upstream/main`.
++- Keep long-form product/design intent in docs such as `docs/local-first-roadmap.md`; keep AGENTS operational and put
++  run-specific notes in `.ralph/progress.md`.
+diff --git a/README.md b/README.md
+index 9d9c71433ac81988b55df7701ac442ac7dd33d9a..ea8c6aa2717ea00046cf3a027c0e108b2e6afc01
+--- a/README.md
++++ b/README.md
+@@ -2,6 +2,12 @@
+ 
+ Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side Panel and Firefox Sidebar.
+ 
++## Local-first fork note
++
++This fork preserves upstream Summarize's generic CLI, media, daemon, and side-panel behavior while documenting a
++local-first direction: private local LLM setup, bilingual model routing, and durable local research memory. See
++[`docs/local-first-roadmap.md`](docs/local-first-roadmap.md) for the fork thesis, non-goals, and staged architecture.
++
+ ## Highlights
+ 
+ - Chrome Side Panel **chat** (streaming agent + history) inside the sidebar.
+diff --git a/docs/README.md b/docs/README.md
+index d18db64af0fa9b4d0ced1d87236e0e884881a490..9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -11,6 +11,7 @@
+ - `docs/extract-only.md` — extract mode (no summary LLM call)
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
++- `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+ - `docs/manual-tests.md` — manual end-to-end test checklist
+ - `docs/model-auto.md` — automatic model selection (`--model auto`)
+diff --git a/docs/index.md b/docs/index.md
+index d25bcad6e64f5b34301bcaa8fab46a12793c83af..6341b450b2e2922bac076dac022951bd1b5a9da9
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -11,6 +11,7 @@
+ - [Extract](extract-only.md)
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
++- [Local-first roadmap](local-first-roadmap.md)
+ - [LLM](llm.md)
+ - [Manual tests](manual-tests.md)
+ - [Model auto](model-auto.md)
+diff --git a/docs/local-first-roadmap.md b/docs/local-first-roadmap.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ccbb1faddb0485a93172d1fe3b8cb22207bed993
+--- /dev/null
++++ b/docs/local-first-roadmap.md
+@@ -0,0 +1,94 @@
++---
++summary: "Local-first fork thesis, non-goals, and staged architecture."
++read_when:
++  - "When changing local runtime, bilingual routing, privacy, or research memory behavior."
++---
++
++# Local-first roadmap
++
++This fork keeps Summarize useful as a generic URL, file, media, CLI, and browser side-panel summarizer while making
++private local research workflows first-class.
++
++The intended value proposition is:
++
++- Preserve upstream extraction, media handling, daemon, side-panel, CLI, and publishing compatibility.
++- Add private local LLM setup for localhost OpenAI-compatible runtimes, llama.cpp-style servers, and Ollama-style
++  workflows as they are implemented.
++- Add language-aware local model routing for English, Traditional Chinese, and bilingual outputs without overriding an
++  explicit user-selected model.
++- Add local research memory so runs, sources, summaries, route metadata, and failures can be reviewed locally over time.
++
++## Thesis
++
++Summarize already has strong source ingestion and broad provider support. The fork should not replace that foundation.
++Instead, it should make the private path obvious, diagnosable, and durable:
++
++1. A user can run summarization against local model servers without guessing which config key or endpoint is active.
++2. A bilingual user can prefer different local models for English, Traditional Chinese, and bilingual outputs.
++3. A research workflow can keep its history, artifacts, prompts, model routes, and failures on the user's machine.
++4. Upstream-compatible package names and binaries remain stable unless a later release plan explicitly changes them.
++
++## Non-goals
++
++- Do not remove upstream generic summarization, cloud provider support, media extraction, or side-panel behavior.
++- Do not rename npm package IDs such as `@steipete/summarize` or `@steipete/summarize-core` in this roadmap phase.
++- Do not rename the `summarize` or `summarizer` binaries in this roadmap phase.
++- Do not make every workflow local-only by default before diagnostics, routing, and user-facing status exist.
++- Do not implement durable storage as part of this positioning work; storage design and schema are separate stories.
++- Do not require a live local LLM server for default tests.
++
++## Staged Architecture
++
++### Stage 0: Positioning
++
++Document the fork's local-first purpose, upstream compatibility expectations, and implementation boundaries. This page is
++the source for product intent; `AGENTS.md` stays operational.
++
++### Stage 1: Source-grounded audit
++
++Audit existing local and OpenAI-compatible model paths, daemon request flow, extension settings flow, and config loading
++before adding new abstractions. The goal is to extend existing seams instead of duplicating provider logic.
++
++### Stage 2: Runtime registry and probes
++
++Add shared core types for local runtime descriptors, localhost-first endpoint validation, and bounded probe functions.
++Probe tests should mock network calls and avoid requiring a live llama.cpp or Ollama server.
++
++### Stage 3: Language-aware local routing
++
++Add config for English, Traditional Chinese, bilingual, and fallback local model choices. Explicit `--model` and request
++model selections keep current precedence; routing only applies when local routing is enabled and no explicit model was
++chosen.
++
++### Stage 4: Local-only privacy guard and daemon status
++
++Add a local-only mode that blocks remote provider calls before transport setup. Expose token-authenticated daemon status
++for local-only state, selected route hints, endpoint host, and probe results without leaking keys or raw environment
++values.
++
++### Stage 5: Side-panel visibility and onboarding
++
++Show whether a side-panel run will stay local, which route/model is selected, and what setup issue blocks local
++execution. Add Mac-first onboarding for local model servers and verification commands.
++
++### Stage 6: Local research memory
++
++Design and then add a local storage layer for runs, sources, artifacts, prompt metadata, model route metadata, privacy
++mode metadata, and failures. Local-only mode must keep protected run metadata and artifacts on localhost.
++
++## Implementation Intent
++
++- Keep reusable local runtime and routing primitives in `@steipete/summarize-core` so the CLI, daemon, and extension can
++  share behavior without importing CLI-only dependencies.
++- Prefer `127.0.0.1` or localhost endpoints for built-in local runtime defaults.
++- Preserve current model/config precedence and existing provider behavior unless a story explicitly changes it.
++- Shape user-facing errors around the setting that caused a local runtime, routing, or privacy decision.
++- Keep status responses and logs free of API keys and sensitive environment values.
++
++## Verification Intent
++
++Documentation-only positioning changes can use no-op-safe verification such as `pnpm -s docs:list`, with
++`pnpm -s typecheck` when a story asks for it.
++
++Runtime stories should add deterministic unit tests with mocked probes. Side-panel stories should run the extension build
++and supported Chrome extension test path when feasible.
+
+codex
+<promise>COMPLETE</promise>
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 972ffc296628c419fbafc08bc5e197fca4f7c292..b6b02d9378c9f79e15e3031d3f8231824144d345
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -5,3 +5,38 @@
+ - (add reusable patterns here)
+ 
+ ---
++
++## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
++Thread: 019db5e3-33a6-7350-92dc-add32e3e321a
++Run: 20260422-085058-72504 (iteration 1)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-1.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-1.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: a4d08f11 docs: establish local-first fork positioning
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++- Files changed:
++  - AGENTS.md
++  - README.md
++  - docs/README.md
++  - docs/index.md
++  - docs/local-first-roadmap.md
++  - .ralph/activity.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-1.md
++- What was implemented
++  Added a local-first roadmap documenting the fork thesis, non-goals, staged architecture, implementation intent, and
++  verification intent. Added a concise README fork note, linked the new page from docs indexes, and documented upstream
++  remote workflow plus local fork goals in AGENTS.md without renaming package IDs or binaries.
++- **Learnings for future iterations:**
++  - Patterns discovered: docs pages use YAML front matter with `summary`; `pnpm -s docs:list` validates discovery and
++    read_when hints.
++  - Gotchas encountered: `/Users/shh/proj/summarize/ralph` was not present, but the global `ralph log` command worked;
++    the `$commit` skill and `committer` command were unavailable, so a conventional `git commit` fallback was used.
++  - Useful context: remote `origin` points to this fork and `upstream` points to
++    `https://github.com/steipete/summarize.git`.
++---
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-1.md b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..c7c7d0a51bf0f5104b07ed3a851d45d3ce155f71
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-1.md
+@@ -0,0 +1,23 @@
++# Run 20260422-085058-72504 Iteration 1
++
++Story: LLR-001 - Establish Local-First Fork Positioning
++
++Outcome: complete.
++
++Implementation commit:
++
++- `a4d08f11 docs: establish local-first fork positioning`
++
++Verification:
++
++- `pnpm -s docs:list` -> PASS
++- `pnpm -s typecheck` -> PASS
++- `pnpm -s build` -> PASS
++
++Summary:
++
++- Added `docs/local-first-roadmap.md` with fork thesis, non-goals, staged architecture, implementation intent, and
++  verification intent.
++- Added a concise README fork note linking to the roadmap without removing upstream feature documentation.
++- Added AGENTS operational notes for local fork goals and upstream remote workflow.
++- Preserved npm package IDs and binaries.
+diff --git a/AGENTS.md b/AGENTS.md
+index e53108801095419b4d51f4bbcdeae5e37fa715ec..efbb868cb19a438239dd1ed468ca9bfd8e67e83e
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -23,3 +23,15 @@
+   - Firefox Playwright extension tests are not reliable (`moz-extension://` limitation); default `test:firefox` skips.
+   - Use `pnpm -C apps/chrome-extension test:firefox:force` only for explicit diagnostics.
+ - Commits: use `committer "type: message" <files...>` (Conventional Commits).
++
++## Fork positioning and upstream workflow
++
++- Local fork goal: keep upstream generic summarization working while adding private local LLM setup, language-aware
++  routing for English/Traditional Chinese/bilingual outputs, and durable local research memory.
++- Do not rename npm package IDs (`@steipete/summarize`, `@steipete/summarize-core`) or binaries (`summarize`,
++  `summarizer`) unless a story explicitly calls for a release-facing rename plan.
++- Remotes: `origin` is this fork; `upstream` should point at `https://github.com/steipete/summarize.git`.
++- Before upstream sync work, run `git fetch upstream` and inspect divergence from repo root, for example
++  `git log --oneline --left-right main...upstream/main`.
++- Keep long-form product/design intent in docs such as `docs/local-first-roadmap.md`; keep AGENTS operational and put
++  run-specific notes in `.ralph/progress.md`.
+diff --git a/README.md b/README.md
+index 9d9c71433ac81988b55df7701ac442ac7dd33d9a..ea8c6aa2717ea00046cf3a027c0e108b2e6afc01
+--- a/README.md
++++ b/README.md
+@@ -2,6 +2,12 @@
+ 
+ Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side Panel and Firefox Sidebar.
+ 
++## Local-first fork note
++
++This fork preserves upstream Summarize's generic CLI, media, daemon, and side-panel behavior while documenting a
++local-first direction: private local LLM setup, bilingual model routing, and durable local research memory. See
++[`docs/local-first-roadmap.md`](docs/local-first-roadmap.md) for the fork thesis, non-goals, and staged architecture.
++
+ ## Highlights
+ 
+ - Chrome Side Panel **chat** (streaming agent + history) inside the sidebar.
+diff --git a/docs/README.md b/docs/README.md
+index d18db64af0fa9b4d0ced1d87236e0e884881a490..9f48f4cc0f88a3a96a1b156a606b2bec7939ff3b
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -11,6 +11,7 @@
+ - `docs/extract-only.md` — extract mode (no summary LLM call)
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
++- `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+ - `docs/manual-tests.md` — manual end-to-end test checklist
+ - `docs/model-auto.md` — automatic model selection (`--model auto`)
+diff --git a/docs/index.md b/docs/index.md
+index d25bcad6e64f5b34301bcaa8fab46a12793c83af..6341b450b2e2922bac076dac022951bd1b5a9da9
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -11,6 +11,7 @@
+ - [Extract](extract-only.md)
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
++- [Local-first roadmap](local-first-roadmap.md)
+ - [LLM](llm.md)
+ - [Manual tests](manual-tests.md)
+ - [Model auto](model-auto.md)
+diff --git a/docs/local-first-roadmap.md b/docs/local-first-roadmap.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..ccbb1faddb0485a93172d1fe3b8cb22207bed993
+--- /dev/null
++++ b/docs/local-first-roadmap.md
+@@ -0,0 +1,94 @@
++---
++summary: "Local-first fork thesis, non-goals, and staged architecture."
++read_when:
++  - "When changing local runtime, bilingual routing, privacy, or research memory behavior."
++---
++
++# Local-first roadmap
++
++This fork keeps Summarize useful as a generic URL, file, media, CLI, and browser side-panel summarizer while making
++private local research workflows first-class.
++
++The intended value proposition is:
++
++- Preserve upstream extraction, media handling, daemon, side-panel, CLI, and publishing compatibility.
++- Add private local LLM setup for localhost OpenAI-compatible runtimes, llama.cpp-style servers, and Ollama-style
++  workflows as they are implemented.
++- Add language-aware local model routing for English, Traditional Chinese, and bilingual outputs without overriding an
++  explicit user-selected model.
++- Add local research memory so runs, sources, summaries, route metadata, and failures can be reviewed locally over time.
++
++## Thesis
++
++Summarize already has strong source ingestion and broad provider support. The fork should not replace that foundation.
++Instead, it should make the private path obvious, diagnosable, and durable:
++
++1. A user can run summarization against local model servers without guessing which config key or endpoint is active.
++2. A bilingual user can prefer different local models for English, Traditional Chinese, and bilingual outputs.
++3. A research workflow can keep its history, artifacts, prompts, model routes, and failures on the user's machine.
++4. Upstream-compatible package names and binaries remain stable unless a later release plan explicitly changes them.
++
++## Non-goals
++
++- Do not remove upstream generic summarization, cloud provider support, media extraction, or side-panel behavior.
++- Do not rename npm package IDs such as `@steipete/summarize` or `@steipete/summarize-core` in this roadmap phase.
++- Do not rename the `summarize` or `summarizer` binaries in this roadmap phase.
++- Do not make every workflow local-only by default before diagnostics, routing, and user-facing status exist.
++- Do not implement durable storage as part of this positioning work; storage design and schema are separate stories.
++- Do not require a live local LLM server for default tests.
++
++## Staged Architecture
++
++### Stage 0: Positioning
++
++Document the fork's local-first purpose, upstream compatibility expectations, and implementation boundaries. This page is
++the source for product intent; `AGENTS.md` stays operational.
++
++### Stage 1: Source-grounded audit
++
++Audit existing local and OpenAI-compatible model paths, daemon request flow, extension settings flow, and config loading
++before adding new abstractions. The goal is to extend existing seams instead of duplicating provider logic.
++
++### Stage 2: Runtime registry and probes
++
++Add shared core types for local runtime descriptors, localhost-first endpoint validation, and bounded probe functions.
++Probe tests should mock network calls and avoid requiring a live llama.cpp or Ollama server.
++
++### Stage 3: Language-aware local routing
++
++Add config for English, Traditional Chinese, bilingual, and fallback local model choices. Explicit `--model` and request
++model selections keep current precedence; routing only applies when local routing is enabled and no explicit model was
++chosen.
++
++### Stage 4: Local-only privacy guard and daemon status
++
++Add a local-only mode that blocks remote provider calls before transport setup. Expose token-authenticated daemon status
++for local-only state, selected route hints, endpoint host, and probe results without leaking keys or raw environment
++values.
++
++### Stage 5: Side-panel visibility and onboarding
++
++Show whether a side-panel run will stay local, which route/model is selected, and what setup issue blocks local
++execution. Add Mac-first onboarding for local model servers and verification commands.
++
++### Stage 6: Local research memory
++
++Design and then add a local storage layer for runs, sources, artifacts, prompt metadata, model route metadata, privacy
++mode metadata, and failures. Local-only mode must keep protected run metadata and artifacts on localhost.
++
++## Implementation Intent
++
++- Keep reusable local runtime and routing primitives in `@steipete/summarize-core` so the CLI, daemon, and extension can
++  share behavior without importing CLI-only dependencies.
++- Prefer `127.0.0.1` or localhost endpoints for built-in local runtime defaults.
++- Preserve current model/config precedence and existing provider behavior unless a story explicitly changes it.
++- Shape user-facing errors around the setting that caused a local runtime, routing, or privacy decision.
++- Keep status responses and logs free of API keys and sensitive environment values.
++
++## Verification Intent
++
++Documentation-only positioning changes can use no-op-safe verification such as `pnpm -s docs:list`, with
++`pnpm -s typecheck` when a story asks for it.
++
++Runtime stories should add deterministic unit tests with mocked probes. Side-panel stories should run the extension build
++and supported Chrome extension test path when feasible.
+
+tokens used
+89,806
+<promise>COMPLETE</promise>

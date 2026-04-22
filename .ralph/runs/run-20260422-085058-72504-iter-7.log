@@ -94888,3 +94888,2937 @@ index 0000000000000000000000000000000000000000..1a72a7f1d0230c72815af083d4154968
 
 codex
 The story code is committed. I’m committing the Ralph progress/run artifacts now and capturing the final repository status and HEAD.
+exec
+/bin/zsh -lc 'git add -A && git commit -m "chore: record LLR-007 progress" && git update-index --assume-unchanged .ralph/runs/run-20260422-085058-72504-iter-7.log && git status --porcelain=v1 && git show -s --format="%h %s" HEAD' in /Users/shh/proj/summarize succeeded in 22ms:
+2b35ab28 chore: record LLR-007 progress
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 05edc8c3357c85805573597ae61bf258b03d0f4b..eaf8c71532a9a00796adc02090f6595cf393e542
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,67 @@
+ 
+ ---
+ 
++## 2026-04-22 09:53:11 PDT - LLR-007: Add Local-Only Privacy Guard
++Thread:
++Run: 20260422-085058-72504 (iteration 7)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-7.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-7.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: d6591d40 feat: add local-only privacy guard
++- Post-commit status: clean after progress artifact commit
++- Verification:
++  - Command: `pnpm -s test tests/local-only.test.ts tests/config.test.ts tests/daemon.agent.test.ts tests/daemon.chat.test.ts` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++- Files changed:
++  - src/config.ts
++  - src/config/sections.ts
++  - src/config/types.ts
++  - src/daemon/agent-model.ts
++  - src/daemon/agent.ts
++  - src/daemon/chat.ts
++  - src/daemon/flow-context.ts
++  - src/daemon/server-agent-route.ts
++  - src/daemon/server-summarize-execution.ts
++  - src/daemon/server-summarize-request.ts
++  - src/daemon/summarize.ts
++  - src/run/flows/asset/summary.ts
++  - src/run/flows/url/markdown.ts
++  - src/run/flows/url/summary-resolution.ts
++  - src/run/local-only.ts
++  - src/run/model-attempts.ts
++  - src/run/runner-plan.ts
++  - src/run/summary-engine.ts
++  - tests/config.test.ts
++  - tests/daemon.agent.test.ts
++  - tests/local-only.test.ts
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-7.md
++  - .ralph/.tmp/story-20260422-085058-72504-7.json
++  - .ralph/.tmp/story-20260422-085058-72504-7.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-6.log
++  - .ralph/runs/run-20260422-085058-72504-iter-6.md
++  - .ralph/runs/run-20260422-085058-72504-iter-7.log
++- What was implemented
++  Added `privacy.localOnly` config parsing plus daemon request `localOnly` support. The guard resolves the effective
++  policy from request override or config, blocks remote providers/OpenRouter/unverifiable CLI transports before model
++  calls, and allows only OpenAI-compatible localhost endpoints. Enforcement now covers CLI summary attempts, daemon
++  summary/extract paths, agent model resolution, chat model resolution, and LLM markdown conversion before remote
++  provider requests are made. Errors name the setting that caused the block and include a local endpoint/disable hint.
++- **Learnings for future iterations:**
++  - Patterns discovered: summary flows centralize provider calls through `createSummaryEngine` and `runModelAttempts`,
++    while daemon agent/chat paths resolve their model independently and need their own pre-call guard.
++  - Gotchas encountered: `pnpm -s check` runs formatting and caught files that targeted tests/typecheck/build did not;
++    run `pnpm exec oxfmt --write <files>` before the final check after touching formatted TypeScript.
++  - Useful context: `/Users/shh/proj/summarize/ralph` and `committer` are unavailable in this checkout; use
++    `.agents/ralph/log-activity.sh` and conventional `git commit`.
++---
++
+ ## 2026-04-22 09:31:37 PDT - LLR-005: Add CLI Local Runtime Probe Command
+ Thread:
+ Run: 20260422-085058-72504 (iteration 5)
+diff --git a/src/config.ts b/src/config.ts
+index 4fde123a753a1cdfbfb9829f923d40bd6af87479..e98db6f96c9381d2d51f5abfcd42bca960af19a3
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -10,6 +10,7 @@
+   parseMediaConfig,
+   parseOpenAiConfig,
+   parseOutputConfig,
++  parsePrivacyConfig,
+   parseProviderBaseUrlConfig,
+   parseSlidesConfig,
+   parseUiConfig,
+@@ -37,6 +38,7 @@
+   ModelConfig,
+   NvidiaConfig,
+   OpenAiConfig,
++  PrivacyConfig,
+   SummarizeConfig,
+   VideoMode,
+   XaiConfig,
+@@ -91,6 +93,7 @@
+   const ui = parseUiConfig(parsed, path);
+   const logging = parseLoggingConfig(parsed, path);
+   const localRouting = parseLocalModelRoutingConfig(parsed, path);
++  const privacy = parsePrivacyConfig(parsed, path);
+   const openai = parseOpenAiConfig(parsed, path);
+ 
+   const nvidia = parseProviderBaseUrlConfig(
+@@ -125,6 +128,7 @@
+       ...(xai ? { xai } : {}),
+       ...(zai ? { zai } : {}),
+       ...(localRouting ? { localRouting } : {}),
++      ...(privacy ? { privacy } : {}),
+       ...(logging ? { logging } : {}),
+       ...(configEnv ? { env: configEnv } : {}),
+       ...(apiKeys ? { apiKeys } : {}),
+diff --git a/src/config/sections.ts b/src/config/sections.ts
+index 8ec43a449f878b62e48196a74a4f6ea7fa53b913..8841dc57759042aaa8c7b03898d1887bea2ad955
+--- a/src/config/sections.ts
++++ b/src/config/sections.ts
+@@ -20,6 +20,7 @@
+   MediaCacheConfig,
+   MediaCacheVerifyMode,
+   OpenAiConfig,
++  PrivacyConfig,
+   VideoMode,
+ } from "./types.js";
+ 
+@@ -490,6 +491,27 @@
+     : undefined;
+ }
+ 
++export function parsePrivacyConfig(
++  root: Record<string, unknown>,
++  path: string,
++): PrivacyConfig | undefined {
++  const value = root.privacy;
++  if (typeof value === "undefined") return undefined;
++  if (!isRecord(value)) {
++    throw new Error(`Invalid config file ${path}: "privacy" must be an object.`);
++  }
++  const localOnly =
++    typeof value.localOnly === "boolean"
++      ? value.localOnly
++      : typeof value.localOnly === "undefined"
++        ? undefined
++        : (() => {
++            throw new Error(`Invalid config file ${path}: "privacy.localOnly" must be a boolean.`);
++          })();
++
++  return typeof localOnly === "boolean" ? { localOnly } : undefined;
++}
++
+ export function parseLocalModelRoutingConfig(
+   root: Record<string, unknown>,
+   path: string,
+diff --git a/src/config/types.ts b/src/config/types.ts
+index 701fb88326033316376a09c419625607ae44dadf..9a21ff7e92c4535f1db90b6fc488db2409a4a1a1
+--- a/src/config/types.ts
++++ b/src/config/types.ts
+@@ -110,6 +110,14 @@
+   maxFiles?: number;
+ };
+ 
++export type PrivacyConfig = {
++  /**
++   * Hard privacy mode. When enabled, model requests may only use OpenAI-compatible localhost
++   * endpoints; remote providers and unverifiable CLI transports are blocked before a provider call.
++   */
++  localOnly?: boolean;
++};
++
+ export type XaiConfig = {
+   /**
+    * Override the xAI API base URL (e.g. a proxy).
+@@ -259,6 +267,7 @@
+   xai?: XaiConfig;
+   zai?: ZaiConfig;
+   localRouting?: LocalModelRoutingConfig;
++  privacy?: PrivacyConfig;
+   logging?: LoggingConfig;
+   /**
+    * Generic environment variable defaults.
+diff --git a/src/daemon/agent-model.ts b/src/daemon/agent-model.ts
+index fb627d5a401c308bcbf288f42bb403695b42336b..4b26f4ddd4a05516af2c937729d2ed70d1b95984
+--- a/src/daemon/agent-model.ts
++++ b/src/daemon/agent-model.ts
+@@ -4,6 +4,11 @@
+ import { createSyntheticModel } from "../llm/providers/shared.js";
+ import { buildAutoModelAttempts, envHasKey } from "../model-auto.js";
+ import { parseCliUserModelId } from "../run/env.js";
++import {
++  assertLocalOnlyModelAllowed,
++  isLocalOnlyRemoteProviderError,
++  resolveLocalOnlyMode,
++} from "../run/local-only.js";
+ import { resolveRunContextState } from "../run/run-context.js";
+ import { resolveModelSelection } from "../run/run-models.js";
+ import { resolveRunOverrides } from "../run/run-settings.js";
+@@ -227,10 +232,12 @@
+   env,
+   pageContent,
+   modelOverride,
++  requestLocalOnly,
+ }: {
+   env: Record<string, string | undefined>;
+   pageContent: string;
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+ }) {
+   const {
+     config,
+@@ -279,6 +286,7 @@
+     envForRun: env,
+     explicitModelArg: modelOverride,
+   });
++  const localOnlyMode = resolveLocalOnlyMode({ config, requestLocalOnly });
+ 
+   const providerBaseUrlMap: Record<string, string | null> = {
+     openai: providerBaseUrls.openai,
+@@ -302,9 +310,40 @@
+       }),
+     };
+   };
++  const assertAgentModelAllowed = ({
++    transport,
++    userModelId,
++    llmModelId,
++    forceOpenRouter,
++    openaiBaseUrlOverride,
++  }: {
++    transport: "native" | "openrouter" | "cli";
++    userModelId: string;
++    llmModelId: string | null;
++    forceOpenRouter: boolean;
++    openaiBaseUrlOverride?: string | null;
++  }) => {
++    assertLocalOnlyModelAllowed({
++      policy: localOnlyMode,
++      candidate: {
++        transport,
++        userModelId,
++        llmModelId,
++        forceOpenRouter,
++        openaiBaseUrlOverride,
++      },
++      providerBaseUrls: { openai: providerBaseUrlMap.openai },
++    });
++  };
+ 
+   if (requestedModel.kind === "fixed") {
+     if (requestedModel.transport === "cli") {
++      assertAgentModelAllowed({
++        transport: "cli",
++        userModelId: requestedModel.userModelId,
++        llmModelId: null,
++        forceOpenRouter: false,
++      });
+       return {
+         provider: "cli",
+         model: null,
+@@ -318,11 +357,24 @@
+       };
+     }
+     if (requestedModel.transport === "openrouter") {
++      assertAgentModelAllowed({
++        transport: "openrouter",
++        userModelId: requestedModel.userModelId,
++        llmModelId: requestedModel.llmModelId,
++        forceOpenRouter: requestedModel.forceOpenRouter,
++      });
+       const resolved = applyBaseUrlOverride("openrouter", requestedModel.openrouterModelId);
+       return { ...resolved, maxOutputTokens, apiKeys };
+     }
+ 
+     const { provider, model } = parseProviderModelId(requestedModel.userModelId);
++    assertAgentModelAllowed({
++      transport: "native",
++      userModelId: requestedModel.userModelId,
++      llmModelId: requestedModel.llmModelId,
++      forceOpenRouter: requestedModel.forceOpenRouter,
++      openaiBaseUrlOverride: providerBaseUrlMap[provider] ?? requestedModel.openaiBaseUrlOverride,
++    });
+     const resolved = applyBaseUrlOverride(provider, model);
+     return { ...resolved, maxOutputTokens, apiKeys };
+   }
+@@ -345,7 +397,22 @@
+   });
+ 
+   let cliAttempt: (typeof attempts)[number] | null = null;
++  let localOnlyError: Error | null = null;
+   for (const attempt of attempts) {
++    try {
++      assertAgentModelAllowed({
++        transport: attempt.transport,
++        userModelId: attempt.userModelId,
++        llmModelId: attempt.llmModelId,
++        forceOpenRouter: attempt.forceOpenRouter,
++      });
++    } catch (error) {
++      if (isLocalOnlyRemoteProviderError(error)) {
++        localOnlyError = localOnlyError ?? error;
++        continue;
++      }
++      throw error;
++    }
+     if (attempt.transport === "cli") {
+       if (!cliAttempt) cliAttempt = attempt;
+       continue;
+@@ -379,5 +446,6 @@
+     };
+   }
+ 
++  if (localOnlyError) throw localOnlyError;
+   throw buildNoAgentModelAvailableError({ attempts, envForAuto, cliAvailability });
+ }
+diff --git a/src/daemon/agent.ts b/src/daemon/agent.ts
+index 83f43fd1fa8f52d1c79db0246933729d15952cb4..87aa17c9476b1c1f49e65734f81d0a796950e389
+--- a/src/daemon/agent.ts
++++ b/src/daemon/agent.ts
+@@ -270,6 +270,7 @@
+   pageContent,
+   messages,
+   modelOverride,
++  requestLocalOnly,
+   tools,
+   automationEnabled,
+   onChunk,
+@@ -282,6 +283,7 @@
+   pageContent: string;
+   messages: unknown;
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+   tools: string[];
+   automationEnabled: boolean;
+   onChunk: (text: string) => void;
+@@ -302,6 +304,7 @@
+     env,
+     pageContent,
+     modelOverride,
++    requestLocalOnly,
+   });
+ 
+   if ("transport" in resolved && resolved.transport === "cli") {
+@@ -370,6 +373,7 @@
+   pageContent,
+   messages,
+   modelOverride,
++  requestLocalOnly,
+   tools,
+   automationEnabled,
+ }: {
+@@ -379,6 +383,7 @@
+   pageContent: string;
+   messages: unknown;
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+   tools: string[];
+   automationEnabled: boolean;
+ }): Promise<AssistantMessage> {
+@@ -396,6 +401,7 @@
+     env,
+     pageContent,
+     modelOverride,
++    requestLocalOnly,
+   });
+ 
+   if ("transport" in resolved && resolved.transport === "cli") {
+diff --git a/src/daemon/chat.ts b/src/daemon/chat.ts
+index b426a88fd990239d57086825514889f7b60e91f6..d0f6e07dcf03f680f4bc359fb5246aade48f949d
+--- a/src/daemon/chat.ts
++++ b/src/daemon/chat.ts
+@@ -7,6 +7,11 @@
+ import { buildAutoModelAttempts, envHasKey } from "../model-auto.js";
+ import { parseRequestedModelId } from "../model-spec.js";
+ import { parseBooleanEnv, parseCliUserModelId } from "../run/env.js";
++import {
++  assertLocalOnlyModelAllowed,
++  isLocalOnlyRemoteProviderError,
++  resolveLocalOnlyMode,
++} from "../run/local-only.js";
+ import { resolveEnvState } from "../run/run-env.js";
+ 
+ type ChatSession = {
+@@ -122,6 +127,7 @@
+   pageContent,
+   messages,
+   modelOverride,
++  requestLocalOnly,
+   pushToSession,
+   emitMeta,
+ }: {
+@@ -134,13 +140,40 @@
+   pageContent: string;
+   messages: Message[];
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+   pushToSession: (event: ChatEvent) => void;
+   emitMeta: (patch: Partial<ChatSession["lastMeta"]>) => void;
+ }) {
+   const apiKeys = resolveApiKeys(env, configForCli);
+   const envState = resolveEnvState({ env, envForRun: env, configForCli });
+   const openaiUseChatCompletions = resolveOpenAiUseChatCompletions({ env, configForCli });
++  const localOnlyMode = resolveLocalOnlyMode({ config: configForCli, requestLocalOnly });
+   const context = buildContext({ pageUrl, pageTitle, pageContent, messages });
++  const assertChatModelAllowed = ({
++    transport,
++    userModelId,
++    modelId,
++    forceOpenRouter,
++    openaiBaseUrlOverride,
++  }: {
++    transport: "native" | "openrouter" | "cli";
++    userModelId: string;
++    modelId: string | null;
++    forceOpenRouter: boolean;
++    openaiBaseUrlOverride?: string | null;
++  }) => {
++    assertLocalOnlyModelAllowed({
++      policy: localOnlyMode,
++      candidate: {
++        transport,
++        userModelId,
++        llmModelId: modelId,
++        forceOpenRouter,
++        openaiBaseUrlOverride,
++      },
++      providerBaseUrls: envState.providerBaseUrls,
++    });
++  };
+ 
+   const resolveModel = () => {
+     if (modelOverride && modelOverride.trim().length > 0) {
+@@ -202,6 +235,13 @@
+ 
+   const resolved = resolveModel();
+   if (resolved) {
++    assertChatModelAllowed({
++      transport: resolved.transport === "cli" ? "cli" : "native",
++      userModelId: resolved.userModelId,
++      modelId: resolved.modelId,
++      forceOpenRouter: resolved.forceOpenRouter,
++      openaiBaseUrlOverride: resolved.openaiBaseUrlOverride,
++    });
+     emitMeta({ model: resolved.userModelId });
+     if (resolved.transport === "cli") {
+       const prompt = flattenChatForCli({
+@@ -253,15 +293,48 @@
+     cliAvailability: envState.cliAvailability,
+   });
+ 
+-  const apiAttempt = attempts.find(
+-    (entry) =>
+-      entry.transport !== "cli" &&
+-      entry.llmModelId &&
+-      envHasKey(envState.envForAuto, entry.requiredEnv),
+-  );
+-  const cliAttempt = !apiAttempt ? attempts.find((entry) => entry.transport === "cli") : null;
++  let localOnlyError: Error | null = null;
++  const apiAttempt = attempts.find((entry) => {
++    if (entry.transport === "cli" || !entry.llmModelId) return false;
++    try {
++      assertChatModelAllowed({
++        transport: entry.transport,
++        userModelId: entry.userModelId,
++        modelId: entry.llmModelId,
++        forceOpenRouter: entry.forceOpenRouter,
++      });
++    } catch (error) {
++      if (isLocalOnlyRemoteProviderError(error)) {
++        localOnlyError = localOnlyError ?? error;
++        return false;
++      }
++      throw error;
++    }
++    return envHasKey(envState.envForAuto, entry.requiredEnv);
++  });
++  const cliAttempt = !apiAttempt
++    ? (attempts.find((entry) => {
++        if (entry.transport !== "cli") return false;
++        try {
++          assertChatModelAllowed({
++            transport: "cli",
++            userModelId: entry.userModelId,
++            modelId: null,
++            forceOpenRouter: false,
++          });
++          return true;
++        } catch (error) {
++          if (isLocalOnlyRemoteProviderError(error)) {
++            localOnlyError = localOnlyError ?? error;
++            return false;
++          }
++          throw error;
++        }
++      }) ?? null)
++    : null;
+   const attempt = apiAttempt ?? cliAttempt;
+   if (!attempt) {
++    if (localOnlyError) throw localOnlyError;
+     throw new Error("No model available for chat");
+   }
+ 
+diff --git a/src/daemon/flow-context.ts b/src/daemon/flow-context.ts
+index a72f94b8d22d03ee41c1f26f9f16c282c5860d6f..7c1a3c97e3b664ec17d7c5d8ff3047ba1720ece5
+--- a/src/daemon/flow-context.ts
++++ b/src/daemon/flow-context.ts
+@@ -15,6 +15,7 @@
+   summarizeAsset as summarizeAssetFlow,
+ } from "../run/flows/asset/summary.js";
+ import { createUrlFlowContext, type UrlFlowContext } from "../run/flows/url/types.js";
++import { resolveLocalOnlyMode } from "../run/local-only.js";
+ import { resolveRunContextState } from "../run/run-context.js";
+ import { createRunMetrics } from "../run/run-metrics.js";
+ import { resolveModelSelection } from "../run/run-models.js";
+@@ -75,6 +76,7 @@
+   cache: CacheState;
+   mediaCache?: MediaCache | null;
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+   promptOverride: string | null;
+   lengthRaw: unknown;
+   languageRaw: unknown;
+@@ -117,6 +119,7 @@
+     cache,
+     mediaCache = null,
+     modelOverride,
++    requestLocalOnly = null,
+     promptOverride,
+     lengthRaw,
+     languageRaw,
+@@ -223,6 +226,7 @@
+     explicitModelArg: modelOverride?.trim() ? modelOverride.trim() : null,
+     outputLanguage,
+   });
++  const localOnlyMode = resolveLocalOnlyMode({ config, requestLocalOnly });
+ 
+   const fixedModelSpec: FixedModelSpec | null =
+     requestedModel.kind === "fixed" ? requestedModel : null;
+@@ -278,6 +282,7 @@
+     zai: { apiKey: zaiApiKey, baseUrl: zaiBaseUrl },
+     nvidia: { apiKey: nvidiaApiKey, baseUrl: nvidiaBaseUrl },
+     providerBaseUrls,
++    localOnlyMode,
+   });
+ 
+   const lengthInstruction = promptOverride ? buildPromptLengthInstruction(lengthArg) : null;
+diff --git a/src/daemon/server-agent-route.ts b/src/daemon/server-agent-route.ts
+index f836ebdbe3369bc3d140cf453f3c4e52419f9599..0cf6efc52b6f56ea7d52a64a9e2fd14aaf6291dc
+--- a/src/daemon/server-agent-route.ts
++++ b/src/daemon/server-agent-route.ts
+@@ -43,6 +43,7 @@
+   const pageContent = typeof obj.pageContent === "string" ? obj.pageContent : "";
+   const messages = obj.messages;
+   const modelOverride = typeof obj.model === "string" ? obj.model.trim() : null;
++  const requestLocalOnly = typeof obj.localOnly === "boolean" ? obj.localOnly : null;
+   const tools = Array.isArray(obj.tools)
+     ? obj.tools.filter((tool): tool is string => typeof tool === "string")
+     : [];
+@@ -67,6 +68,7 @@
+           pageContent,
+           messages,
+           modelOverride: normalizedModelOverride,
++          requestLocalOnly,
+           tools,
+           automationEnabled,
+         }),
+@@ -107,6 +109,7 @@
+         pageContent,
+         messages: messages as Message[],
+         modelOverride: normalizedModelOverride,
++        requestLocalOnly,
+         tools,
+         automationEnabled,
+         onChunk: (text) => writeEvent({ event: "chunk", data: { text } }),
+diff --git a/src/daemon/server-summarize-execution.ts b/src/daemon/server-summarize-execution.ts
+index ad4d35c950bf61bb1231f94690721c46f04012e7..83140aaa9824288862b74874ff721dfd2bbb22f0
+--- a/src/daemon/server-summarize-execution.ts
++++ b/src/daemon/server-summarize-execution.ts
+@@ -125,6 +125,7 @@
+       env,
+       fetchImpl,
+       input: { url: request.pageUrl, title: request.title, maxCharacters: request.maxCharacters },
++      requestLocalOnly: request.requestLocalOnly,
+       cache: requestCache,
+       mediaCache,
+       overrides: request.overrides,
+@@ -240,6 +241,7 @@
+     textContent,
+     truncated,
+     modelOverride,
++    requestLocalOnly,
+     lengthRaw,
+     languageRaw,
+     promptOverride,
+@@ -322,6 +324,7 @@
+           env,
+           fetchImpl,
+           modelOverride: normalizedModelOverride,
++          requestLocalOnly,
+           promptOverride,
+           lengthRaw,
+           languageRaw,
+@@ -424,6 +427,7 @@
+         env,
+         fetchImpl,
+         modelOverride: normalizedModelOverride,
++        requestLocalOnly,
+         promptOverride,
+         lengthRaw,
+         languageRaw,
+diff --git a/src/daemon/server-summarize-request.ts b/src/daemon/server-summarize-request.ts
+index 9d37dbc9c8632bdc339d6e4f5039149470ebc3e2..611a417bcd9db9fb99f58569d0f08adae2bcc9d1
+--- a/src/daemon/server-summarize-request.ts
++++ b/src/daemon/server-summarize-request.ts
+@@ -53,6 +53,7 @@
+   textContent: string;
+   truncated: boolean;
+   modelOverride: string | null;
++  requestLocalOnly: boolean | null;
+   lengthRaw: string;
+   languageRaw: string;
+   promptOverride: string | null;
+@@ -103,6 +104,7 @@
+   const textContent = typeof obj.text === "string" ? obj.text : "";
+   const truncated = Boolean(obj.truncated);
+   const modelOverride = typeof obj.model === "string" ? obj.model.trim() : null;
++  const requestLocalOnly = typeof obj.localOnly === "boolean" ? obj.localOnly : null;
+   const lengthRaw = typeof obj.length === "string" ? obj.length.trim() : "";
+   const languageRaw = typeof obj.language === "string" ? obj.language.trim() : "";
+   const promptRaw = typeof obj.prompt === "string" ? obj.prompt : "";
+@@ -164,6 +166,7 @@
+     textContent,
+     truncated,
+     modelOverride,
++    requestLocalOnly,
+     lengthRaw,
+     languageRaw,
+     promptOverride,
+diff --git a/src/daemon/summarize.ts b/src/daemon/summarize.ts
+index fee04214ed9f2cad80f9ed7feaff4b1f520d713a..1b1ae7ffda4f99495c6688d33f82f9326eb8061f
+--- a/src/daemon/summarize.ts
++++ b/src/daemon/summarize.ts
+@@ -143,6 +143,7 @@
+   fetchImpl,
+   input,
+   modelOverride,
++  requestLocalOnly,
+   promptOverride,
+   lengthRaw,
+   languageRaw,
+@@ -156,6 +157,7 @@
+   fetchImpl: typeof fetch;
+   input: VisiblePageInput;
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+   promptOverride: string | null;
+   lengthRaw: unknown;
+   languageRaw: unknown;
+@@ -177,6 +179,7 @@
+     cache,
+     mediaCache,
+     modelOverride,
++    requestLocalOnly,
+     promptOverride,
+     lengthRaw,
+     languageRaw,
+@@ -297,6 +300,7 @@
+   fetchImpl,
+   input,
+   modelOverride,
++  requestLocalOnly,
+   promptOverride,
+   lengthRaw,
+   languageRaw,
+@@ -312,6 +316,7 @@
+   fetchImpl: typeof fetch;
+   input: UrlModeInput;
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+   promptOverride: string | null;
+   lengthRaw: unknown;
+   languageRaw: unknown;
+@@ -351,6 +356,7 @@
+     cache,
+     mediaCache,
+     modelOverride,
++    requestLocalOnly,
+     promptOverride,
+     lengthRaw,
+     languageRaw,
+@@ -432,6 +438,7 @@
+   env,
+   fetchImpl,
+   input,
++  requestLocalOnly,
+   cache,
+   mediaCache,
+   overrides,
+@@ -442,6 +449,7 @@
+   env: Record<string, string | undefined>;
+   fetchImpl: typeof fetch;
+   input: UrlModeInput;
++  requestLocalOnly?: boolean | null;
+   cache: CacheState;
+   mediaCache: MediaCache | null;
+   overrides: RunOverrides;
+@@ -460,6 +468,7 @@
+     cache,
+     mediaCache,
+     modelOverride: null,
++    requestLocalOnly,
+     promptOverride: null,
+     lengthRaw: "",
+     languageRaw: "",
+diff --git a/src/run/flows/asset/summary.ts b/src/run/flows/asset/summary.ts
+index 9d0f8de3190cf8e3325306f4d11649e5d63b1f6d..01577639f6787c7dc8e1a22d8ebe994b2a19db81
+--- a/src/run/flows/asset/summary.ts
++++ b/src/run/flows/asset/summary.ts
+@@ -26,6 +26,7 @@
+ } from "../../cli-fallback-state.js";
+ import { writeFinishLine } from "../../finish-line.js";
+ import { resolveTargetCharacters } from "../../format.js";
++import { isLocalOnlyRemoteProviderError } from "../../local-only.js";
+ import { writeVerbose } from "../../logging.js";
+ import { prepareMarkdownForTerminal } from "../../markdown.js";
+ import { runModelAttempts } from "../../model-attempts.js";
+@@ -555,6 +556,7 @@
+       isNamedModelSelection: ctx.isNamedModelSelection,
+       envHasKeyFor: ctx.summaryEngine.envHasKeyFor,
+       formatMissingModelError: ctx.summaryEngine.formatMissingModelError,
++      assertAttemptAllowed: ctx.summaryEngine.assertAttemptAllowed,
+       onAutoSkip: (attempt) => {
+         writeVerbose(
+           ctx.stderr,
+@@ -630,6 +632,9 @@
+       }
+       throw new Error(withFreeTip(`No model available for --model ${ctx.requestedModelInput}`));
+     }
++    if (isLocalOnlyRemoteProviderError(lastError)) {
++      throw lastError;
++    }
+     if (textContent) {
+       ctx.clearProgressForStdout();
+       ctx.stdout.write(`${textContent.content.trim()}\n`);
+diff --git a/src/run/flows/url/markdown.ts b/src/run/flows/url/markdown.ts
+index fc3c0ec9c5ee6ebe4ab25b2a8dc7bcbb8e3dbee3..be585d20769540cea84e460cd3f228424e60da42
+--- a/src/run/flows/url/markdown.ts
++++ b/src/run/flows/url/markdown.ts
+@@ -7,6 +7,7 @@
+ } from "../../../llm/transcript-to-markdown.js";
+ import { convertToMarkdownWithMarkitdown } from "../../../markitdown.js";
+ import { hasUvxCli } from "../../env.js";
++import { assertLocalOnlyModelAllowed } from "../../local-only.js";
+ import { createRetryLogger } from "../../logging.js";
+ import type { ModelAttempt } from "../../types.js";
+ import type { UrlFlowContext } from "./types.js";
+@@ -184,6 +185,25 @@
+               : Boolean(ctx.model.apiStatus.apiKey);
+   })();
+ 
++  const assertMarkdownModelAllowed = () => {
++    if (!markdownModel) return;
++    const userModelId = markdownModel.forceOpenRouter
++      ? `openrouter/${markdownModel.llmModelId.replace(/^openai\//i, "")}`
++      : markdownModel.llmModelId;
++    assertLocalOnlyModelAllowed({
++      policy: ctx.model.summaryEngine.localOnlyMode,
++      candidate: {
++        transport: markdownModel.forceOpenRouter ? "openrouter" : "native",
++        userModelId,
++        llmModelId: markdownModel.llmModelId,
++        forceOpenRouter: markdownModel.forceOpenRouter,
++        openaiBaseUrlOverride:
++          markdownModel.openaiBaseUrlOverride ?? ctx.model.apiStatus.providerBaseUrls.openai,
++      },
++      providerBaseUrls: ctx.model.apiStatus.providerBaseUrls,
++    });
++  };
++
+   if (
+     (markdownRequested || transcriptMarkdownRequested) &&
+     effectiveMarkdownMode === "llm" &&
+@@ -215,7 +235,7 @@
+     throw new Error(`--markdown-mode llm requires ${required}`);
+   }
+ 
+-  const llmHtmlToMarkdown =
++  const llmHtmlToMarkdownBase =
+     markdownRequested &&
+     markdownModel !== null &&
+     (effectiveMarkdownMode === "llm" || markdownProvider !== "none")
+@@ -249,6 +269,12 @@
+           },
+         })
+       : null;
++  const llmHtmlToMarkdown = llmHtmlToMarkdownBase
++    ? async (args: Parameters<typeof llmHtmlToMarkdownBase>[0]) => {
++        assertMarkdownModelAllowed();
++        return llmHtmlToMarkdownBase(args);
++      }
++    : null;
+ 
+   const markitdownHtmlToMarkdown =
+     markdownRequested && ctx.flags.preprocessMode !== "off" && hasUvxCli(ctx.io.env)
+@@ -318,35 +344,40 @@
+   // Transcript→Markdown converter (only for YouTube with --markdown-mode llm)
+   const convertTranscriptToMarkdown: ConvertTranscriptToMarkdown | null =
+     transcriptMarkdownRequested && markdownModel !== null
+-      ? createTranscriptToMarkdownConverter({
+-          modelId: markdownModel.llmModelId,
+-          forceOpenRouter: markdownModel.forceOpenRouter,
+-          xaiApiKey: ctx.model.apiStatus.xaiApiKey,
+-          googleApiKey: ctx.model.apiStatus.googleApiKey,
+-          openaiApiKey: markdownModel.openaiApiKeyOverride ?? ctx.model.apiStatus.apiKey,
+-          anthropicApiKey: ctx.model.apiStatus.anthropicApiKey,
+-          openrouterApiKey: ctx.model.apiStatus.openrouterApiKey,
+-          openaiBaseUrlOverride:
+-            markdownModel.openaiBaseUrlOverride ?? ctx.model.apiStatus.providerBaseUrls.openai,
+-          anthropicBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.anthropic,
+-          googleBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.google,
+-          xaiBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.xai,
+-          forceChatCompletions:
+-            markdownModel.forceChatCompletions ??
+-            (ctx.model.openaiUseChatCompletions && markdownProvider === "openai"),
+-          fetchImpl: ctx.io.fetch,
+-          retries: ctx.flags.retries,
+-          onRetry: createRetryLogger({
+-            stderr: ctx.io.stderr,
+-            verbose: ctx.flags.verbose,
+-            color: ctx.flags.verboseColor,
++      ? ((converter) => async (args) => {
++          assertMarkdownModelAllowed();
++          return converter(args);
++        })(
++          createTranscriptToMarkdownConverter({
+             modelId: markdownModel.llmModelId,
+-            env: ctx.io.envForRun,
++            forceOpenRouter: markdownModel.forceOpenRouter,
++            xaiApiKey: ctx.model.apiStatus.xaiApiKey,
++            googleApiKey: ctx.model.apiStatus.googleApiKey,
++            openaiApiKey: markdownModel.openaiApiKeyOverride ?? ctx.model.apiStatus.apiKey,
++            anthropicApiKey: ctx.model.apiStatus.anthropicApiKey,
++            openrouterApiKey: ctx.model.apiStatus.openrouterApiKey,
++            openaiBaseUrlOverride:
++              markdownModel.openaiBaseUrlOverride ?? ctx.model.apiStatus.providerBaseUrls.openai,
++            anthropicBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.anthropic,
++            googleBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.google,
++            xaiBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.xai,
++            forceChatCompletions:
++              markdownModel.forceChatCompletions ??
++              (ctx.model.openaiUseChatCompletions && markdownProvider === "openai"),
++            fetchImpl: ctx.io.fetch,
++            retries: ctx.flags.retries,
++            onRetry: createRetryLogger({
++              stderr: ctx.io.stderr,
++              verbose: ctx.flags.verbose,
++              color: ctx.flags.verboseColor,
++              modelId: markdownModel.llmModelId,
++              env: ctx.io.envForRun,
++            }),
++            onUsage: ({ model: usedModel, provider, usage }) => {
++              ctx.model.llmCalls.push({ provider, model: usedModel, usage, purpose: "markdown" });
++            },
+           }),
+-          onUsage: ({ model: usedModel, provider, usage }) => {
+-            ctx.model.llmCalls.push({ provider, model: usedModel, usage, purpose: "markdown" });
+-          },
+-        })
++        )
+       : null;
+ 
+   return {
+diff --git a/src/run/flows/url/summary-resolution.ts b/src/run/flows/url/summary-resolution.ts
+index 5e0d4a6f8b7eee882ba2f429313f41611d4b38ca..1ef83f68a9f4c93acf7ce8f5dea45a2f5f33f08e
+--- a/src/run/flows/url/summary-resolution.ts
++++ b/src/run/flows/url/summary-resolution.ts
+@@ -17,6 +17,7 @@
+   writeLastSuccessfulCliProvider,
+ } from "../../cli-fallback-state.js";
+ import { parseCliUserModelId } from "../../env.js";
++import { isLocalOnlyRemoteProviderError } from "../../local-only.js";
+ import { writeVerbose } from "../../logging.js";
+ import { runModelAttempts } from "../../model-attempts.js";
+ import { buildOpenRouterNoAllowedProvidersMessage } from "../../openrouter.js";
+@@ -315,6 +316,7 @@
+       isNamedModelSelection: model.isNamedModelSelection,
+       envHasKeyFor: model.summaryEngine.envHasKeyFor,
+       formatMissingModelError: model.summaryEngine.formatMissingModelError,
++      assertAttemptAllowed: model.summaryEngine.assertAttemptAllowed,
+       onAutoSkip: (attempt) => {
+         writeVerbose(
+           io.stderr,
+@@ -384,6 +386,9 @@
+       }
+       throw new Error(withFreeTip(`No model available for --model ${model.requestedModelInput}`));
+     }
++    if (isLocalOnlyRemoteProviderError(lastError)) {
++      throw lastError;
++    }
+     return {
+       kind: "use-extracted",
+       footerLabel: "no model",
+diff --git a/src/run/local-only.ts b/src/run/local-only.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..1f7f58ba8f6a20058ca81e3fc41070fd503bb628
+--- /dev/null
++++ b/src/run/local-only.ts
+@@ -0,0 +1,185 @@
++import { isLocalRuntimeHostname } from "@steipete/summarize-core/local-runtime";
++import type { SummarizeConfig } from "../config.js";
++import { parseGatewayStyleModelId } from "../llm/model-id.js";
++import type { ModelAttempt } from "./types.js";
++
++export const LOCAL_ONLY_CONFIG_SOURCE = "privacy.localOnly";
++export const LOCAL_ONLY_REQUEST_SOURCE = "request localOnly";
++
++export type LocalOnlyModeSource =
++  | typeof LOCAL_ONLY_CONFIG_SOURCE
++  | typeof LOCAL_ONLY_REQUEST_SOURCE;
++
++export type LocalOnlyMode = {
++  enabled: boolean;
++  source: LocalOnlyModeSource | null;
++};
++
++export type LocalOnlyProviderBaseUrls = {
++  openai: string | null;
++};
++
++export type LocalOnlyModelCandidate = Pick<
++  ModelAttempt,
++  "transport" | "userModelId" | "llmModelId" | "forceOpenRouter"
++> & {
++  openaiBaseUrlOverride?: string | null;
++};
++
++export class LocalOnlyRemoteProviderError extends Error {
++  code = "LOCAL_ONLY_REMOTE_PROVIDER_BLOCKED" as const;
++}
++
++export function isLocalOnlyRemoteProviderError(
++  error: unknown,
++): error is LocalOnlyRemoteProviderError {
++  return (
++    error instanceof LocalOnlyRemoteProviderError ||
++    (error instanceof Error &&
++      (error as { code?: unknown }).code === "LOCAL_ONLY_REMOTE_PROVIDER_BLOCKED")
++  );
++}
++
++export function resolveLocalOnlyMode({
++  config,
++  requestLocalOnly,
++}: {
++  config: SummarizeConfig | null | undefined;
++  requestLocalOnly?: boolean | null;
++}): LocalOnlyMode {
++  if (typeof requestLocalOnly === "boolean") {
++    return { enabled: requestLocalOnly, source: LOCAL_ONLY_REQUEST_SOURCE };
++  }
++  if (typeof config?.privacy?.localOnly === "boolean") {
++    return { enabled: config.privacy.localOnly, source: LOCAL_ONLY_CONFIG_SOURCE };
++  }
++  return { enabled: false, source: null };
++}
++
++function sourceLabel(policy: LocalOnlyMode): string {
++  return policy.source ?? "local-only mode";
++}
++
++function disableHint(policy: LocalOnlyMode): string {
++  if (policy.source === LOCAL_ONLY_REQUEST_SOURCE) {
++    return "set request localOnly to false";
++  }
++  if (policy.source === LOCAL_ONLY_CONFIG_SOURCE) {
++    return 'set "privacy.localOnly": false in config';
++  }
++  return "disable local-only mode";
++}
++
++function sanitizeBaseUrlForError(raw: string): string {
++  try {
++    const url = new URL(raw);
++    url.username = "";
++    url.password = "";
++    url.search = "";
++    url.hash = "";
++    return url.toString().replace(/\/+$/, "");
++  } catch {
++    return "configured OpenAI-compatible endpoint";
++  }
++}
++
++function createLocalOnlyError({
++  policy,
++  modelId,
++  reason,
++}: {
++  policy: LocalOnlyMode;
++  modelId: string;
++  reason: string;
++}): LocalOnlyRemoteProviderError {
++  return new LocalOnlyRemoteProviderError(
++    `Local-only mode (${sourceLabel(policy)}) blocked ${modelId}: ${reason}. ` +
++      "Use an openai/... model with OPENAI_BASE_URL or openai.baseUrl set to a localhost OpenAI-compatible endpoint, " +
++      `or ${disableHint(policy)}.`,
++  );
++}
++
++function effectiveOpenAiBaseUrl({
++  candidate,
++  providerBaseUrls,
++}: {
++  candidate: LocalOnlyModelCandidate;
++  providerBaseUrls: LocalOnlyProviderBaseUrls;
++}): string {
++  const override = candidate.openaiBaseUrlOverride?.trim() ?? "";
++  if (override) return override;
++  const configured = providerBaseUrls.openai?.trim() ?? "";
++  return configured || "https://api.openai.com/v1";
++}
++
++function isLocalOpenAiBaseUrl(raw: string): boolean {
++  try {
++    const url = new URL(raw);
++    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
++    return isLocalRuntimeHostname(url.hostname);
++  } catch {
++    return false;
++  }
++}
++
++export function assertLocalOnlyModelAllowed({
++  policy,
++  candidate,
++  providerBaseUrls,
++}: {
++  policy: LocalOnlyMode;
++  candidate: LocalOnlyModelCandidate;
++  providerBaseUrls: LocalOnlyProviderBaseUrls;
++}): void {
++  if (!policy.enabled) return;
++
++  if (candidate.transport === "cli") {
++    throw createLocalOnlyError({
++      policy,
++      modelId: candidate.userModelId,
++      reason:
++        "CLI transports are not allowed because local-only mode cannot verify whether the CLI calls a remote service",
++    });
++  }
++
++  if (
++    candidate.transport === "openrouter" ||
++    candidate.forceOpenRouter ||
++    candidate.userModelId.toLowerCase().startsWith("openrouter/")
++  ) {
++    throw createLocalOnlyError({
++      policy,
++      modelId: candidate.userModelId,
++      reason: "OpenRouter is a remote provider",
++    });
++  }
++
++  const rawModelId = candidate.llmModelId ?? candidate.userModelId;
++  let parsed: ReturnType<typeof parseGatewayStyleModelId>;
++  try {
++    parsed = parseGatewayStyleModelId(rawModelId);
++  } catch {
++    throw createLocalOnlyError({
++      policy,
++      modelId: candidate.userModelId,
++      reason: "the model provider could not be verified as local",
++    });
++  }
++
++  if (parsed.provider !== "openai") {
++    throw createLocalOnlyError({
++      policy,
++      modelId: candidate.userModelId,
++      reason: `${parsed.provider}/... is a remote provider; local-only mode only allows OpenAI-compatible localhost endpoints`,
++    });
++  }
++
++  const baseUrl = effectiveOpenAiBaseUrl({ candidate, providerBaseUrls });
++  if (!isLocalOpenAiBaseUrl(baseUrl)) {
++    throw createLocalOnlyError({
++      policy,
++      modelId: candidate.userModelId,
++      reason: `the OpenAI-compatible endpoint ${sanitizeBaseUrlForError(baseUrl)} is not localhost`,
++    });
++  }
++}
+diff --git a/src/run/model-attempts.ts b/src/run/model-attempts.ts
+index c5bc9684ab25c0583046ce34e76495727acf2a3f..e93c3bc709ac9a4283f56190ef4f6c3f7ce8bef5
+--- a/src/run/model-attempts.ts
++++ b/src/run/model-attempts.ts
+@@ -9,6 +9,7 @@
+   onAutoSkip,
+   onAutoFailure,
+   onFixedModelError,
++  assertAttemptAllowed,
+   runAttempt,
+ }: {
+   attempts: ModelAttempt[];
+@@ -19,6 +20,7 @@
+   onAutoSkip?: (attempt: ModelAttempt) => void;
+   onAutoFailure?: (attempt: ModelAttempt, error: unknown) => void;
+   onFixedModelError?: (attempt: ModelAttempt, error: unknown) => never;
++  assertAttemptAllowed?: (attempt: ModelAttempt) => void;
+   runAttempt: (attempt: ModelAttempt) => Promise<T>;
+ }): Promise<{
+   result: T | null;
+@@ -34,6 +36,20 @@
+   const missingRequiredEnvs = new Set<ModelAttemptRequiredEnv>();
+ 
+   for (const attempt of attempts) {
++    try {
++      assertAttemptAllowed?.(attempt);
++    } catch (error) {
++      lastError = error;
++      if (!isFallbackModel) {
++        if (onFixedModelError) {
++          onFixedModelError(attempt, error);
++        }
++        throw error;
++      }
++      onAutoFailure?.(attempt, error);
++      continue;
++    }
++
+     const hasKey = envHasKeyFor(attempt.requiredEnv);
+     if (!hasKey) {
+       if (isFallbackModel) {
+diff --git a/src/run/runner-plan.ts b/src/run/runner-plan.ts
+index 6b3b96d1699e8d4d210293b23f32a80e9af5139f..f3464799f6f92edb2e387efd9326845aa407f51f
+--- a/src/run/runner-plan.ts
++++ b/src/run/runner-plan.ts
+@@ -11,6 +11,7 @@
+ import { parseCliProviderArg } from "./env.js";
+ import { isTranscribableExtension } from "./flows/asset/input.js";
+ import { summarizeMediaFile as summarizeMediaFileImpl } from "./flows/asset/media.js";
++import { resolveLocalOnlyMode } from "./local-only.js";
+ import { createMediaCacheFromConfig } from "./media-cache-state.js";
+ import { createProgressGate } from "./progress.js";
+ import { resolveRunContextState } from "./run-context.js";
+@@ -263,6 +264,7 @@
+     outputLanguage,
+     allowLanguageAwareLocalRouting: !cliFlagPresent,
+   });
++  const localOnlyMode = resolveLocalOnlyMode({ config });
+ 
+   const verboseColor = supportsColor(stderr, envForRun);
+   const themeForStderr = createThemeRenderer({
+@@ -351,6 +353,7 @@
+       baseUrl: nvidiaBaseUrl,
+     },
+     providerBaseUrls,
++    localOnlyMode,
+   });
+ 
+   const writeViaFooter = (parts: string[]) => {
+diff --git a/src/run/summary-engine.ts b/src/run/summary-engine.ts
+index 529d11e99db94a73eac37fc239d74b0f8a4257df..0853c86930e6bdb73b06fcb2c6e52941999d204d
+--- a/src/run/summary-engine.ts
++++ b/src/run/summary-engine.ts
+@@ -7,6 +7,7 @@
+ import { parseGatewayStyleModelId } from "../llm/model-id.js";
+ import type { Prompt } from "../llm/prompt.js";
+ import { formatCompactCount } from "../tty/format.js";
++import { assertLocalOnlyModelAllowed, type LocalOnlyMode } from "./local-only.js";
+ import { createRetryLogger, writeVerbose } from "./logging.js";
+ import { prepareMarkdownForTerminalStreaming } from "./markdown.js";
+ import { createStreamOutputGate, type StreamOutputMode } from "./stream-output.js";
+@@ -82,6 +83,7 @@
+     google: string | null;
+     xai: string | null;
+   };
++  localOnlyMode: LocalOnlyMode;
+ };
+ 
+ export type SummaryStreamHandler = {
+@@ -189,6 +191,14 @@
+     return `Missing ${attempt.requiredEnv} for model ${attempt.userModelId}. Set the env var or choose a different --model.`;
+   };
+ 
++  const assertAttemptAllowed = (attempt: ModelAttempt): void => {
++    assertLocalOnlyModelAllowed({
++      policy: deps.localOnlyMode,
++      candidate: attempt,
++      providerBaseUrls: deps.providerBaseUrls,
++    });
++  };
++
+   const runSummaryAttempt = async ({
+     attempt,
+     prompt,
+@@ -214,6 +224,7 @@
+     modelMeta: ModelMeta;
+     maxOutputTokensForCall: number | null;
+   }> => {
++    assertAttemptAllowed(attempt);
+     onModelChosen?.(attempt.userModelId);
+ 
+     if (attempt.transport === "cli") {
+@@ -615,8 +626,10 @@
+ 
+   return {
+     applyOpenAiGatewayOverrides,
++    assertAttemptAllowed,
+     envHasKeyFor,
+     formatMissingModelError,
++    localOnlyMode: deps.localOnlyMode,
+     runSummaryAttempt,
+   };
+ }
+diff --git a/tests/config.test.ts b/tests/config.test.ts
+index 123926fd18dcbc62b5a3f89fe3e591d81644b51e..8f697a67ff5c3e62afcb9cbd57bb5da334e9ecb7
+--- a/tests/config.test.ts
++++ b/tests/config.test.ts
+@@ -94,6 +94,21 @@
+     });
+   });
+ 
++  it("loads privacy local-only config", () => {
++    const { root } = writeJsonConfig({
++      privacy: {
++        localOnly: true,
++      },
++    });
++
++    const result = loadSummarizeConfig({ env: { HOME: root } });
++    expect(result.config).toEqual({
++      privacy: {
++        localOnly: true,
++      },
++    });
++  });
++
+   it("supports ui.theme", () => {
+     const { root } = writeJsonConfig({
+       model: { id: "openai/gpt-5-mini" },
+@@ -538,6 +553,18 @@
+     );
+   });
+ 
++  it("rejects invalid privacy config", () => {
++    const { root: badRoot } = writeJsonConfig({ privacy: "nope" });
++    expect(() => loadSummarizeConfig({ env: { HOME: badRoot } })).toThrow(
++      /"privacy" must be an object/,
++    );
++
++    const { root: badLocalOnly } = writeJsonConfig({ privacy: { localOnly: "yes" } });
++    expect(() => loadSummarizeConfig({ env: { HOME: badLocalOnly } })).toThrow(
++      /privacy\.localOnly.*must be a boolean/,
++    );
++  });
++
+   it("rejects invalid cli enabled providers", () => {
+     const { root } = writeJsonConfig({ cli: { enabled: ["nope"] } });
+     expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/unknown CLI provider/);
+diff --git a/tests/daemon.agent.test.ts b/tests/daemon.agent.test.ts
+index d5218db4192de85661ddf15fd84b5f6bcbdfb297..af768a9a9d74dc6f1d913e25e451c627def775c5
+--- a/tests/daemon.agent.test.ts
++++ b/tests/daemon.agent.test.ts
+@@ -208,6 +208,55 @@
+     expect(model.api).toBe("openai-completions");
+   });
+ 
++  it("blocks remote agent providers when privacy.localOnly is enabled", async () => {
++    const home = makeTempHome();
++    writeHomeConfig(home, {
++      privacy: { localOnly: true },
++    });
++
++    await expect(
++      completeAgentResponse({
++        env: { HOME: home, GEMINI_API_KEY: "gemini-key" },
++        pageUrl: "https://example.com",
++        pageTitle: null,
++        pageContent: "Hello world",
++        messages: [{ role: "user", content: "Hi" }],
++        modelOverride: "google/gemini-3-flash",
++        tools: [],
++        automationEnabled: false,
++      }),
++    ).rejects.toThrow(/Local-only mode \(privacy\.localOnly\) blocked google\/gemini-3-flash/);
++    expect(mockCompleteSimple).not.toHaveBeenCalled();
++  });
++
++  it("allows local OpenAI-compatible agent endpoints when privacy.localOnly is enabled", async () => {
++    const home = makeTempHome();
++    writeHomeConfig(home, {
++      privacy: { localOnly: true },
++      openai: { baseUrl: "http://127.0.0.1:1234/v1" },
++    });
++
++    await completeAgentResponse({
++      env: { HOME: home, OPENAI_API_KEY: "sk-local" },
++      pageUrl: "https://example.com",
++      pageTitle: null,
++      pageContent: "Hello world",
++      messages: [{ role: "user", content: "Hi" }],
++      modelOverride: "openai/local-model",
++      tools: [],
++      automationEnabled: false,
++    });
++
++    const model = mockCompleteSimple.mock.calls[0]?.[0] as {
++      provider: string;
++      id: string;
++      baseUrl?: string;
++    };
++    expect(model.provider).toBe("openai");
++    expect(model.id).toBe("local-model");
++    expect(model.baseUrl).toBe("http://127.0.0.1:1234/v1");
++  });
++
+   it("throws a helpful error when openrouter key is missing", async () => {
+     const home = makeTempHome();
+     await expect(
+diff --git a/tests/local-only.test.ts b/tests/local-only.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..1a72a7f1d0230c72815af083d4154968147282be
+--- /dev/null
++++ b/tests/local-only.test.ts
+@@ -0,0 +1,141 @@
++import { describe, expect, it, vi } from "vitest";
++import { assertLocalOnlyModelAllowed, resolveLocalOnlyMode } from "../src/run/local-only.js";
++import { runModelAttempts } from "../src/run/model-attempts.js";
++import type { ModelAttempt } from "../src/run/types.js";
++
++const remotePolicy = resolveLocalOnlyMode({
++  config: { privacy: { localOnly: true } },
++});
++
++function attempt(userModelId: string, overrides: Partial<ModelAttempt> = {}): ModelAttempt {
++  const transport = userModelId.startsWith("openrouter/")
++    ? "openrouter"
++    : userModelId.startsWith("cli/")
++      ? "cli"
++      : "native";
++  return {
++    transport,
++    userModelId,
++    llmModelId:
++      transport === "cli"
++        ? null
++        : transport === "openrouter"
++          ? `openai/${userModelId.slice("openrouter/".length)}`
++          : userModelId,
++    openrouterProviders: null,
++    forceOpenRouter: transport === "openrouter",
++    requiredEnv:
++      transport === "cli"
++        ? "CLI_CODEX"
++        : transport === "openrouter"
++          ? "OPENROUTER_API_KEY"
++          : userModelId.startsWith("google/")
++            ? "GEMINI_API_KEY"
++            : userModelId.startsWith("anthropic/")
++              ? "ANTHROPIC_API_KEY"
++              : userModelId.startsWith("xai/")
++                ? "XAI_API_KEY"
++                : userModelId.startsWith("zai/")
++                  ? "Z_AI_API_KEY"
++                  : userModelId.startsWith("nvidia/")
++                    ? "NVIDIA_API_KEY"
++                    : userModelId.startsWith("github-copilot/")
++                      ? "GITHUB_TOKEN"
++                      : "OPENAI_API_KEY",
++    ...overrides,
++  };
++}
++
++describe("local-only privacy guard", () => {
++  it("resolves request localOnly as an explicit override of config", () => {
++    expect(
++      resolveLocalOnlyMode({
++        config: { privacy: { localOnly: true } },
++        requestLocalOnly: false,
++      }),
++    ).toEqual({ enabled: false, source: "request localOnly" });
++
++    expect(
++      resolveLocalOnlyMode({
++        config: { privacy: { localOnly: false } },
++        requestLocalOnly: true,
++      }),
++    ).toEqual({ enabled: true, source: "request localOnly" });
++  });
++
++  it("blocks known remote providers with a clear setting-specific error", () => {
++    const remoteAttempts = [
++      "google/gemini-3-flash",
++      "anthropic/claude-sonnet-4-5",
++      "xai/grok-4-fast-non-reasoning",
++      "zai/glm-4.7",
++      "nvidia/stepfun-ai/step-3.5-flash",
++      "github-copilot/gpt-5.4",
++      "openrouter/openai/gpt-5-mini",
++      "cli/codex/gpt-5.2",
++    ];
++
++    for (const modelId of remoteAttempts) {
++      expect(() =>
++        assertLocalOnlyModelAllowed({
++          policy: remotePolicy,
++          candidate: attempt(modelId),
++          providerBaseUrls: { openai: "http://127.0.0.1:8080/v1" },
++        }),
++      ).toThrow(/Local-only mode \(privacy\.localOnly\) blocked/);
++    }
++  });
++
++  it("blocks default OpenAI because api.openai.com is remote", () => {
++    expect(() =>
++      assertLocalOnlyModelAllowed({
++        policy: remotePolicy,
++        candidate: attempt("openai/gpt-5-mini"),
++        providerBaseUrls: { openai: null },
++      }),
++    ).toThrow(/api\.openai\.com/);
++  });
++
++  it("allows OpenAI-compatible localhost endpoints", () => {
++    expect(() =>
++      assertLocalOnlyModelAllowed({
++        policy: remotePolicy,
++        candidate: attempt("openai/qwen3-local"),
++        providerBaseUrls: { openai: "http://localhost:8080/v1" },
++      }),
++    ).not.toThrow();
++
++    expect(() =>
++      assertLocalOnlyModelAllowed({
++        policy: remotePolicy,
++        candidate: attempt("openai/gemma-local", {
++          openaiBaseUrlOverride: "http://127.0.0.1:1234/v1",
++        }),
++        providerBaseUrls: { openai: null },
++      }),
++    ).not.toThrow();
++  });
++
++  it("checks the guard before invoking a model attempt", async () => {
++    const runAttempt = vi.fn(async () => "should not run");
++
++    await expect(
++      runModelAttempts({
++        attempts: [attempt("google/gemini-3-flash")],
++        isFallbackModel: false,
++        isNamedModelSelection: false,
++        envHasKeyFor: () => true,
++        formatMissingModelError: () => "missing",
++        assertAttemptAllowed: (candidate) =>
++          assertLocalOnlyModelAllowed({
++            policy: remotePolicy,
++            candidate,
++            providerBaseUrls: { openai: null },
++          }),
++        runAttempt,
++      }),
++    ).rejects.toThrow(/privacy\.localOnly/);
++
++    expect(runAttempt).not.toHaveBeenCalled();
++  });
++});
+
+codex
+<promise>COMPLETE</promise>
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 05edc8c3357c85805573597ae61bf258b03d0f4b..eaf8c71532a9a00796adc02090f6595cf393e542
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,67 @@
+ 
+ ---
+ 
++## 2026-04-22 09:53:11 PDT - LLR-007: Add Local-Only Privacy Guard
++Thread:
++Run: 20260422-085058-72504 (iteration 7)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-7.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-7.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: d6591d40 feat: add local-only privacy guard
++- Post-commit status: clean after progress artifact commit
++- Verification:
++  - Command: `pnpm -s test tests/local-only.test.ts tests/config.test.ts tests/daemon.agent.test.ts tests/daemon.chat.test.ts` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++- Files changed:
++  - src/config.ts
++  - src/config/sections.ts
++  - src/config/types.ts
++  - src/daemon/agent-model.ts
++  - src/daemon/agent.ts
++  - src/daemon/chat.ts
++  - src/daemon/flow-context.ts
++  - src/daemon/server-agent-route.ts
++  - src/daemon/server-summarize-execution.ts
++  - src/daemon/server-summarize-request.ts
++  - src/daemon/summarize.ts
++  - src/run/flows/asset/summary.ts
++  - src/run/flows/url/markdown.ts
++  - src/run/flows/url/summary-resolution.ts
++  - src/run/local-only.ts
++  - src/run/model-attempts.ts
++  - src/run/runner-plan.ts
++  - src/run/summary-engine.ts
++  - tests/config.test.ts
++  - tests/daemon.agent.test.ts
++  - tests/local-only.test.ts
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-7.md
++  - .ralph/.tmp/story-20260422-085058-72504-7.json
++  - .ralph/.tmp/story-20260422-085058-72504-7.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-6.log
++  - .ralph/runs/run-20260422-085058-72504-iter-6.md
++  - .ralph/runs/run-20260422-085058-72504-iter-7.log
++- What was implemented
++  Added `privacy.localOnly` config parsing plus daemon request `localOnly` support. The guard resolves the effective
++  policy from request override or config, blocks remote providers/OpenRouter/unverifiable CLI transports before model
++  calls, and allows only OpenAI-compatible localhost endpoints. Enforcement now covers CLI summary attempts, daemon
++  summary/extract paths, agent model resolution, chat model resolution, and LLM markdown conversion before remote
++  provider requests are made. Errors name the setting that caused the block and include a local endpoint/disable hint.
++- **Learnings for future iterations:**
++  - Patterns discovered: summary flows centralize provider calls through `createSummaryEngine` and `runModelAttempts`,
++    while daemon agent/chat paths resolve their model independently and need their own pre-call guard.
++  - Gotchas encountered: `pnpm -s check` runs formatting and caught files that targeted tests/typecheck/build did not;
++    run `pnpm exec oxfmt --write <files>` before the final check after touching formatted TypeScript.
++  - Useful context: `/Users/shh/proj/summarize/ralph` and `committer` are unavailable in this checkout; use
++    `.agents/ralph/log-activity.sh` and conventional `git commit`.
++---
++
+ ## 2026-04-22 09:31:37 PDT - LLR-005: Add CLI Local Runtime Probe Command
+ Thread:
+ Run: 20260422-085058-72504 (iteration 5)
+diff --git a/src/config.ts b/src/config.ts
+index 4fde123a753a1cdfbfb9829f923d40bd6af87479..e98db6f96c9381d2d51f5abfcd42bca960af19a3
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -10,6 +10,7 @@
+   parseMediaConfig,
+   parseOpenAiConfig,
+   parseOutputConfig,
++  parsePrivacyConfig,
+   parseProviderBaseUrlConfig,
+   parseSlidesConfig,
+   parseUiConfig,
+@@ -37,6 +38,7 @@
+   ModelConfig,
+   NvidiaConfig,
+   OpenAiConfig,
++  PrivacyConfig,
+   SummarizeConfig,
+   VideoMode,
+   XaiConfig,
+@@ -91,6 +93,7 @@
+   const ui = parseUiConfig(parsed, path);
+   const logging = parseLoggingConfig(parsed, path);
+   const localRouting = parseLocalModelRoutingConfig(parsed, path);
++  const privacy = parsePrivacyConfig(parsed, path);
+   const openai = parseOpenAiConfig(parsed, path);
+ 
+   const nvidia = parseProviderBaseUrlConfig(
+@@ -125,6 +128,7 @@
+       ...(xai ? { xai } : {}),
+       ...(zai ? { zai } : {}),
+       ...(localRouting ? { localRouting } : {}),
++      ...(privacy ? { privacy } : {}),
+       ...(logging ? { logging } : {}),
+       ...(configEnv ? { env: configEnv } : {}),
+       ...(apiKeys ? { apiKeys } : {}),
+diff --git a/src/config/sections.ts b/src/config/sections.ts
+index 8ec43a449f878b62e48196a74a4f6ea7fa53b913..8841dc57759042aaa8c7b03898d1887bea2ad955
+--- a/src/config/sections.ts
++++ b/src/config/sections.ts
+@@ -20,6 +20,7 @@
+   MediaCacheConfig,
+   MediaCacheVerifyMode,
+   OpenAiConfig,
++  PrivacyConfig,
+   VideoMode,
+ } from "./types.js";
+ 
+@@ -490,6 +491,27 @@
+     : undefined;
+ }
+ 
++export function parsePrivacyConfig(
++  root: Record<string, unknown>,
++  path: string,
++): PrivacyConfig | undefined {
++  const value = root.privacy;
++  if (typeof value === "undefined") return undefined;
++  if (!isRecord(value)) {
++    throw new Error(`Invalid config file ${path}: "privacy" must be an object.`);
++  }
++  const localOnly =
++    typeof value.localOnly === "boolean"
++      ? value.localOnly
++      : typeof value.localOnly === "undefined"
++        ? undefined
++        : (() => {
++            throw new Error(`Invalid config file ${path}: "privacy.localOnly" must be a boolean.`);
++          })();
++
++  return typeof localOnly === "boolean" ? { localOnly } : undefined;
++}
++
+ export function parseLocalModelRoutingConfig(
+   root: Record<string, unknown>,
+   path: string,
+diff --git a/src/config/types.ts b/src/config/types.ts
+index 701fb88326033316376a09c419625607ae44dadf..9a21ff7e92c4535f1db90b6fc488db2409a4a1a1
+--- a/src/config/types.ts
++++ b/src/config/types.ts
+@@ -110,6 +110,14 @@
+   maxFiles?: number;
+ };
+ 
++export type PrivacyConfig = {
++  /**
++   * Hard privacy mode. When enabled, model requests may only use OpenAI-compatible localhost
++   * endpoints; remote providers and unverifiable CLI transports are blocked before a provider call.
++   */
++  localOnly?: boolean;
++};
++
+ export type XaiConfig = {
+   /**
+    * Override the xAI API base URL (e.g. a proxy).
+@@ -259,6 +267,7 @@
+   xai?: XaiConfig;
+   zai?: ZaiConfig;
+   localRouting?: LocalModelRoutingConfig;
++  privacy?: PrivacyConfig;
+   logging?: LoggingConfig;
+   /**
+    * Generic environment variable defaults.
+diff --git a/src/daemon/agent-model.ts b/src/daemon/agent-model.ts
+index fb627d5a401c308bcbf288f42bb403695b42336b..4b26f4ddd4a05516af2c937729d2ed70d1b95984
+--- a/src/daemon/agent-model.ts
++++ b/src/daemon/agent-model.ts
+@@ -4,6 +4,11 @@
+ import { createSyntheticModel } from "../llm/providers/shared.js";
+ import { buildAutoModelAttempts, envHasKey } from "../model-auto.js";
+ import { parseCliUserModelId } from "../run/env.js";
++import {
++  assertLocalOnlyModelAllowed,
++  isLocalOnlyRemoteProviderError,
++  resolveLocalOnlyMode,
++} from "../run/local-only.js";
+ import { resolveRunContextState } from "../run/run-context.js";
+ import { resolveModelSelection } from "../run/run-models.js";
+ import { resolveRunOverrides } from "../run/run-settings.js";
+@@ -227,10 +232,12 @@
+   env,
+   pageContent,
+   modelOverride,
++  requestLocalOnly,
+ }: {
+   env: Record<string, string | undefined>;
+   pageContent: string;
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+ }) {
+   const {
+     config,
+@@ -279,6 +286,7 @@
+     envForRun: env,
+     explicitModelArg: modelOverride,
+   });
++  const localOnlyMode = resolveLocalOnlyMode({ config, requestLocalOnly });
+ 
+   const providerBaseUrlMap: Record<string, string | null> = {
+     openai: providerBaseUrls.openai,
+@@ -302,9 +310,40 @@
+       }),
+     };
+   };
++  const assertAgentModelAllowed = ({
++    transport,
++    userModelId,
++    llmModelId,
++    forceOpenRouter,
++    openaiBaseUrlOverride,
++  }: {
++    transport: "native" | "openrouter" | "cli";
++    userModelId: string;
++    llmModelId: string | null;
++    forceOpenRouter: boolean;
++    openaiBaseUrlOverride?: string | null;
++  }) => {
++    assertLocalOnlyModelAllowed({
++      policy: localOnlyMode,
++      candidate: {
++        transport,
++        userModelId,
++        llmModelId,
++        forceOpenRouter,
++        openaiBaseUrlOverride,
++      },
++      providerBaseUrls: { openai: providerBaseUrlMap.openai },
++    });
++  };
+ 
+   if (requestedModel.kind === "fixed") {
+     if (requestedModel.transport === "cli") {
++      assertAgentModelAllowed({
++        transport: "cli",
++        userModelId: requestedModel.userModelId,
++        llmModelId: null,
++        forceOpenRouter: false,
++      });
+       return {
+         provider: "cli",
+         model: null,
+@@ -318,11 +357,24 @@
+       };
+     }
+     if (requestedModel.transport === "openrouter") {
++      assertAgentModelAllowed({
++        transport: "openrouter",
++        userModelId: requestedModel.userModelId,
++        llmModelId: requestedModel.llmModelId,
++        forceOpenRouter: requestedModel.forceOpenRouter,
++      });
+       const resolved = applyBaseUrlOverride("openrouter", requestedModel.openrouterModelId);
+       return { ...resolved, maxOutputTokens, apiKeys };
+     }
+ 
+     const { provider, model } = parseProviderModelId(requestedModel.userModelId);
++    assertAgentModelAllowed({
++      transport: "native",
++      userModelId: requestedModel.userModelId,
++      llmModelId: requestedModel.llmModelId,
++      forceOpenRouter: requestedModel.forceOpenRouter,
++      openaiBaseUrlOverride: providerBaseUrlMap[provider] ?? requestedModel.openaiBaseUrlOverride,
++    });
+     const resolved = applyBaseUrlOverride(provider, model);
+     return { ...resolved, maxOutputTokens, apiKeys };
+   }
+@@ -345,7 +397,22 @@
+   });
+ 
+   let cliAttempt: (typeof attempts)[number] | null = null;
++  let localOnlyError: Error | null = null;
+   for (const attempt of attempts) {
++    try {
++      assertAgentModelAllowed({
++        transport: attempt.transport,
++        userModelId: attempt.userModelId,
++        llmModelId: attempt.llmModelId,
++        forceOpenRouter: attempt.forceOpenRouter,
++      });
++    } catch (error) {
++      if (isLocalOnlyRemoteProviderError(error)) {
++        localOnlyError = localOnlyError ?? error;
++        continue;
++      }
++      throw error;
++    }
+     if (attempt.transport === "cli") {
+       if (!cliAttempt) cliAttempt = attempt;
+       continue;
+@@ -379,5 +446,6 @@
+     };
+   }
+ 
++  if (localOnlyError) throw localOnlyError;
+   throw buildNoAgentModelAvailableError({ attempts, envForAuto, cliAvailability });
+ }
+diff --git a/src/daemon/agent.ts b/src/daemon/agent.ts
+index 83f43fd1fa8f52d1c79db0246933729d15952cb4..87aa17c9476b1c1f49e65734f81d0a796950e389
+--- a/src/daemon/agent.ts
++++ b/src/daemon/agent.ts
+@@ -270,6 +270,7 @@
+   pageContent,
+   messages,
+   modelOverride,
++  requestLocalOnly,
+   tools,
+   automationEnabled,
+   onChunk,
+@@ -282,6 +283,7 @@
+   pageContent: string;
+   messages: unknown;
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+   tools: string[];
+   automationEnabled: boolean;
+   onChunk: (text: string) => void;
+@@ -302,6 +304,7 @@
+     env,
+     pageContent,
+     modelOverride,
++    requestLocalOnly,
+   });
+ 
+   if ("transport" in resolved && resolved.transport === "cli") {
+@@ -370,6 +373,7 @@
+   pageContent,
+   messages,
+   modelOverride,
++  requestLocalOnly,
+   tools,
+   automationEnabled,
+ }: {
+@@ -379,6 +383,7 @@
+   pageContent: string;
+   messages: unknown;
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+   tools: string[];
+   automationEnabled: boolean;
+ }): Promise<AssistantMessage> {
+@@ -396,6 +401,7 @@
+     env,
+     pageContent,
+     modelOverride,
++    requestLocalOnly,
+   });
+ 
+   if ("transport" in resolved && resolved.transport === "cli") {
+diff --git a/src/daemon/chat.ts b/src/daemon/chat.ts
+index b426a88fd990239d57086825514889f7b60e91f6..d0f6e07dcf03f680f4bc359fb5246aade48f949d
+--- a/src/daemon/chat.ts
++++ b/src/daemon/chat.ts
+@@ -7,6 +7,11 @@
+ import { buildAutoModelAttempts, envHasKey } from "../model-auto.js";
+ import { parseRequestedModelId } from "../model-spec.js";
+ import { parseBooleanEnv, parseCliUserModelId } from "../run/env.js";
++import {
++  assertLocalOnlyModelAllowed,
++  isLocalOnlyRemoteProviderError,
++  resolveLocalOnlyMode,
++} from "../run/local-only.js";
+ import { resolveEnvState } from "../run/run-env.js";
+ 
+ type ChatSession = {
+@@ -122,6 +127,7 @@
+   pageContent,
+   messages,
+   modelOverride,
++  requestLocalOnly,
+   pushToSession,
+   emitMeta,
+ }: {
+@@ -134,13 +140,40 @@
+   pageContent: string;
+   messages: Message[];
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+   pushToSession: (event: ChatEvent) => void;
+   emitMeta: (patch: Partial<ChatSession["lastMeta"]>) => void;
+ }) {
+   const apiKeys = resolveApiKeys(env, configForCli);
+   const envState = resolveEnvState({ env, envForRun: env, configForCli });
+   const openaiUseChatCompletions = resolveOpenAiUseChatCompletions({ env, configForCli });
++  const localOnlyMode = resolveLocalOnlyMode({ config: configForCli, requestLocalOnly });
+   const context = buildContext({ pageUrl, pageTitle, pageContent, messages });
++  const assertChatModelAllowed = ({
++    transport,
++    userModelId,
++    modelId,
++    forceOpenRouter,
++    openaiBaseUrlOverride,
++  }: {
++    transport: "native" | "openrouter" | "cli";
++    userModelId: string;
++    modelId: string | null;
++    forceOpenRouter: boolean;
++    openaiBaseUrlOverride?: string | null;
++  }) => {
++    assertLocalOnlyModelAllowed({
++      policy: localOnlyMode,
++      candidate: {
++        transport,
++        userModelId,
++        llmModelId: modelId,
++        forceOpenRouter,
++        openaiBaseUrlOverride,
++      },
++      providerBaseUrls: envState.providerBaseUrls,
++    });
++  };
+ 
+   const resolveModel = () => {
+     if (modelOverride && modelOverride.trim().length > 0) {
+@@ -202,6 +235,13 @@
+ 
+   const resolved = resolveModel();
+   if (resolved) {
++    assertChatModelAllowed({
++      transport: resolved.transport === "cli" ? "cli" : "native",
++      userModelId: resolved.userModelId,
++      modelId: resolved.modelId,
++      forceOpenRouter: resolved.forceOpenRouter,
++      openaiBaseUrlOverride: resolved.openaiBaseUrlOverride,
++    });
+     emitMeta({ model: resolved.userModelId });
+     if (resolved.transport === "cli") {
+       const prompt = flattenChatForCli({
+@@ -253,15 +293,48 @@
+     cliAvailability: envState.cliAvailability,
+   });
+ 
+-  const apiAttempt = attempts.find(
+-    (entry) =>
+-      entry.transport !== "cli" &&
+-      entry.llmModelId &&
+-      envHasKey(envState.envForAuto, entry.requiredEnv),
+-  );
+-  const cliAttempt = !apiAttempt ? attempts.find((entry) => entry.transport === "cli") : null;
++  let localOnlyError: Error | null = null;
++  const apiAttempt = attempts.find((entry) => {
++    if (entry.transport === "cli" || !entry.llmModelId) return false;
++    try {
++      assertChatModelAllowed({
++        transport: entry.transport,
++        userModelId: entry.userModelId,
++        modelId: entry.llmModelId,
++        forceOpenRouter: entry.forceOpenRouter,
++      });
++    } catch (error) {
++      if (isLocalOnlyRemoteProviderError(error)) {
++        localOnlyError = localOnlyError ?? error;
++        return false;
++      }
++      throw error;
++    }
++    return envHasKey(envState.envForAuto, entry.requiredEnv);
++  });
++  const cliAttempt = !apiAttempt
++    ? (attempts.find((entry) => {
++        if (entry.transport !== "cli") return false;
++        try {
++          assertChatModelAllowed({
++            transport: "cli",
++            userModelId: entry.userModelId,
++            modelId: null,
++            forceOpenRouter: false,
++          });
++          return true;
++        } catch (error) {
++          if (isLocalOnlyRemoteProviderError(error)) {
++            localOnlyError = localOnlyError ?? error;
++            return false;
++          }
++          throw error;
++        }
++      }) ?? null)
++    : null;
+   const attempt = apiAttempt ?? cliAttempt;
+   if (!attempt) {
++    if (localOnlyError) throw localOnlyError;
+     throw new Error("No model available for chat");
+   }
+ 
+diff --git a/src/daemon/flow-context.ts b/src/daemon/flow-context.ts
+index a72f94b8d22d03ee41c1f26f9f16c282c5860d6f..7c1a3c97e3b664ec17d7c5d8ff3047ba1720ece5
+--- a/src/daemon/flow-context.ts
++++ b/src/daemon/flow-context.ts
+@@ -15,6 +15,7 @@
+   summarizeAsset as summarizeAssetFlow,
+ } from "../run/flows/asset/summary.js";
+ import { createUrlFlowContext, type UrlFlowContext } from "../run/flows/url/types.js";
++import { resolveLocalOnlyMode } from "../run/local-only.js";
+ import { resolveRunContextState } from "../run/run-context.js";
+ import { createRunMetrics } from "../run/run-metrics.js";
+ import { resolveModelSelection } from "../run/run-models.js";
+@@ -75,6 +76,7 @@
+   cache: CacheState;
+   mediaCache?: MediaCache | null;
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+   promptOverride: string | null;
+   lengthRaw: unknown;
+   languageRaw: unknown;
+@@ -117,6 +119,7 @@
+     cache,
+     mediaCache = null,
+     modelOverride,
++    requestLocalOnly = null,
+     promptOverride,
+     lengthRaw,
+     languageRaw,
+@@ -223,6 +226,7 @@
+     explicitModelArg: modelOverride?.trim() ? modelOverride.trim() : null,
+     outputLanguage,
+   });
++  const localOnlyMode = resolveLocalOnlyMode({ config, requestLocalOnly });
+ 
+   const fixedModelSpec: FixedModelSpec | null =
+     requestedModel.kind === "fixed" ? requestedModel : null;
+@@ -278,6 +282,7 @@
+     zai: { apiKey: zaiApiKey, baseUrl: zaiBaseUrl },
+     nvidia: { apiKey: nvidiaApiKey, baseUrl: nvidiaBaseUrl },
+     providerBaseUrls,
++    localOnlyMode,
+   });
+ 
+   const lengthInstruction = promptOverride ? buildPromptLengthInstruction(lengthArg) : null;
+diff --git a/src/daemon/server-agent-route.ts b/src/daemon/server-agent-route.ts
+index f836ebdbe3369bc3d140cf453f3c4e52419f9599..0cf6efc52b6f56ea7d52a64a9e2fd14aaf6291dc
+--- a/src/daemon/server-agent-route.ts
++++ b/src/daemon/server-agent-route.ts
+@@ -43,6 +43,7 @@
+   const pageContent = typeof obj.pageContent === "string" ? obj.pageContent : "";
+   const messages = obj.messages;
+   const modelOverride = typeof obj.model === "string" ? obj.model.trim() : null;
++  const requestLocalOnly = typeof obj.localOnly === "boolean" ? obj.localOnly : null;
+   const tools = Array.isArray(obj.tools)
+     ? obj.tools.filter((tool): tool is string => typeof tool === "string")
+     : [];
+@@ -67,6 +68,7 @@
+           pageContent,
+           messages,
+           modelOverride: normalizedModelOverride,
++          requestLocalOnly,
+           tools,
+           automationEnabled,
+         }),
+@@ -107,6 +109,7 @@
+         pageContent,
+         messages: messages as Message[],
+         modelOverride: normalizedModelOverride,
++        requestLocalOnly,
+         tools,
+         automationEnabled,
+         onChunk: (text) => writeEvent({ event: "chunk", data: { text } }),
+diff --git a/src/daemon/server-summarize-execution.ts b/src/daemon/server-summarize-execution.ts
+index ad4d35c950bf61bb1231f94690721c46f04012e7..83140aaa9824288862b74874ff721dfd2bbb22f0
+--- a/src/daemon/server-summarize-execution.ts
++++ b/src/daemon/server-summarize-execution.ts
+@@ -125,6 +125,7 @@
+       env,
+       fetchImpl,
+       input: { url: request.pageUrl, title: request.title, maxCharacters: request.maxCharacters },
++      requestLocalOnly: request.requestLocalOnly,
+       cache: requestCache,
+       mediaCache,
+       overrides: request.overrides,
+@@ -240,6 +241,7 @@
+     textContent,
+     truncated,
+     modelOverride,
++    requestLocalOnly,
+     lengthRaw,
+     languageRaw,
+     promptOverride,
+@@ -322,6 +324,7 @@
+           env,
+           fetchImpl,
+           modelOverride: normalizedModelOverride,
++          requestLocalOnly,
+           promptOverride,
+           lengthRaw,
+           languageRaw,
+@@ -424,6 +427,7 @@
+         env,
+         fetchImpl,
+         modelOverride: normalizedModelOverride,
++        requestLocalOnly,
+         promptOverride,
+         lengthRaw,
+         languageRaw,
+diff --git a/src/daemon/server-summarize-request.ts b/src/daemon/server-summarize-request.ts
+index 9d37dbc9c8632bdc339d6e4f5039149470ebc3e2..611a417bcd9db9fb99f58569d0f08adae2bcc9d1
+--- a/src/daemon/server-summarize-request.ts
++++ b/src/daemon/server-summarize-request.ts
+@@ -53,6 +53,7 @@
+   textContent: string;
+   truncated: boolean;
+   modelOverride: string | null;
++  requestLocalOnly: boolean | null;
+   lengthRaw: string;
+   languageRaw: string;
+   promptOverride: string | null;
+@@ -103,6 +104,7 @@
+   const textContent = typeof obj.text === "string" ? obj.text : "";
+   const truncated = Boolean(obj.truncated);
+   const modelOverride = typeof obj.model === "string" ? obj.model.trim() : null;
++  const requestLocalOnly = typeof obj.localOnly === "boolean" ? obj.localOnly : null;
+   const lengthRaw = typeof obj.length === "string" ? obj.length.trim() : "";
+   const languageRaw = typeof obj.language === "string" ? obj.language.trim() : "";
+   const promptRaw = typeof obj.prompt === "string" ? obj.prompt : "";
+@@ -164,6 +166,7 @@
+     textContent,
+     truncated,
+     modelOverride,
++    requestLocalOnly,
+     lengthRaw,
+     languageRaw,
+     promptOverride,
+diff --git a/src/daemon/summarize.ts b/src/daemon/summarize.ts
+index fee04214ed9f2cad80f9ed7feaff4b1f520d713a..1b1ae7ffda4f99495c6688d33f82f9326eb8061f
+--- a/src/daemon/summarize.ts
++++ b/src/daemon/summarize.ts
+@@ -143,6 +143,7 @@
+   fetchImpl,
+   input,
+   modelOverride,
++  requestLocalOnly,
+   promptOverride,
+   lengthRaw,
+   languageRaw,
+@@ -156,6 +157,7 @@
+   fetchImpl: typeof fetch;
+   input: VisiblePageInput;
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+   promptOverride: string | null;
+   lengthRaw: unknown;
+   languageRaw: unknown;
+@@ -177,6 +179,7 @@
+     cache,
+     mediaCache,
+     modelOverride,
++    requestLocalOnly,
+     promptOverride,
+     lengthRaw,
+     languageRaw,
+@@ -297,6 +300,7 @@
+   fetchImpl,
+   input,
+   modelOverride,
++  requestLocalOnly,
+   promptOverride,
+   lengthRaw,
+   languageRaw,
+@@ -312,6 +316,7 @@
+   fetchImpl: typeof fetch;
+   input: UrlModeInput;
+   modelOverride: string | null;
++  requestLocalOnly?: boolean | null;
+   promptOverride: string | null;
+   lengthRaw: unknown;
+   languageRaw: unknown;
+@@ -351,6 +356,7 @@
+     cache,
+     mediaCache,
+     modelOverride,
++    requestLocalOnly,
+     promptOverride,
+     lengthRaw,
+     languageRaw,
+@@ -432,6 +438,7 @@
+   env,
+   fetchImpl,
+   input,
++  requestLocalOnly,
+   cache,
+   mediaCache,
+   overrides,
+@@ -442,6 +449,7 @@
+   env: Record<string, string | undefined>;
+   fetchImpl: typeof fetch;
+   input: UrlModeInput;
++  requestLocalOnly?: boolean | null;
+   cache: CacheState;
+   mediaCache: MediaCache | null;
+   overrides: RunOverrides;
+@@ -460,6 +468,7 @@
+     cache,
+     mediaCache,
+     modelOverride: null,
++    requestLocalOnly,
+     promptOverride: null,
+     lengthRaw: "",
+     languageRaw: "",
+diff --git a/src/run/flows/asset/summary.ts b/src/run/flows/asset/summary.ts
+index 9d0f8de3190cf8e3325306f4d11649e5d63b1f6d..01577639f6787c7dc8e1a22d8ebe994b2a19db81
+--- a/src/run/flows/asset/summary.ts
++++ b/src/run/flows/asset/summary.ts
+@@ -26,6 +26,7 @@
+ } from "../../cli-fallback-state.js";
+ import { writeFinishLine } from "../../finish-line.js";
+ import { resolveTargetCharacters } from "../../format.js";
++import { isLocalOnlyRemoteProviderError } from "../../local-only.js";
+ import { writeVerbose } from "../../logging.js";
+ import { prepareMarkdownForTerminal } from "../../markdown.js";
+ import { runModelAttempts } from "../../model-attempts.js";
+@@ -555,6 +556,7 @@
+       isNamedModelSelection: ctx.isNamedModelSelection,
+       envHasKeyFor: ctx.summaryEngine.envHasKeyFor,
+       formatMissingModelError: ctx.summaryEngine.formatMissingModelError,
++      assertAttemptAllowed: ctx.summaryEngine.assertAttemptAllowed,
+       onAutoSkip: (attempt) => {
+         writeVerbose(
+           ctx.stderr,
+@@ -630,6 +632,9 @@
+       }
+       throw new Error(withFreeTip(`No model available for --model ${ctx.requestedModelInput}`));
+     }
++    if (isLocalOnlyRemoteProviderError(lastError)) {
++      throw lastError;
++    }
+     if (textContent) {
+       ctx.clearProgressForStdout();
+       ctx.stdout.write(`${textContent.content.trim()}\n`);
+diff --git a/src/run/flows/url/markdown.ts b/src/run/flows/url/markdown.ts
+index fc3c0ec9c5ee6ebe4ab25b2a8dc7bcbb8e3dbee3..be585d20769540cea84e460cd3f228424e60da42
+--- a/src/run/flows/url/markdown.ts
++++ b/src/run/flows/url/markdown.ts
+@@ -7,6 +7,7 @@
+ } from "../../../llm/transcript-to-markdown.js";
+ import { convertToMarkdownWithMarkitdown } from "../../../markitdown.js";
+ import { hasUvxCli } from "../../env.js";
++import { assertLocalOnlyModelAllowed } from "../../local-only.js";
+ import { createRetryLogger } from "../../logging.js";
+ import type { ModelAttempt } from "../../types.js";
+ import type { UrlFlowContext } from "./types.js";
+@@ -184,6 +185,25 @@
+               : Boolean(ctx.model.apiStatus.apiKey);
+   })();
+ 
++  const assertMarkdownModelAllowed = () => {
++    if (!markdownModel) return;
++    const userModelId = markdownModel.forceOpenRouter
++      ? `openrouter/${markdownModel.llmModelId.replace(/^openai\//i, "")}`
++      : markdownModel.llmModelId;
++    assertLocalOnlyModelAllowed({
++      policy: ctx.model.summaryEngine.localOnlyMode,
++      candidate: {
++        transport: markdownModel.forceOpenRouter ? "openrouter" : "native",
++        userModelId,
++        llmModelId: markdownModel.llmModelId,
++        forceOpenRouter: markdownModel.forceOpenRouter,
++        openaiBaseUrlOverride:
++          markdownModel.openaiBaseUrlOverride ?? ctx.model.apiStatus.providerBaseUrls.openai,
++      },
++      providerBaseUrls: ctx.model.apiStatus.providerBaseUrls,
++    });
++  };
++
+   if (
+     (markdownRequested || transcriptMarkdownRequested) &&
+     effectiveMarkdownMode === "llm" &&
+@@ -215,7 +235,7 @@
+     throw new Error(`--markdown-mode llm requires ${required}`);
+   }
+ 
+-  const llmHtmlToMarkdown =
++  const llmHtmlToMarkdownBase =
+     markdownRequested &&
+     markdownModel !== null &&
+     (effectiveMarkdownMode === "llm" || markdownProvider !== "none")
+@@ -249,6 +269,12 @@
+           },
+         })
+       : null;
++  const llmHtmlToMarkdown = llmHtmlToMarkdownBase
++    ? async (args: Parameters<typeof llmHtmlToMarkdownBase>[0]) => {
++        assertMarkdownModelAllowed();
++        return llmHtmlToMarkdownBase(args);
++      }
++    : null;
+ 
+   const markitdownHtmlToMarkdown =
+     markdownRequested && ctx.flags.preprocessMode !== "off" && hasUvxCli(ctx.io.env)
+@@ -318,35 +344,40 @@
+   // Transcript→Markdown converter (only for YouTube with --markdown-mode llm)
+   const convertTranscriptToMarkdown: ConvertTranscriptToMarkdown | null =
+     transcriptMarkdownRequested && markdownModel !== null
+-      ? createTranscriptToMarkdownConverter({
+-          modelId: markdownModel.llmModelId,
+-          forceOpenRouter: markdownModel.forceOpenRouter,
+-          xaiApiKey: ctx.model.apiStatus.xaiApiKey,
+-          googleApiKey: ctx.model.apiStatus.googleApiKey,
+-          openaiApiKey: markdownModel.openaiApiKeyOverride ?? ctx.model.apiStatus.apiKey,
+-          anthropicApiKey: ctx.model.apiStatus.anthropicApiKey,
+-          openrouterApiKey: ctx.model.apiStatus.openrouterApiKey,
+-          openaiBaseUrlOverride:
+-            markdownModel.openaiBaseUrlOverride ?? ctx.model.apiStatus.providerBaseUrls.openai,
+-          anthropicBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.anthropic,
+-          googleBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.google,
+-          xaiBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.xai,
+-          forceChatCompletions:
+-            markdownModel.forceChatCompletions ??
+-            (ctx.model.openaiUseChatCompletions && markdownProvider === "openai"),
+-          fetchImpl: ctx.io.fetch,
+-          retries: ctx.flags.retries,
+-          onRetry: createRetryLogger({
+-            stderr: ctx.io.stderr,
+-            verbose: ctx.flags.verbose,
+-            color: ctx.flags.verboseColor,
++      ? ((converter) => async (args) => {
++          assertMarkdownModelAllowed();
++          return converter(args);
++        })(
++          createTranscriptToMarkdownConverter({
+             modelId: markdownModel.llmModelId,
+-            env: ctx.io.envForRun,
++            forceOpenRouter: markdownModel.forceOpenRouter,
++            xaiApiKey: ctx.model.apiStatus.xaiApiKey,
++            googleApiKey: ctx.model.apiStatus.googleApiKey,
++            openaiApiKey: markdownModel.openaiApiKeyOverride ?? ctx.model.apiStatus.apiKey,
++            anthropicApiKey: ctx.model.apiStatus.anthropicApiKey,
++            openrouterApiKey: ctx.model.apiStatus.openrouterApiKey,
++            openaiBaseUrlOverride:
++              markdownModel.openaiBaseUrlOverride ?? ctx.model.apiStatus.providerBaseUrls.openai,
++            anthropicBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.anthropic,
++            googleBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.google,
++            xaiBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.xai,
++            forceChatCompletions:
++              markdownModel.forceChatCompletions ??
++              (ctx.model.openaiUseChatCompletions && markdownProvider === "openai"),
++            fetchImpl: ctx.io.fetch,
++            retries: ctx.flags.retries,
++            onRetry: createRetryLogger({
++              stderr: ctx.io.stderr,
++              verbose: ctx.flags.verbose,
++              color: ctx.flags.verboseColor,
++              modelId: markdownModel.llmModelId,
++              env: ctx.io.envForRun,
++            }),
++            onUsage: ({ model: usedModel, provider, usage }) => {
++              ctx.model.llmCalls.push({ provider, model: usedModel, usage, purpose: "markdown" });
++            },
+           }),
+-          onUsage: ({ model: usedModel, provider, usage }) => {
+-            ctx.model.llmCalls.push({ provider, model: usedModel, usage, purpose: "markdown" });
+-          },
+-        })
++        )
+       : null;
+ 
+   return {
+diff --git a/src/run/flows/url/summary-resolution.ts b/src/run/flows/url/summary-resolution.ts
+index 5e0d4a6f8b7eee882ba2f429313f41611d4b38ca..1ef83f68a9f4c93acf7ce8f5dea45a2f5f33f08e
+--- a/src/run/flows/url/summary-resolution.ts
++++ b/src/run/flows/url/summary-resolution.ts
+@@ -17,6 +17,7 @@
+   writeLastSuccessfulCliProvider,
+ } from "../../cli-fallback-state.js";
+ import { parseCliUserModelId } from "../../env.js";
++import { isLocalOnlyRemoteProviderError } from "../../local-only.js";
+ import { writeVerbose } from "../../logging.js";
+ import { runModelAttempts } from "../../model-attempts.js";
+ import { buildOpenRouterNoAllowedProvidersMessage } from "../../openrouter.js";
+@@ -315,6 +316,7 @@
+       isNamedModelSelection: model.isNamedModelSelection,
+       envHasKeyFor: model.summaryEngine.envHasKeyFor,
+       formatMissingModelError: model.summaryEngine.formatMissingModelError,
++      assertAttemptAllowed: model.summaryEngine.assertAttemptAllowed,
+       onAutoSkip: (attempt) => {
+         writeVerbose(
+           io.stderr,
+@@ -384,6 +386,9 @@
+       }
+       throw new Error(withFreeTip(`No model available for --model ${model.requestedModelInput}`));
+     }
++    if (isLocalOnlyRemoteProviderError(lastError)) {
++      throw lastError;
++    }
+     return {
+       kind: "use-extracted",
+       footerLabel: "no model",
+diff --git a/src/run/local-only.ts b/src/run/local-only.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..1f7f58ba8f6a20058ca81e3fc41070fd503bb628
+--- /dev/null
++++ b/src/run/local-only.ts
+@@ -0,0 +1,185 @@
++import { isLocalRuntimeHostname } from "@steipete/summarize-core/local-runtime";
++import type { SummarizeConfig } from "../config.js";
++import { parseGatewayStyleModelId } from "../llm/model-id.js";
++import type { ModelAttempt } from "./types.js";
++
++export const LOCAL_ONLY_CONFIG_SOURCE = "privacy.localOnly";
++export const LOCAL_ONLY_REQUEST_SOURCE = "request localOnly";
++
++export type LocalOnlyModeSource =
++  | typeof LOCAL_ONLY_CONFIG_SOURCE
++  | typeof LOCAL_ONLY_REQUEST_SOURCE;
++
++export type LocalOnlyMode = {
++  enabled: boolean;
++  source: LocalOnlyModeSource | null;
++};
++
++export type LocalOnlyProviderBaseUrls = {
++  openai: string | null;
++};
++
++export type LocalOnlyModelCandidate = Pick<
++  ModelAttempt,
++  "transport" | "userModelId" | "llmModelId" | "forceOpenRouter"
++> & {
++  openaiBaseUrlOverride?: string | null;
++};
++
++export class LocalOnlyRemoteProviderError extends Error {
++  code = "LOCAL_ONLY_REMOTE_PROVIDER_BLOCKED" as const;
++}
++
++export function isLocalOnlyRemoteProviderError(
++  error: unknown,
++): error is LocalOnlyRemoteProviderError {
++  return (
++    error instanceof LocalOnlyRemoteProviderError ||
++    (error instanceof Error &&
++      (error as { code?: unknown }).code === "LOCAL_ONLY_REMOTE_PROVIDER_BLOCKED")
++  );
++}
++
++export function resolveLocalOnlyMode({
++  config,
++  requestLocalOnly,
++}: {
++  config: SummarizeConfig | null | undefined;
++  requestLocalOnly?: boolean | null;
++}): LocalOnlyMode {
++  if (typeof requestLocalOnly === "boolean") {
++    return { enabled: requestLocalOnly, source: LOCAL_ONLY_REQUEST_SOURCE };
++  }
++  if (typeof config?.privacy?.localOnly === "boolean") {
++    return { enabled: config.privacy.localOnly, source: LOCAL_ONLY_CONFIG_SOURCE };
++  }
++  return { enabled: false, source: null };
++}
++
++function sourceLabel(policy: LocalOnlyMode): string {
++  return policy.source ?? "local-only mode";
++}
++
++function disableHint(policy: LocalOnlyMode): string {
++  if (policy.source === LOCAL_ONLY_REQUEST_SOURCE) {
++    return "set request localOnly to false";
++  }
++  if (policy.source === LOCAL_ONLY_CONFIG_SOURCE) {
++    return 'set "privacy.localOnly": false in config';
++  }
++  return "disable local-only mode";
++}
++
++function sanitizeBaseUrlForError(raw: string): string {
++  try {
++    const url = new URL(raw);
++    url.username = "";
++    url.password = "";
++    url.search = "";
++    url.hash = "";
++    return url.toString().replace(/\/+$/, "");
++  } catch {
++    return "configured OpenAI-compatible endpoint";
++  }
++}
++
++function createLocalOnlyError({
++  policy,
++  modelId,
++  reason,
++}: {
++  policy: LocalOnlyMode;
++  modelId: string;
++  reason: string;
++}): LocalOnlyRemoteProviderError {
++  return new LocalOnlyRemoteProviderError(
++    `Local-only mode (${sourceLabel(policy)}) blocked ${modelId}: ${reason}. ` +
++      "Use an openai/... model with OPENAI_BASE_URL or openai.baseUrl set to a localhost OpenAI-compatible endpoint, " +
++      `or ${disableHint(policy)}.`,
++  );
++}
++
++function effectiveOpenAiBaseUrl({
++  candidate,
++  providerBaseUrls,
++}: {
++  candidate: LocalOnlyModelCandidate;
++  providerBaseUrls: LocalOnlyProviderBaseUrls;
++}): string {
++  const override = candidate.openaiBaseUrlOverride?.trim() ?? "";
++  if (override) return override;
++  const configured = providerBaseUrls.openai?.trim() ?? "";
++  return configured || "https://api.openai.com/v1";
++}
++
++function isLocalOpenAiBaseUrl(raw: string): boolean {
++  try {
++    const url = new URL(raw);
++    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
++    return isLocalRuntimeHostname(url.hostname);
++  } catch {
++    return false;
++  }
++}
++
++export function assertLocalOnlyModelAllowed({
++  policy,
++  candidate,
++  providerBaseUrls,
++}: {
++  policy: LocalOnlyMode;
++  candidate: LocalOnlyModelCandidate;
++  providerBaseUrls: LocalOnlyProviderBaseUrls;
++}): void {
++  if (!policy.enabled) return;
++
++  if (candidate.transport === "cli") {
++    throw createLocalOnlyError({
++      policy,
++      modelId: candidate.userModelId,
++      reason:
++        "CLI transports are not allowed because local-only mode cannot verify whether the CLI calls a remote service",
++    });
++  }
++
++  if (
++    candidate.transport === "openrouter" ||
++    candidate.forceOpenRouter ||
++    candidate.userModelId.toLowerCase().startsWith("openrouter/")
++  ) {
++    throw createLocalOnlyError({
++      policy,
++      modelId: candidate.userModelId,
++      reason: "OpenRouter is a remote provider",
++    });
++  }
++
++  const rawModelId = candidate.llmModelId ?? candidate.userModelId;
++  let parsed: ReturnType<typeof parseGatewayStyleModelId>;
++  try {
++    parsed = parseGatewayStyleModelId(rawModelId);
++  } catch {
++    throw createLocalOnlyError({
++      policy,
++      modelId: candidate.userModelId,
++      reason: "the model provider could not be verified as local",
++    });
++  }
++
++  if (parsed.provider !== "openai") {
++    throw createLocalOnlyError({
++      policy,
++      modelId: candidate.userModelId,
++      reason: `${parsed.provider}/... is a remote provider; local-only mode only allows OpenAI-compatible localhost endpoints`,
++    });
++  }
++
++  const baseUrl = effectiveOpenAiBaseUrl({ candidate, providerBaseUrls });
++  if (!isLocalOpenAiBaseUrl(baseUrl)) {
++    throw createLocalOnlyError({
++      policy,
++      modelId: candidate.userModelId,
++      reason: `the OpenAI-compatible endpoint ${sanitizeBaseUrlForError(baseUrl)} is not localhost`,
++    });
++  }
++}
+diff --git a/src/run/model-attempts.ts b/src/run/model-attempts.ts
+index c5bc9684ab25c0583046ce34e76495727acf2a3f..e93c3bc709ac9a4283f56190ef4f6c3f7ce8bef5
+--- a/src/run/model-attempts.ts
++++ b/src/run/model-attempts.ts
+@@ -9,6 +9,7 @@
+   onAutoSkip,
+   onAutoFailure,
+   onFixedModelError,
++  assertAttemptAllowed,
+   runAttempt,
+ }: {
+   attempts: ModelAttempt[];
+@@ -19,6 +20,7 @@
+   onAutoSkip?: (attempt: ModelAttempt) => void;
+   onAutoFailure?: (attempt: ModelAttempt, error: unknown) => void;
+   onFixedModelError?: (attempt: ModelAttempt, error: unknown) => never;
++  assertAttemptAllowed?: (attempt: ModelAttempt) => void;
+   runAttempt: (attempt: ModelAttempt) => Promise<T>;
+ }): Promise<{
+   result: T | null;
+@@ -34,6 +36,20 @@
+   const missingRequiredEnvs = new Set<ModelAttemptRequiredEnv>();
+ 
+   for (const attempt of attempts) {
++    try {
++      assertAttemptAllowed?.(attempt);
++    } catch (error) {
++      lastError = error;
++      if (!isFallbackModel) {
++        if (onFixedModelError) {
++          onFixedModelError(attempt, error);
++        }
++        throw error;
++      }
++      onAutoFailure?.(attempt, error);
++      continue;
++    }
++
+     const hasKey = envHasKeyFor(attempt.requiredEnv);
+     if (!hasKey) {
+       if (isFallbackModel) {
+diff --git a/src/run/runner-plan.ts b/src/run/runner-plan.ts
+index 6b3b96d1699e8d4d210293b23f32a80e9af5139f..f3464799f6f92edb2e387efd9326845aa407f51f
+--- a/src/run/runner-plan.ts
++++ b/src/run/runner-plan.ts
+@@ -11,6 +11,7 @@
+ import { parseCliProviderArg } from "./env.js";
+ import { isTranscribableExtension } from "./flows/asset/input.js";
+ import { summarizeMediaFile as summarizeMediaFileImpl } from "./flows/asset/media.js";
++import { resolveLocalOnlyMode } from "./local-only.js";
+ import { createMediaCacheFromConfig } from "./media-cache-state.js";
+ import { createProgressGate } from "./progress.js";
+ import { resolveRunContextState } from "./run-context.js";
+@@ -263,6 +264,7 @@
+     outputLanguage,
+     allowLanguageAwareLocalRouting: !cliFlagPresent,
+   });
++  const localOnlyMode = resolveLocalOnlyMode({ config });
+ 
+   const verboseColor = supportsColor(stderr, envForRun);
+   const themeForStderr = createThemeRenderer({
+@@ -351,6 +353,7 @@
+       baseUrl: nvidiaBaseUrl,
+     },
+     providerBaseUrls,
++    localOnlyMode,
+   });
+ 
+   const writeViaFooter = (parts: string[]) => {
+diff --git a/src/run/summary-engine.ts b/src/run/summary-engine.ts
+index 529d11e99db94a73eac37fc239d74b0f8a4257df..0853c86930e6bdb73b06fcb2c6e52941999d204d
+--- a/src/run/summary-engine.ts
++++ b/src/run/summary-engine.ts
+@@ -7,6 +7,7 @@
+ import { parseGatewayStyleModelId } from "../llm/model-id.js";
+ import type { Prompt } from "../llm/prompt.js";
+ import { formatCompactCount } from "../tty/format.js";
++import { assertLocalOnlyModelAllowed, type LocalOnlyMode } from "./local-only.js";
+ import { createRetryLogger, writeVerbose } from "./logging.js";
+ import { prepareMarkdownForTerminalStreaming } from "./markdown.js";
+ import { createStreamOutputGate, type StreamOutputMode } from "./stream-output.js";
+@@ -82,6 +83,7 @@
+     google: string | null;
+     xai: string | null;
+   };
++  localOnlyMode: LocalOnlyMode;
+ };
+ 
+ export type SummaryStreamHandler = {
+@@ -189,6 +191,14 @@
+     return `Missing ${attempt.requiredEnv} for model ${attempt.userModelId}. Set the env var or choose a different --model.`;
+   };
+ 
++  const assertAttemptAllowed = (attempt: ModelAttempt): void => {
++    assertLocalOnlyModelAllowed({
++      policy: deps.localOnlyMode,
++      candidate: attempt,
++      providerBaseUrls: deps.providerBaseUrls,
++    });
++  };
++
+   const runSummaryAttempt = async ({
+     attempt,
+     prompt,
+@@ -214,6 +224,7 @@
+     modelMeta: ModelMeta;
+     maxOutputTokensForCall: number | null;
+   }> => {
++    assertAttemptAllowed(attempt);
+     onModelChosen?.(attempt.userModelId);
+ 
+     if (attempt.transport === "cli") {
+@@ -615,8 +626,10 @@
+ 
+   return {
+     applyOpenAiGatewayOverrides,
++    assertAttemptAllowed,
+     envHasKeyFor,
+     formatMissingModelError,
++    localOnlyMode: deps.localOnlyMode,
+     runSummaryAttempt,
+   };
+ }
+diff --git a/tests/config.test.ts b/tests/config.test.ts
+index 123926fd18dcbc62b5a3f89fe3e591d81644b51e..8f697a67ff5c3e62afcb9cbd57bb5da334e9ecb7
+--- a/tests/config.test.ts
++++ b/tests/config.test.ts
+@@ -94,6 +94,21 @@
+     });
+   });
+ 
++  it("loads privacy local-only config", () => {
++    const { root } = writeJsonConfig({
++      privacy: {
++        localOnly: true,
++      },
++    });
++
++    const result = loadSummarizeConfig({ env: { HOME: root } });
++    expect(result.config).toEqual({
++      privacy: {
++        localOnly: true,
++      },
++    });
++  });
++
+   it("supports ui.theme", () => {
+     const { root } = writeJsonConfig({
+       model: { id: "openai/gpt-5-mini" },
+@@ -538,6 +553,18 @@
+     );
+   });
+ 
++  it("rejects invalid privacy config", () => {
++    const { root: badRoot } = writeJsonConfig({ privacy: "nope" });
++    expect(() => loadSummarizeConfig({ env: { HOME: badRoot } })).toThrow(
++      /"privacy" must be an object/,
++    );
++
++    const { root: badLocalOnly } = writeJsonConfig({ privacy: { localOnly: "yes" } });
++    expect(() => loadSummarizeConfig({ env: { HOME: badLocalOnly } })).toThrow(
++      /privacy\.localOnly.*must be a boolean/,
++    );
++  });
++
+   it("rejects invalid cli enabled providers", () => {
+     const { root } = writeJsonConfig({ cli: { enabled: ["nope"] } });
+     expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/unknown CLI provider/);
+diff --git a/tests/daemon.agent.test.ts b/tests/daemon.agent.test.ts
+index d5218db4192de85661ddf15fd84b5f6bcbdfb297..af768a9a9d74dc6f1d913e25e451c627def775c5
+--- a/tests/daemon.agent.test.ts
++++ b/tests/daemon.agent.test.ts
+@@ -208,6 +208,55 @@
+     expect(model.api).toBe("openai-completions");
+   });
+ 
++  it("blocks remote agent providers when privacy.localOnly is enabled", async () => {
++    const home = makeTempHome();
++    writeHomeConfig(home, {
++      privacy: { localOnly: true },
++    });
++
++    await expect(
++      completeAgentResponse({
++        env: { HOME: home, GEMINI_API_KEY: "gemini-key" },
++        pageUrl: "https://example.com",
++        pageTitle: null,
++        pageContent: "Hello world",
++        messages: [{ role: "user", content: "Hi" }],
++        modelOverride: "google/gemini-3-flash",
++        tools: [],
++        automationEnabled: false,
++      }),
++    ).rejects.toThrow(/Local-only mode \(privacy\.localOnly\) blocked google\/gemini-3-flash/);
++    expect(mockCompleteSimple).not.toHaveBeenCalled();
++  });
++
++  it("allows local OpenAI-compatible agent endpoints when privacy.localOnly is enabled", async () => {
++    const home = makeTempHome();
++    writeHomeConfig(home, {
++      privacy: { localOnly: true },
++      openai: { baseUrl: "http://127.0.0.1:1234/v1" },
++    });
++
++    await completeAgentResponse({
++      env: { HOME: home, OPENAI_API_KEY: "sk-local" },
++      pageUrl: "https://example.com",
++      pageTitle: null,
++      pageContent: "Hello world",
++      messages: [{ role: "user", content: "Hi" }],
++      modelOverride: "openai/local-model",
++      tools: [],
++      automationEnabled: false,
++    });
++
++    const model = mockCompleteSimple.mock.calls[0]?.[0] as {
++      provider: string;
++      id: string;
++      baseUrl?: string;
++    };
++    expect(model.provider).toBe("openai");
++    expect(model.id).toBe("local-model");
++    expect(model.baseUrl).toBe("http://127.0.0.1:1234/v1");
++  });
++
+   it("throws a helpful error when openrouter key is missing", async () => {
+     const home = makeTempHome();
+     await expect(
+diff --git a/tests/local-only.test.ts b/tests/local-only.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..1a72a7f1d0230c72815af083d4154968147282be
+--- /dev/null
++++ b/tests/local-only.test.ts
+@@ -0,0 +1,141 @@
++import { describe, expect, it, vi } from "vitest";
++import { assertLocalOnlyModelAllowed, resolveLocalOnlyMode } from "../src/run/local-only.js";
++import { runModelAttempts } from "../src/run/model-attempts.js";
++import type { ModelAttempt } from "../src/run/types.js";
++
++const remotePolicy = resolveLocalOnlyMode({
++  config: { privacy: { localOnly: true } },
++});
++
++function attempt(userModelId: string, overrides: Partial<ModelAttempt> = {}): ModelAttempt {
++  const transport = userModelId.startsWith("openrouter/")
++    ? "openrouter"
++    : userModelId.startsWith("cli/")
++      ? "cli"
++      : "native";
++  return {
++    transport,
++    userModelId,
++    llmModelId:
++      transport === "cli"
++        ? null
++        : transport === "openrouter"
++          ? `openai/${userModelId.slice("openrouter/".length)}`
++          : userModelId,
++    openrouterProviders: null,
++    forceOpenRouter: transport === "openrouter",
++    requiredEnv:
++      transport === "cli"
++        ? "CLI_CODEX"
++        : transport === "openrouter"
++          ? "OPENROUTER_API_KEY"
++          : userModelId.startsWith("google/")
++            ? "GEMINI_API_KEY"
++            : userModelId.startsWith("anthropic/")
++              ? "ANTHROPIC_API_KEY"
++              : userModelId.startsWith("xai/")
++                ? "XAI_API_KEY"
++                : userModelId.startsWith("zai/")
++                  ? "Z_AI_API_KEY"
++                  : userModelId.startsWith("nvidia/")
++                    ? "NVIDIA_API_KEY"
++                    : userModelId.startsWith("github-copilot/")
++                      ? "GITHUB_TOKEN"
++                      : "OPENAI_API_KEY",
++    ...overrides,
++  };
++}
++
++describe("local-only privacy guard", () => {
++  it("resolves request localOnly as an explicit override of config", () => {
++    expect(
++      resolveLocalOnlyMode({
++        config: { privacy: { localOnly: true } },
++        requestLocalOnly: false,
++      }),
++    ).toEqual({ enabled: false, source: "request localOnly" });
++
++    expect(
++      resolveLocalOnlyMode({
++        config: { privacy: { localOnly: false } },
++        requestLocalOnly: true,
++      }),
++    ).toEqual({ enabled: true, source: "request localOnly" });
++  });
++
++  it("blocks known remote providers with a clear setting-specific error", () => {
++    const remoteAttempts = [
++      "google/gemini-3-flash",
++      "anthropic/claude-sonnet-4-5",
++      "xai/grok-4-fast-non-reasoning",
++      "zai/glm-4.7",
++      "nvidia/stepfun-ai/step-3.5-flash",
++      "github-copilot/gpt-5.4",
++      "openrouter/openai/gpt-5-mini",
++      "cli/codex/gpt-5.2",
++    ];
++
++    for (const modelId of remoteAttempts) {
++      expect(() =>
++        assertLocalOnlyModelAllowed({
++          policy: remotePolicy,
++          candidate: attempt(modelId),
++          providerBaseUrls: { openai: "http://127.0.0.1:8080/v1" },
++        }),
++      ).toThrow(/Local-only mode \(privacy\.localOnly\) blocked/);
++    }
++  });
++
++  it("blocks default OpenAI because api.openai.com is remote", () => {
++    expect(() =>
++      assertLocalOnlyModelAllowed({
++        policy: remotePolicy,
++        candidate: attempt("openai/gpt-5-mini"),
++        providerBaseUrls: { openai: null },
++      }),
++    ).toThrow(/api\.openai\.com/);
++  });
++
++  it("allows OpenAI-compatible localhost endpoints", () => {
++    expect(() =>
++      assertLocalOnlyModelAllowed({
++        policy: remotePolicy,
++        candidate: attempt("openai/qwen3-local"),
++        providerBaseUrls: { openai: "http://localhost:8080/v1" },
++      }),
++    ).not.toThrow();
++
++    expect(() =>
++      assertLocalOnlyModelAllowed({
++        policy: remotePolicy,
++        candidate: attempt("openai/gemma-local", {
++          openaiBaseUrlOverride: "http://127.0.0.1:1234/v1",
++        }),
++        providerBaseUrls: { openai: null },
++      }),
++    ).not.toThrow();
++  });
++
++  it("checks the guard before invoking a model attempt", async () => {
++    const runAttempt = vi.fn(async () => "should not run");
++
++    await expect(
++      runModelAttempts({
++        attempts: [attempt("google/gemini-3-flash")],
++        isFallbackModel: false,
++        isNamedModelSelection: false,
++        envHasKeyFor: () => true,
++        formatMissingModelError: () => "missing",
++        assertAttemptAllowed: (candidate) =>
++          assertLocalOnlyModelAllowed({
++            policy: remotePolicy,
++            candidate,
++            providerBaseUrls: { openai: null },
++          }),
++        runAttempt,
++      }),
++    ).rejects.toThrow(/privacy\.localOnly/);
++
++    expect(runAttempt).not.toHaveBeenCalled();
++  });
++});
+
+tokens used
+346,751
+<promise>COMPLETE</promise>
