@@ -6,6 +6,63 @@ Started: Wed Apr 22 08:50:58 PDT 2026
 
 ---
 
+## 2026-04-22 10:22:08 PDT - LLR-009: Show Local-Only Status in Side Panel
+Thread:
+Run: 20260422-085058-72504 (iteration 9)
+Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-9.log
+Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-9.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 00cc6d14 feat: show local runtime status in side panel
+- Post-commit status: clean after follow-up progress/log commit
+- Verification:
+  - Command: `pnpm -C apps/chrome-extension exec tsc -p tsconfig.json --noEmit` -> FAIL (pre-existing extension tsconfig includes `wxt.config.ts` outside `rootDir: src`)
+  - Command: `pnpm -C apps/chrome-extension build` -> PASS
+  - Command: `env -u NO_COLOR pnpm -C apps/chrome-extension exec playwright test -c playwright.config.ts --project=chromium tests/sidepanel.local-runtime-status.spec.ts` -> PASS
+  - Command: `pnpm -s typecheck` -> PASS
+  - Command: `pnpm -s check` -> PASS
+  - Command: `pnpm -C apps/chrome-extension test:chrome` -> FAIL (unrelated local-video test waits for slides tools; this environment has ffmpeg but no `yt-dlp`)
+  - Command: `env -u NO_COLOR pnpm -C apps/chrome-extension exec playwright test -c playwright.config.ts --project=chromium --grep-invert "local video"` -> PASS
+  - Command: `git diff --check -- apps/chrome-extension/src apps/chrome-extension/tests` -> PASS
+- Files changed:
+  - apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
+  - apps/chrome-extension/src/entrypoints/background/panel-state.ts
+  - apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
+  - apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
+  - apps/chrome-extension/src/entrypoints/sidepanel/index.html
+  - apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts
+  - apps/chrome-extension/src/entrypoints/sidepanel/main.ts
+  - apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
+  - apps/chrome-extension/src/lib/local-runtime-status-client.ts
+  - apps/chrome-extension/src/lib/panel-contracts.ts
+  - apps/chrome-extension/tests/helpers/daemon-fixtures.ts
+  - apps/chrome-extension/tests/helpers/extension-harness.ts
+  - apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts
+  - .agents/tasks/prd.json
+  - .ralph/.tmp/prompt-20260422-085058-72504-9.md
+  - .ralph/.tmp/story-20260422-085058-72504-9.json
+  - .ralph/.tmp/story-20260422-085058-72504-9.md
+  - .ralph/activity.log
+  - .ralph/errors.log
+  - .ralph/progress.md
+  - .ralph/runs/run-20260422-085058-72504-iter-8.log
+  - .ralph/runs/run-20260422-085058-72504-iter-8.md
+  - .ralph/runs/run-20260422-085058-72504-iter-9.log
+- What was implemented
+  Added a compact side panel local runtime/privacy status surface that shows local-only mode, daemon/runtime readiness,
+  the selected route/model, remote-provider privacy warnings, and actionable setup guidance without exposing tokens or
+  raw environment values. The background runtime now fetches the daemon local-runtime status endpoint asynchronously,
+  caches it briefly, and emits a status-only panel message so UI state refreshes do not block or race summary controls.
+  Extension tests cover local-only rendering, remote-provider warning behavior, and local runtime setup errors.
+- **Learnings for future iterations:**
+  - Patterns discovered: side panel status surfaces work best when the first `ui:state` remains fast and richer daemon
+    diagnostics arrive through a narrow follow-up message.
+  - Gotchas encountered: fetching a localhost daemon endpoint directly from the side panel causes Chromium console
+    network errors in tests; keep daemon diagnostics in the background service worker.
+  - Useful context: the supported Chrome suite currently has an unrelated local-video failure when `yt-dlp` is missing;
+    `--grep-invert "local video"` exercises the rest of the Chromium extension suite in this environment.
+---
+
 ## 2026-04-22 10:02:04 PDT - LLR-008: Expose Local Runtime Status in Daemon API
 Thread: 019db61d-458c-7af1-a095-ae13770df211
 Run: 20260422-085058-72504 (iteration 8)
