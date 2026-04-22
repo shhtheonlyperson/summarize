@@ -132,3 +132,48 @@ Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-ite
   - Useful context: remote local-runtime base URLs are rejected by default and require explicit `allowRemoteBaseUrls`;
     callers can also pass `allowedHosts` for environment-specific local aliases such as Docker hostnames.
 ---
+
+## 2026-04-22 09:22:51 PDT - LLR-004: Add Local Runtime Probe Logic
+Thread:
+Run: 20260422-085058-72504 (iteration 4)
+Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-4.log
+Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-4.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: e397fb53 feat: add local runtime probes
+- Post-commit status: `clean`
+- Verification:
+  - Command: `pnpm -s test -- tests/local-runtime.test.ts` -> PASS
+  - Command: `pnpm exec vitest run tests/local-runtime.test.ts` -> PASS
+  - Command: `pnpm -C packages/core -s typecheck` -> PASS
+  - Command: `pnpm -s typecheck` -> PASS
+  - Command: `pnpm -s build` -> PASS
+  - Command: `pnpm -s check` -> PASS
+  - Command: `git diff --check` -> PASS
+- Files changed:
+  - packages/core/src/local-runtime.ts
+  - tests/local-runtime.test.ts
+  - .agents/tasks/prd.json
+  - .ralph/.tmp/prompt-20260422-085058-72504-4.md
+  - .ralph/.tmp/story-20260422-085058-72504-4.json
+  - .ralph/.tmp/story-20260422-085058-72504-4.md
+  - .ralph/activity.log
+  - .ralph/errors.log
+  - .ralph/progress.md
+  - .ralph/runs/run-20260422-085058-72504-iter-3.md
+  - .ralph/runs/run-20260422-085058-72504-iter-4.log
+  - .ralph/runs/run-20260422-085058-72504-iter-4.md
+- What was implemented
+  Added reusable non-streaming probes to `@steipete/summarize-core/local-runtime` for OpenAI-compatible/llama.cpp
+  `/models` endpoints and Ollama `/api/tags`. Probe results now expose normalized model metadata and lightweight server
+  metadata, use bounded timeout handling, and return stable error objects instead of requiring callers to catch transport
+  exceptions. Tests cover reachable endpoints, network/HTTP unreachable cases, malformed JSON, invalid descriptors, and
+  timeout/abort behavior with mocked fetches only.
+- **Learnings for future iterations:**
+  - Patterns discovered: local runtime diagnostics can build directly on the LLR-003 descriptor parser so localhost
+    validation and Ollama base URL normalization stay centralized.
+  - Gotchas encountered: do not run `pnpm -s typecheck` concurrently with `pnpm -s build`; the build cleans core dist
+    while root typecheck resolves workspace package declaration outputs.
+  - Useful context: `pnpm -s test -- tests/local-runtime.test.ts` invokes the repository test script and currently runs
+    the full suite; `pnpm exec vitest run tests/local-runtime.test.ts` is the precise single-file test path.
+---
