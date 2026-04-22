@@ -22424,3 +22424,1380 @@ index 0000000000000000000000000000000000000000..351a4e2b72127635c8809c3df0b6e0a3
 +- [Ollama macOS docs](https://docs.ollama.com/macos)
 +- [Ollama OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility)
 
+exec
+/bin/zsh -lc 'git add .ralph/runs/run-20260422-085058-72504-iter-10.log && git commit -m "chore: finalize LLR-010 run log"' in /Users/shh/proj/summarize succeeded in 0ms:
+[main 9301d302] chore: finalize LLR-010 run log
+ 1 file changed, 907 insertions(+)
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index d82822dfafaaabcc2933ed98b7600fb80ddfd25e..bcffcc70342f811421fc62a75f92ec13cc3560e1
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,57 @@
+ 
+ ---
+ 
++## 2026-04-22 10:32:38 PDT - LLR-010: Add Mac-First Local LLM Onboarding
++Thread:
++Run: 20260422-085058-72504 (iteration 10)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-10.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-10.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: f044eb85 docs: add mac local llm onboarding
++- Post-commit status: clean after follow-up progress/log commit
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `git diff --check -- README.md apps/chrome-extension/README.md docs/README.md docs/chrome-extension.md docs/cli.md docs/config.md docs/index.md docs/local-llm-onboarding.md` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++- Files changed:
++  - README.md
++  - apps/chrome-extension/README.md
++  - docs/README.md
++  - docs/chrome-extension.md
++  - docs/cli.md
++  - docs/config.md
++  - docs/index.md
++  - docs/local-llm-onboarding.md
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-10.md
++  - .ralph/.tmp/story-20260422-085058-72504-10.json
++  - .ralph/.tmp/story-20260422-085058-72504-10.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-9.log
++  - .ralph/runs/run-20260422-085058-72504-iter-9.md
++  - .ralph/runs/run-20260422-085058-72504-iter-10.log
++  - .ralph/runs/run-20260422-085058-72504-iter-10.md
++- What was implemented
++  Added a Mac-first onboarding doc for local LLM setup that covers llama.cpp OpenAI-compatible server startup on
++  macOS, Ollama setup through the supported runtime registry, exact config examples for English, Traditional Chinese,
++  bilingual, and fallback routing, local-only privacy mode, expected human and JSON probe output, CLI verification,
++  daemon restart requirements, and extension status expectations. Linked the guide from the root README, CLI/config
++  docs, docs indexes, and extension setup docs.
++- **Learnings for future iterations:**
++  - Patterns discovered: Summarize local HTTP LLMs are still routed through the `openai/...` provider path, so docs
++    must pair `openai.baseUrl` with a dummy `OPENAI_API_KEY` even for localhost runtimes.
++  - Gotchas encountered: direct `llama-server` normally exposes one loaded model; multi-model language routing is
++    cleaner through Ollama or an OpenAI-compatible router in front of multiple llama.cpp servers.
++  - Useful context: daemon config is loaded at startup, and installed daemon services also use an environment snapshot;
++    local model endpoint or key changes need `summarize daemon restart`, and environment changes may need rerunning the
++    extension setup install command.
++---
++
+ ## 2026-04-22 10:22:08 PDT - LLR-009: Show Local-Only Status in Side Panel
+ Thread:
+ Run: 20260422-085058-72504 (iteration 9)
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-10.md b/.ralph/runs/run-20260422-085058-72504-iter-10.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..401d53dacabcfc82954126d5a5d3c0d47789ca90
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-10.md
+@@ -0,0 +1,28 @@
++# Run Summary: LLR-010
++
++- Story: LLR-010 Add Mac-First Local LLM Onboarding
++- Run: 20260422-085058-72504 iteration 10
++- Commit: f044eb85 docs: add mac local llm onboarding
++- Result: completed
++
++## Implemented
++
++- Added `docs/local-llm-onboarding.md` with macOS llama.cpp server setup, Ollama setup, exact local routing config for
++  English, Traditional Chinese, bilingual, and fallback routes, local-only examples, and expected probe output.
++- Linked the onboarding page from the root README, CLI/config docs, docs indexes, and extension setup docs.
++- Documented daemon restart expectations so extension users refresh local runtime status after config or environment
++  changes.
++
++## Verification
++
++- `pnpm -s docs:list` passed.
++- `git diff --check -- README.md apps/chrome-extension/README.md docs/README.md docs/chrome-extension.md docs/cli.md docs/config.md docs/index.md docs/local-llm-onboarding.md` passed.
++- `pnpm -s typecheck` passed.
++- `pnpm -s build` passed.
++- `pnpm -s check` passed.
++
++## Review
++
++- Security: documentation uses dummy local API keys only and keeps examples on loopback hosts.
++- Performance: no runtime code changed.
++- Regression: docs discovery, typecheck, build, and full check gate passed.
+diff --git a/README.md b/README.md
+index c2d3a8e012c4cb2f350eef8d7d35fee45f35c848..5d7e59a08720f5b909c7051156a61d61650af9d8
+--- a/README.md
++++ b/README.md
+@@ -7,6 +7,8 @@
+ This fork preserves upstream Summarize's generic CLI, media, daemon, and side-panel behavior while documenting a
+ local-first direction: private local LLM setup, bilingual model routing, and durable local research memory. See
+ [`docs/local-first-roadmap.md`](docs/local-first-roadmap.md) for the fork thesis, non-goals, and staged architecture.
++For hands-on macOS setup with llama.cpp or Ollama, see
++[`docs/local-llm-onboarding.md`](docs/local-llm-onboarding.md).
+ 
+ ## Highlights
+ 
+@@ -342,6 +344,9 @@
+ Ollama localhost endpoints. It prints `OK`, `WARN`, or `FAIL` lines and `--json` emits the same diagnostics for scripts
+ and tests without requiring a live model server.
+ 
++Mac local LLM setup, language-aware routing examples, local-only mode, and extension verification are documented in
++[`docs/local-llm-onboarding.md`](docs/local-llm-onboarding.md).
++
+ ### Coding CLIs (Codex, Claude, Gemini, Agent, OpenClaw, OpenCode)
+ 
+ Summarize can use common coding CLIs as local model backends:
+diff --git a/apps/chrome-extension/README.md b/apps/chrome-extension/README.md
+index 75ae63e4265dcc6f63fa5130b3b24e9dfd40f345..ce607f39fa01ccf2bce929cf0820323d2be300ab
+--- a/apps/chrome-extension/README.md
++++ b/apps/chrome-extension/README.md
+@@ -77,6 +77,12 @@
+    - `summarize daemon status`
+    - `summarize daemon restart`
+ 
++Local LLM setup:
++
++- macOS llama.cpp/Ollama onboarding, language-aware routing config, local-only mode, and expected probe output:
++  [`../../docs/local-llm-onboarding.md`](../../docs/local-llm-onboarding.md)
++- Restart the daemon after changing `~/.summarize/config.json` or local model environment variables.
++
+ ## Length Presets
+ 
+ - Presets match CLI: `short|medium|long|xl|xxl` (or custom like `20k`).
+diff --git a/docs/README.md b/docs/README.md
+index af16efa1320cdf08dc06b2bb2430253152b0eb32..62aa4685da1b5792e703c7c01a280cf5fad961d0
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -11,6 +11,7 @@
+ - `docs/extract-only.md` — extract mode (no summary LLM call)
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
++- `docs/local-llm-onboarding.md` — Mac-first llama.cpp/Ollama setup, local routing, probes, and local-only mode
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
+ - `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+diff --git a/docs/chrome-extension.md b/docs/chrome-extension.md
+index 1bb50f9cbe0f6bf30fa67da81bb5aa83769fcaf2..2a13978113f2a9f406e2746dfe9ee09db04558e3
+--- a/docs/chrome-extension.md
++++ b/docs/chrome-extension.md
+@@ -20,6 +20,9 @@
+ - Verify:
+   - `summarize daemon status`
+   - Restart (if needed): `summarize daemon restart`
++- Local LLM setup:
++  - macOS llama.cpp/Ollama onboarding, language-aware routing config, local-only mode, and expected probe output:
++    [`docs/local-llm-onboarding.md`](local-llm-onboarding.md)
+ 
+ Firefox notes:
+ 
+@@ -167,6 +170,8 @@
+ - Timeout (e.g. `90s`, `2m`), retries, max output tokens (e.g. `2k`).
+ - Process manager: live list of daemon-spawned tools (ffmpeg, yt-dlp, tesseract, etc.) with logs.
+ - Extension includes current settings in request; daemon treats them like CLI flags (`--model`, `--length`, `--language`, `--prompt`).
++- For local-only routing, configure the daemon with `openai.baseUrl`, `localRouting`, and `privacy.localOnly`; see
++  [`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
+ 
+ ## Token Pairing / Setup Mode
+ 
+diff --git a/docs/cli.md b/docs/cli.md
+index 0f85915e2064284880ed47b33efc8994d9e5bb5a..a1f50d2a837622f9a13e58035d890764d32062ad
+--- a/docs/cli.md
++++ b/docs/cli.md
+@@ -172,6 +172,9 @@
+ Human output uses `OK`, `WARN`, and `FAIL` lines. JSON output is intended for tests and scripts; CLI tests mock the
+ probe response and do not require a live model server.
+ 
++For macOS llama.cpp/Ollama setup, exact local routing config, local-only mode, and extension verification, see
++[`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
++
+ ## Generate free preset (OpenRouter)
+ 
+ `summarize` ships with a built-in preset `free`, backed by OpenRouter `:free` models.
+diff --git a/docs/config.md b/docs/config.md
+index d1c6c3550826ea62f6c9649513963d1131a66632..7154d24437706e99d18dfb9e5c6171f2be509704
+--- a/docs/config.md
++++ b/docs/config.md
+@@ -369,6 +369,11 @@
+ - `openai.baseUrl` overrides the OpenAI-compatible API endpoint. Use this for proxies, gateways, or OpenAI-compatible APIs. Env `OPENAI_BASE_URL` takes precedence.
+ - `openai.whisperUsdPerMinute` is only used to estimate transcription cost in the finish-line metrics when Whisper transcription runs via OpenAI.
+ 
++## Local routing and local-only mode
++
++Mac-first local LLM setup, exact `localRouting` examples for English, Traditional Chinese, and bilingual output, and
++`privacy.localOnly` examples live in [`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
++
+ ## Provider base URLs
+ 
+ Override API endpoints for any provider to use proxies, gateways, or compatible APIs:
+diff --git a/docs/index.md b/docs/index.md
+index 8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168..562ad6218085533193722540c9fe7acea05d6823
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -11,6 +11,7 @@
+ - [Extract](extract-only.md)
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
++- [Local LLM onboarding](local-llm-onboarding.md)
+ - [Local-first roadmap](local-first-roadmap.md)
+ - [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+diff --git a/docs/local-llm-onboarding.md b/docs/local-llm-onboarding.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..351a4e2b72127635c8809c3df0b6e0a3f96b8fb5
+--- /dev/null
++++ b/docs/local-llm-onboarding.md
+@@ -0,0 +1,228 @@
++---
++summary: "Mac-first local LLM setup for llama.cpp, Ollama, routing, probes, daemon, and extension."
++read_when:
++  - "When setting up local LLM runtimes, language-aware local routing, or local-only mode."
++---
++
++# Mac-first local LLM onboarding
++
++This guide connects a local LLM server to the Summarize CLI, daemon, and browser extension on macOS.
++
++Summarize talks to localhost model servers through the existing OpenAI-compatible provider path. In practice:
++
++- Set `openai.baseUrl` or `OPENAI_BASE_URL` to the local `/v1` endpoint.
++- Use `openai/<local-model-name>` model ids, or bare local model names in `localRouting`.
++- Set a dummy `OPENAI_API_KEY`; local servers usually ignore it, but Summarize still requires the key before provider setup.
++- Restart the daemon after changing `~/.summarize/config.json` or the environment; the daemon reads config at startup.
++
++The config file is `~/.summarize/config.json`. It is JSON5, but comments are rejected.
++
++## llama.cpp server
++
++Install the server on macOS:
++
++```bash
++brew install llama.cpp
++```
++
++Download a chat/instruct GGUF model, then start `llama-server` on loopback. The `--alias` value is the model id returned
++by `/v1/models`, so use the same name in Summarize config.
++
++```bash
++mkdir -p ~/Models/llama.cpp
++export SUMMARIZE_LLAMA_GGUF="$HOME/Models/llama.cpp/qwen3-local.gguf"
++
++llama-server \
++  -m "$SUMMARIZE_LLAMA_GGUF" \
++  --host 127.0.0.1 \
++  --port 8080 \
++  --alias qwen3-local \
++  -c 8192
++```
++
++Probe the server before running summaries:
++
++```bash
++summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1
++```
++
++Expected output shape:
++
++```text
++Local runtime probe
++OK llama.cpp server (llama-cpp)
++  Endpoint: http://127.0.0.1:8080/v1/models
++  Models: qwen3-local (1)
++  Server: status=200 server=llama.cpp
++```
++
++Direct `llama-server` normally exposes one loaded model. For a single-model local-only setup, route every language bucket
++to that alias:
++
++```json
++{
++  "model": "auto",
++  "openai": {
++    "baseUrl": "http://127.0.0.1:8080/v1"
++  },
++  "env": {
++    "OPENAI_API_KEY": "sk-local"
++  },
++  "localRouting": {
++    "enabled": true,
++    "englishModel": "qwen3-local",
++    "traditionalChineseModel": "qwen3-local",
++    "bilingualModel": "qwen3-local",
++    "fallbackModel": "qwen3-local"
++  },
++  "privacy": {
++    "localOnly": true
++  }
++}
++```
++
++If you run multiple llama.cpp models behind an OpenAI-compatible router, keep the same config shape and set each bucket
++to the model id exposed by that router.
++
++## Ollama
++
++Ollama is supported by the implemented local runtime registry and probe command. Install the macOS app, then start it
++once so the `ollama` CLI and localhost server are available. If you manage GUI apps with Homebrew:
++
++```bash
++brew install --cask ollama
++open -a Ollama
++```
++
++Pull local models. These names are examples; keep the config model names equal to `ollama list`.
++
++```bash
++ollama pull gemma3
++ollama pull qwen3:8b
++ollama pull llama3.2
++ollama list
++```
++
++Probe Ollama through its native tags endpoint:
++
++```bash
++summarize local-runtime probe ollama
++```
++
++Expected output shape:
++
++```text
++Local runtime probe
++OK Ollama (ollama)
++  Endpoint: http://127.0.0.1:11434/api/tags
++  Models: gemma3, qwen3:8b, llama3.2 (3)
++  Server: status=200 version=...
++```
++
++Summaries use Ollama's OpenAI-compatible API at `http://127.0.0.1:11434/v1`:
++
++```json
++{
++  "model": "auto",
++  "openai": {
++    "baseUrl": "http://127.0.0.1:11434/v1"
++  },
++  "env": {
++    "OPENAI_API_KEY": "ollama"
++  },
++  "localRouting": {
++    "enabled": true,
++    "englishModel": "gemma3",
++    "traditionalChineseModel": "qwen3:8b",
++    "bilingualModel": "qwen3:8b",
++    "fallbackModel": "llama3.2"
++  },
++  "privacy": {
++    "localOnly": true
++  }
++}
++```
++
++## Verify routing
++
++Leave `--model` unset, or set it to `auto`, when you want language-aware routing. Explicit fixed models keep precedence.
++
++```bash
++summarize "https://example.com" --language en --plain
++summarize "https://example.com" --language "Traditional Chinese" --plain
++summarize "https://example.com" --language "en+zh-TW bilingual" --plain
++```
++
++With the Ollama example above:
++
++- English routes to `openai/gemma3`.
++- Traditional Chinese routes to `openai/qwen3:8b`.
++- Bilingual output routes to `openai/qwen3:8b`.
++- `auto` or unknown language routes to `openai/llama3.2`.
++
++## Local-only mode
++
++`"privacy": { "localOnly": true }` blocks remote providers before a model request is made. Allowed summary requests must
++use an `openai/...` model with `openai.baseUrl` or `OPENAI_BASE_URL` set to localhost.
++
++Expected allowed probe:
++
++```bash
++summarize local-runtime probe --json
++```
++
++```json
++{
++  "ok": true,
++  "warnings": [],
++  "results": [
++    {
++      "ok": true,
++      "endpoint": "http://127.0.0.1:11434/v1/models",
++      "runtime": {
++        "kind": "openai-compatible",
++        "baseUrl": "http://127.0.0.1:11434/v1",
++        "baseUrlSource": "configured"
++      },
++      "models": [{ "id": "gemma3" }]
++    }
++  ]
++}
++```
++
++Expected blocked run:
++
++```bash
++summarize "https://example.com" --model google/gemini-3-flash
++```
++
++```text
++Local-only mode (privacy.localOnly) blocked google/gemini-3-flash: google/... is a remote provider; local-only mode only allows OpenAI-compatible localhost endpoints. Use an openai/... model with OPENAI_BASE_URL or openai.baseUrl set to a localhost OpenAI-compatible endpoint, or set "privacy.localOnly": false in config.
++```
++
++## Daemon and extension
++
++After changing local model config:
++
++```bash
++summarize daemon restart
++summarize daemon status
++summarize local-runtime probe
++```
++
++Then open the browser side panel. The compact local status surface should show:
++
++- `Local-only on` when `privacy.localOnly` is enabled.
++- The selected route, for example `Route: English -> openai/gemma3`.
++- Runtime reachability, for example `Runtime reachable: OpenAI-compatible local endpoint at 127.0.0.1:11434`.
++
++If the panel still shows stale values, restart the daemon again. If the daemon was installed before you exported local
++environment variables, rerun the install command from the extension setup screen so the daemon service captures the new
++environment snapshot.
++
++## References
++
++- [llama.cpp server README](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
++- [Homebrew llama.cpp formula](https://formulae.brew.sh/formula/llama.cpp)
++- [Ollama macOS docs](https://docs.ollama.com/macos)
++- [Ollama OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility)
+
+exec
+/bin/zsh -lc 'git status --porcelain=v1 && git show -s --format="%h %s" HEAD' in /Users/shh/proj/summarize succeeded in 0ms:
+ M .ralph/runs/run-20260422-085058-72504-iter-10.log
+9301d302 chore: finalize LLR-010 run log
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index d82822dfafaaabcc2933ed98b7600fb80ddfd25e..bcffcc70342f811421fc62a75f92ec13cc3560e1
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,57 @@
+ 
+ ---
+ 
++## 2026-04-22 10:32:38 PDT - LLR-010: Add Mac-First Local LLM Onboarding
++Thread:
++Run: 20260422-085058-72504 (iteration 10)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-10.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-10.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: f044eb85 docs: add mac local llm onboarding
++- Post-commit status: clean after follow-up progress/log commit
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `git diff --check -- README.md apps/chrome-extension/README.md docs/README.md docs/chrome-extension.md docs/cli.md docs/config.md docs/index.md docs/local-llm-onboarding.md` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++- Files changed:
++  - README.md
++  - apps/chrome-extension/README.md
++  - docs/README.md
++  - docs/chrome-extension.md
++  - docs/cli.md
++  - docs/config.md
++  - docs/index.md
++  - docs/local-llm-onboarding.md
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-10.md
++  - .ralph/.tmp/story-20260422-085058-72504-10.json
++  - .ralph/.tmp/story-20260422-085058-72504-10.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-9.log
++  - .ralph/runs/run-20260422-085058-72504-iter-9.md
++  - .ralph/runs/run-20260422-085058-72504-iter-10.log
++  - .ralph/runs/run-20260422-085058-72504-iter-10.md
++- What was implemented
++  Added a Mac-first onboarding doc for local LLM setup that covers llama.cpp OpenAI-compatible server startup on
++  macOS, Ollama setup through the supported runtime registry, exact config examples for English, Traditional Chinese,
++  bilingual, and fallback routing, local-only privacy mode, expected human and JSON probe output, CLI verification,
++  daemon restart requirements, and extension status expectations. Linked the guide from the root README, CLI/config
++  docs, docs indexes, and extension setup docs.
++- **Learnings for future iterations:**
++  - Patterns discovered: Summarize local HTTP LLMs are still routed through the `openai/...` provider path, so docs
++    must pair `openai.baseUrl` with a dummy `OPENAI_API_KEY` even for localhost runtimes.
++  - Gotchas encountered: direct `llama-server` normally exposes one loaded model; multi-model language routing is
++    cleaner through Ollama or an OpenAI-compatible router in front of multiple llama.cpp servers.
++  - Useful context: daemon config is loaded at startup, and installed daemon services also use an environment snapshot;
++    local model endpoint or key changes need `summarize daemon restart`, and environment changes may need rerunning the
++    extension setup install command.
++---
++
+ ## 2026-04-22 10:22:08 PDT - LLR-009: Show Local-Only Status in Side Panel
+ Thread:
+ Run: 20260422-085058-72504 (iteration 9)
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-10.md b/.ralph/runs/run-20260422-085058-72504-iter-10.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..401d53dacabcfc82954126d5a5d3c0d47789ca90
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-10.md
+@@ -0,0 +1,28 @@
++# Run Summary: LLR-010
++
++- Story: LLR-010 Add Mac-First Local LLM Onboarding
++- Run: 20260422-085058-72504 iteration 10
++- Commit: f044eb85 docs: add mac local llm onboarding
++- Result: completed
++
++## Implemented
++
++- Added `docs/local-llm-onboarding.md` with macOS llama.cpp server setup, Ollama setup, exact local routing config for
++  English, Traditional Chinese, bilingual, and fallback routes, local-only examples, and expected probe output.
++- Linked the onboarding page from the root README, CLI/config docs, docs indexes, and extension setup docs.
++- Documented daemon restart expectations so extension users refresh local runtime status after config or environment
++  changes.
++
++## Verification
++
++- `pnpm -s docs:list` passed.
++- `git diff --check -- README.md apps/chrome-extension/README.md docs/README.md docs/chrome-extension.md docs/cli.md docs/config.md docs/index.md docs/local-llm-onboarding.md` passed.
++- `pnpm -s typecheck` passed.
++- `pnpm -s build` passed.
++- `pnpm -s check` passed.
++
++## Review
++
++- Security: documentation uses dummy local API keys only and keeps examples on loopback hosts.
++- Performance: no runtime code changed.
++- Regression: docs discovery, typecheck, build, and full check gate passed.
+diff --git a/README.md b/README.md
+index c2d3a8e012c4cb2f350eef8d7d35fee45f35c848..5d7e59a08720f5b909c7051156a61d61650af9d8
+--- a/README.md
++++ b/README.md
+@@ -7,6 +7,8 @@
+ This fork preserves upstream Summarize's generic CLI, media, daemon, and side-panel behavior while documenting a
+ local-first direction: private local LLM setup, bilingual model routing, and durable local research memory. See
+ [`docs/local-first-roadmap.md`](docs/local-first-roadmap.md) for the fork thesis, non-goals, and staged architecture.
++For hands-on macOS setup with llama.cpp or Ollama, see
++[`docs/local-llm-onboarding.md`](docs/local-llm-onboarding.md).
+ 
+ ## Highlights
+ 
+@@ -342,6 +344,9 @@
+ Ollama localhost endpoints. It prints `OK`, `WARN`, or `FAIL` lines and `--json` emits the same diagnostics for scripts
+ and tests without requiring a live model server.
+ 
++Mac local LLM setup, language-aware routing examples, local-only mode, and extension verification are documented in
++[`docs/local-llm-onboarding.md`](docs/local-llm-onboarding.md).
++
+ ### Coding CLIs (Codex, Claude, Gemini, Agent, OpenClaw, OpenCode)
+ 
+ Summarize can use common coding CLIs as local model backends:
+diff --git a/apps/chrome-extension/README.md b/apps/chrome-extension/README.md
+index 75ae63e4265dcc6f63fa5130b3b24e9dfd40f345..ce607f39fa01ccf2bce929cf0820323d2be300ab
+--- a/apps/chrome-extension/README.md
++++ b/apps/chrome-extension/README.md
+@@ -77,6 +77,12 @@
+    - `summarize daemon status`
+    - `summarize daemon restart`
+ 
++Local LLM setup:
++
++- macOS llama.cpp/Ollama onboarding, language-aware routing config, local-only mode, and expected probe output:
++  [`../../docs/local-llm-onboarding.md`](../../docs/local-llm-onboarding.md)
++- Restart the daemon after changing `~/.summarize/config.json` or local model environment variables.
++
+ ## Length Presets
+ 
+ - Presets match CLI: `short|medium|long|xl|xxl` (or custom like `20k`).
+diff --git a/docs/README.md b/docs/README.md
+index af16efa1320cdf08dc06b2bb2430253152b0eb32..62aa4685da1b5792e703c7c01a280cf5fad961d0
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -11,6 +11,7 @@
+ - `docs/extract-only.md` — extract mode (no summary LLM call)
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
++- `docs/local-llm-onboarding.md` — Mac-first llama.cpp/Ollama setup, local routing, probes, and local-only mode
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
+ - `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+diff --git a/docs/chrome-extension.md b/docs/chrome-extension.md
+index 1bb50f9cbe0f6bf30fa67da81bb5aa83769fcaf2..2a13978113f2a9f406e2746dfe9ee09db04558e3
+--- a/docs/chrome-extension.md
++++ b/docs/chrome-extension.md
+@@ -20,6 +20,9 @@
+ - Verify:
+   - `summarize daemon status`
+   - Restart (if needed): `summarize daemon restart`
++- Local LLM setup:
++  - macOS llama.cpp/Ollama onboarding, language-aware routing config, local-only mode, and expected probe output:
++    [`docs/local-llm-onboarding.md`](local-llm-onboarding.md)
+ 
+ Firefox notes:
+ 
+@@ -167,6 +170,8 @@
+ - Timeout (e.g. `90s`, `2m`), retries, max output tokens (e.g. `2k`).
+ - Process manager: live list of daemon-spawned tools (ffmpeg, yt-dlp, tesseract, etc.) with logs.
+ - Extension includes current settings in request; daemon treats them like CLI flags (`--model`, `--length`, `--language`, `--prompt`).
++- For local-only routing, configure the daemon with `openai.baseUrl`, `localRouting`, and `privacy.localOnly`; see
++  [`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
+ 
+ ## Token Pairing / Setup Mode
+ 
+diff --git a/docs/cli.md b/docs/cli.md
+index 0f85915e2064284880ed47b33efc8994d9e5bb5a..a1f50d2a837622f9a13e58035d890764d32062ad
+--- a/docs/cli.md
++++ b/docs/cli.md
+@@ -172,6 +172,9 @@
+ Human output uses `OK`, `WARN`, and `FAIL` lines. JSON output is intended for tests and scripts; CLI tests mock the
+ probe response and do not require a live model server.
+ 
++For macOS llama.cpp/Ollama setup, exact local routing config, local-only mode, and extension verification, see
++[`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
++
+ ## Generate free preset (OpenRouter)
+ 
+ `summarize` ships with a built-in preset `free`, backed by OpenRouter `:free` models.
+diff --git a/docs/config.md b/docs/config.md
+index d1c6c3550826ea62f6c9649513963d1131a66632..7154d24437706e99d18dfb9e5c6171f2be509704
+--- a/docs/config.md
++++ b/docs/config.md
+@@ -369,6 +369,11 @@
+ - `openai.baseUrl` overrides the OpenAI-compatible API endpoint. Use this for proxies, gateways, or OpenAI-compatible APIs. Env `OPENAI_BASE_URL` takes precedence.
+ - `openai.whisperUsdPerMinute` is only used to estimate transcription cost in the finish-line metrics when Whisper transcription runs via OpenAI.
+ 
++## Local routing and local-only mode
++
++Mac-first local LLM setup, exact `localRouting` examples for English, Traditional Chinese, and bilingual output, and
++`privacy.localOnly` examples live in [`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
++
+ ## Provider base URLs
+ 
+ Override API endpoints for any provider to use proxies, gateways, or compatible APIs:
+diff --git a/docs/index.md b/docs/index.md
+index 8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168..562ad6218085533193722540c9fe7acea05d6823
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -11,6 +11,7 @@
+ - [Extract](extract-only.md)
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
++- [Local LLM onboarding](local-llm-onboarding.md)
+ - [Local-first roadmap](local-first-roadmap.md)
+ - [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+diff --git a/docs/local-llm-onboarding.md b/docs/local-llm-onboarding.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..351a4e2b72127635c8809c3df0b6e0a3f96b8fb5
+--- /dev/null
++++ b/docs/local-llm-onboarding.md
+@@ -0,0 +1,228 @@
++---
++summary: "Mac-first local LLM setup for llama.cpp, Ollama, routing, probes, daemon, and extension."
++read_when:
++  - "When setting up local LLM runtimes, language-aware local routing, or local-only mode."
++---
++
++# Mac-first local LLM onboarding
++
++This guide connects a local LLM server to the Summarize CLI, daemon, and browser extension on macOS.
++
++Summarize talks to localhost model servers through the existing OpenAI-compatible provider path. In practice:
++
++- Set `openai.baseUrl` or `OPENAI_BASE_URL` to the local `/v1` endpoint.
++- Use `openai/<local-model-name>` model ids, or bare local model names in `localRouting`.
++- Set a dummy `OPENAI_API_KEY`; local servers usually ignore it, but Summarize still requires the key before provider setup.
++- Restart the daemon after changing `~/.summarize/config.json` or the environment; the daemon reads config at startup.
++
++The config file is `~/.summarize/config.json`. It is JSON5, but comments are rejected.
++
++## llama.cpp server
++
++Install the server on macOS:
++
++```bash
++brew install llama.cpp
++```
++
++Download a chat/instruct GGUF model, then start `llama-server` on loopback. The `--alias` value is the model id returned
++by `/v1/models`, so use the same name in Summarize config.
++
++```bash
++mkdir -p ~/Models/llama.cpp
++export SUMMARIZE_LLAMA_GGUF="$HOME/Models/llama.cpp/qwen3-local.gguf"
++
++llama-server \
++  -m "$SUMMARIZE_LLAMA_GGUF" \
++  --host 127.0.0.1 \
++  --port 8080 \
++  --alias qwen3-local \
++  -c 8192
++```
++
++Probe the server before running summaries:
++
++```bash
++summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1
++```
++
++Expected output shape:
++
++```text
++Local runtime probe
++OK llama.cpp server (llama-cpp)
++  Endpoint: http://127.0.0.1:8080/v1/models
++  Models: qwen3-local (1)
++  Server: status=200 server=llama.cpp
++```
++
++Direct `llama-server` normally exposes one loaded model. For a single-model local-only setup, route every language bucket
++to that alias:
++
++```json
++{
++  "model": "auto",
++  "openai": {
++    "baseUrl": "http://127.0.0.1:8080/v1"
++  },
++  "env": {
++    "OPENAI_API_KEY": "sk-local"
++  },
++  "localRouting": {
++    "enabled": true,
++    "englishModel": "qwen3-local",
++    "traditionalChineseModel": "qwen3-local",
++    "bilingualModel": "qwen3-local",
++    "fallbackModel": "qwen3-local"
++  },
++  "privacy": {
++    "localOnly": true
++  }
++}
++```
++
++If you run multiple llama.cpp models behind an OpenAI-compatible router, keep the same config shape and set each bucket
++to the model id exposed by that router.
++
++## Ollama
++
++Ollama is supported by the implemented local runtime registry and probe command. Install the macOS app, then start it
++once so the `ollama` CLI and localhost server are available. If you manage GUI apps with Homebrew:
++
++```bash
++brew install --cask ollama
++open -a Ollama
++```
++
++Pull local models. These names are examples; keep the config model names equal to `ollama list`.
++
++```bash
++ollama pull gemma3
++ollama pull qwen3:8b
++ollama pull llama3.2
++ollama list
++```
++
++Probe Ollama through its native tags endpoint:
++
++```bash
++summarize local-runtime probe ollama
++```
++
++Expected output shape:
++
++```text
++Local runtime probe
++OK Ollama (ollama)
++  Endpoint: http://127.0.0.1:11434/api/tags
++  Models: gemma3, qwen3:8b, llama3.2 (3)
++  Server: status=200 version=...
++```
++
++Summaries use Ollama's OpenAI-compatible API at `http://127.0.0.1:11434/v1`:
++
++```json
++{
++  "model": "auto",
++  "openai": {
++    "baseUrl": "http://127.0.0.1:11434/v1"
++  },
++  "env": {
++    "OPENAI_API_KEY": "ollama"
++  },
++  "localRouting": {
++    "enabled": true,
++    "englishModel": "gemma3",
++    "traditionalChineseModel": "qwen3:8b",
++    "bilingualModel": "qwen3:8b",
++    "fallbackModel": "llama3.2"
++  },
++  "privacy": {
++    "localOnly": true
++  }
++}
++```
++
++## Verify routing
++
++Leave `--model` unset, or set it to `auto`, when you want language-aware routing. Explicit fixed models keep precedence.
++
++```bash
++summarize "https://example.com" --language en --plain
++summarize "https://example.com" --language "Traditional Chinese" --plain
++summarize "https://example.com" --language "en+zh-TW bilingual" --plain
++```
++
++With the Ollama example above:
++
++- English routes to `openai/gemma3`.
++- Traditional Chinese routes to `openai/qwen3:8b`.
++- Bilingual output routes to `openai/qwen3:8b`.
++- `auto` or unknown language routes to `openai/llama3.2`.
++
++## Local-only mode
++
++`"privacy": { "localOnly": true }` blocks remote providers before a model request is made. Allowed summary requests must
++use an `openai/...` model with `openai.baseUrl` or `OPENAI_BASE_URL` set to localhost.
++
++Expected allowed probe:
++
++```bash
++summarize local-runtime probe --json
++```
++
++```json
++{
++  "ok": true,
++  "warnings": [],
++  "results": [
++    {
++      "ok": true,
++      "endpoint": "http://127.0.0.1:11434/v1/models",
++      "runtime": {
++        "kind": "openai-compatible",
++        "baseUrl": "http://127.0.0.1:11434/v1",
++        "baseUrlSource": "configured"
++      },
++      "models": [{ "id": "gemma3" }]
++    }
++  ]
++}
++```
++
++Expected blocked run:
++
++```bash
++summarize "https://example.com" --model google/gemini-3-flash
++```
++
++```text
++Local-only mode (privacy.localOnly) blocked google/gemini-3-flash: google/... is a remote provider; local-only mode only allows OpenAI-compatible localhost endpoints. Use an openai/... model with OPENAI_BASE_URL or openai.baseUrl set to a localhost OpenAI-compatible endpoint, or set "privacy.localOnly": false in config.
++```
++
++## Daemon and extension
++
++After changing local model config:
++
++```bash
++summarize daemon restart
++summarize daemon status
++summarize local-runtime probe
++```
++
++Then open the browser side panel. The compact local status surface should show:
++
++- `Local-only on` when `privacy.localOnly` is enabled.
++- The selected route, for example `Route: English -> openai/gemma3`.
++- Runtime reachability, for example `Runtime reachable: OpenAI-compatible local endpoint at 127.0.0.1:11434`.
++
++If the panel still shows stale values, restart the daemon again. If the daemon was installed before you exported local
++environment variables, rerun the install command from the extension setup screen so the daemon service captures the new
++environment snapshot.
++
++## References
++
++- [llama.cpp server README](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
++- [Homebrew llama.cpp formula](https://formulae.brew.sh/formula/llama.cpp)
++- [Ollama macOS docs](https://docs.ollama.com/macos)
++- [Ollama OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility)
+
+exec
+/bin/zsh -lc 'git diff -- .ralph/runs/run-20260422-085058-72504-iter-10.log | tail -n 80' in /Users/shh/proj/summarize succeeded in 0ms:
+++```bash
+++summarize "https://example.com" --language en --plain
+++summarize "https://example.com" --language "Traditional Chinese" --plain
+++summarize "https://example.com" --language "en+zh-TW bilingual" --plain
+++```
+++
+++With the Ollama example above:
+++
+++- English routes to `openai/gemma3`.
+++- Traditional Chinese routes to `openai/qwen3:8b`.
+++- Bilingual output routes to `openai/qwen3:8b`.
+++- `auto` or unknown language routes to `openai/llama3.2`.
+++
+++## Local-only mode
+++
+++`"privacy": { "localOnly": true }` blocks remote providers before a model request is made. Allowed summary requests must
+++use an `openai/...` model with `openai.baseUrl` or `OPENAI_BASE_URL` set to localhost.
+++
+++Expected allowed probe:
+++
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index d82822dfafaaabcc2933ed98b7600fb80ddfd25e..bcffcc70342f811421fc62a75f92ec13cc3560e1
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,57 @@
+ 
+ ---
+ 
++## 2026-04-22 10:32:38 PDT - LLR-010: Add Mac-First Local LLM Onboarding
++Thread:
++Run: 20260422-085058-72504 (iteration 10)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-10.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-10.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: f044eb85 docs: add mac local llm onboarding
++- Post-commit status: clean after follow-up progress/log commit
++- Verification:
++  - Command: `pnpm -s docs:list` -> PASS
++  - Command: `git diff --check -- README.md apps/chrome-extension/README.md docs/README.md docs/chrome-extension.md docs/cli.md docs/config.md docs/index.md docs/local-llm-onboarding.md` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++- Files changed:
++  - README.md
++  - apps/chrome-extension/README.md
++  - docs/README.md
++  - docs/chrome-extension.md
++  - docs/cli.md
++  - docs/config.md
++  - docs/index.md
++  - docs/local-llm-onboarding.md
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-10.md
++  - .ralph/.tmp/story-20260422-085058-72504-10.json
++  - .ralph/.tmp/story-20260422-085058-72504-10.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-9.log
++  - .ralph/runs/run-20260422-085058-72504-iter-9.md
++  - .ralph/runs/run-20260422-085058-72504-iter-10.log
++  - .ralph/runs/run-20260422-085058-72504-iter-10.md
++- What was implemented
++  Added a Mac-first onboarding doc for local LLM setup that covers llama.cpp OpenAI-compatible server startup on
++  macOS, Ollama setup through the supported runtime registry, exact config examples for English, Traditional Chinese,
++  bilingual, and fallback routing, local-only privacy mode, expected human and JSON probe output, CLI verification,
++  daemon restart requirements, and extension status expectations. Linked the guide from the root README, CLI/config
++  docs, docs indexes, and extension setup docs.
++- **Learnings for future iterations:**
++  - Patterns discovered: Summarize local HTTP LLMs are still routed through the `openai/...` provider path, so docs
++    must pair `openai.baseUrl` with a dummy `OPENAI_API_KEY` even for localhost runtimes.
++  - Gotchas encountered: direct `llama-server` normally exposes one loaded model; multi-model language routing is
++    cleaner through Ollama or an OpenAI-compatible router in front of multiple llama.cpp servers.
++  - Useful context: daemon config is loaded at startup, and installed daemon services also use an environment snapshot;
++    local model endpoint or key changes need `summarize daemon restart`, and environment changes may need rerunning the
++    extension setup install command.
++---
++
+ ## 2026-04-22 10:22:08 PDT - LLR-009: Show Local-Only Status in Side Panel
+ Thread:
+ Run: 20260422-085058-72504 (iteration 9)
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-10.md b/.ralph/runs/run-20260422-085058-72504-iter-10.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..401d53dacabcfc82954126d5a5d3c0d47789ca90
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-10.md
+@@ -0,0 +1,28 @@
++# Run Summary: LLR-010
++
++- Story: LLR-010 Add Mac-First Local LLM Onboarding
++- Run: 20260422-085058-72504 iteration 10
++- Commit: f044eb85 docs: add mac local llm onboarding
++- Result: completed
++
++## Implemented
++
++- Added `docs/local-llm-onboarding.md` with macOS llama.cpp server setup, Ollama setup, exact local routing config for
++  English, Traditional Chinese, bilingual, and fallback routes, local-only examples, and expected probe output.
++- Linked the onboarding page from the root README, CLI/config docs, docs indexes, and extension setup docs.
++- Documented daemon restart expectations so extension users refresh local runtime status after config or environment
++  changes.
++
++## Verification
++
++- `pnpm -s docs:list` passed.
++- `git diff --check -- README.md apps/chrome-extension/README.md docs/README.md docs/chrome-extension.md docs/cli.md docs/config.md docs/index.md docs/local-llm-onboarding.md` passed.
++- `pnpm -s typecheck` passed.
++- `pnpm -s build` passed.
++- `pnpm -s check` passed.
++
++## Review
++
++- Security: documentation uses dummy local API keys only and keeps examples on loopback hosts.
++- Performance: no runtime code changed.
++- Regression: docs discovery, typecheck, build, and full check gate passed.
+diff --git a/README.md b/README.md
+index c2d3a8e012c4cb2f350eef8d7d35fee45f35c848..5d7e59a08720f5b909c7051156a61d61650af9d8
+--- a/README.md
++++ b/README.md
+@@ -7,6 +7,8 @@
+ This fork preserves upstream Summarize's generic CLI, media, daemon, and side-panel behavior while documenting a
+ local-first direction: private local LLM setup, bilingual model routing, and durable local research memory. See
+ [`docs/local-first-roadmap.md`](docs/local-first-roadmap.md) for the fork thesis, non-goals, and staged architecture.
++For hands-on macOS setup with llama.cpp or Ollama, see
++[`docs/local-llm-onboarding.md`](docs/local-llm-onboarding.md).
+ 
+ ## Highlights
+ 
+@@ -342,6 +344,9 @@
+ Ollama localhost endpoints. It prints `OK`, `WARN`, or `FAIL` lines and `--json` emits the same diagnostics for scripts
+ and tests without requiring a live model server.
+ 
++Mac local LLM setup, language-aware routing examples, local-only mode, and extension verification are documented in
++[`docs/local-llm-onboarding.md`](docs/local-llm-onboarding.md).
++
+ ### Coding CLIs (Codex, Claude, Gemini, Agent, OpenClaw, OpenCode)
+ 
+ Summarize can use common coding CLIs as local model backends:
+diff --git a/apps/chrome-extension/README.md b/apps/chrome-extension/README.md
+index 75ae63e4265dcc6f63fa5130b3b24e9dfd40f345..ce607f39fa01ccf2bce929cf0820323d2be300ab
+--- a/apps/chrome-extension/README.md
++++ b/apps/chrome-extension/README.md
+@@ -77,6 +77,12 @@
+    - `summarize daemon status`
+    - `summarize daemon restart`
+ 
++Local LLM setup:
++
++- macOS llama.cpp/Ollama onboarding, language-aware routing config, local-only mode, and expected probe output:
++  [`../../docs/local-llm-onboarding.md`](../../docs/local-llm-onboarding.md)
++- Restart the daemon after changing `~/.summarize/config.json` or local model environment variables.
++
+ ## Length Presets
+ 
+ - Presets match CLI: `short|medium|long|xl|xxl` (or custom like `20k`).
+diff --git a/docs/README.md b/docs/README.md
+index af16efa1320cdf08dc06b2bb2430253152b0eb32..62aa4685da1b5792e703c7c01a280cf5fad961d0
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -11,6 +11,7 @@
+ - `docs/extract-only.md` — extract mode (no summary LLM call)
+ - `docs/firecrawl.md` — Firecrawl mode + API key
+ - `docs/language.md` — output language (`--language` / config `language`)
++- `docs/local-llm-onboarding.md` — Mac-first llama.cpp/Ollama setup, local routing, probes, and local-only mode
+ - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
+ - `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+ - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
+diff --git a/docs/chrome-extension.md b/docs/chrome-extension.md
+index 1bb50f9cbe0f6bf30fa67da81bb5aa83769fcaf2..2a13978113f2a9f406e2746dfe9ee09db04558e3
+--- a/docs/chrome-extension.md
++++ b/docs/chrome-extension.md
+@@ -20,6 +20,9 @@
+ - Verify:
+   - `summarize daemon status`
+   - Restart (if needed): `summarize daemon restart`
++- Local LLM setup:
++  - macOS llama.cpp/Ollama onboarding, language-aware routing config, local-only mode, and expected probe output:
++    [`docs/local-llm-onboarding.md`](local-llm-onboarding.md)
+ 
+ Firefox notes:
+ 
+@@ -167,6 +170,8 @@
+ - Timeout (e.g. `90s`, `2m`), retries, max output tokens (e.g. `2k`).
+ - Process manager: live list of daemon-spawned tools (ffmpeg, yt-dlp, tesseract, etc.) with logs.
+ - Extension includes current settings in request; daemon treats them like CLI flags (`--model`, `--length`, `--language`, `--prompt`).
++- For local-only routing, configure the daemon with `openai.baseUrl`, `localRouting`, and `privacy.localOnly`; see
++  [`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
+ 
+ ## Token Pairing / Setup Mode
+ 
+diff --git a/docs/cli.md b/docs/cli.md
+index 0f85915e2064284880ed47b33efc8994d9e5bb5a..a1f50d2a837622f9a13e58035d890764d32062ad
+--- a/docs/cli.md
++++ b/docs/cli.md
+@@ -172,6 +172,9 @@
+ Human output uses `OK`, `WARN`, and `FAIL` lines. JSON output is intended for tests and scripts; CLI tests mock the
+ probe response and do not require a live model server.
+ 
++For macOS llama.cpp/Ollama setup, exact local routing config, local-only mode, and extension verification, see
++[`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
++
+ ## Generate free preset (OpenRouter)
+ 
+ `summarize` ships with a built-in preset `free`, backed by OpenRouter `:free` models.
+diff --git a/docs/config.md b/docs/config.md
+index d1c6c3550826ea62f6c9649513963d1131a66632..7154d24437706e99d18dfb9e5c6171f2be509704
+--- a/docs/config.md
++++ b/docs/config.md
+@@ -369,6 +369,11 @@
+ - `openai.baseUrl` overrides the OpenAI-compatible API endpoint. Use this for proxies, gateways, or OpenAI-compatible APIs. Env `OPENAI_BASE_URL` takes precedence.
+ - `openai.whisperUsdPerMinute` is only used to estimate transcription cost in the finish-line metrics when Whisper transcription runs via OpenAI.
+ 
++## Local routing and local-only mode
++
++Mac-first local LLM setup, exact `localRouting` examples for English, Traditional Chinese, and bilingual output, and
++`privacy.localOnly` examples live in [`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
++
+ ## Provider base URLs
+ 
+ Override API endpoints for any provider to use proxies, gateways, or compatible APIs:
+diff --git a/docs/index.md b/docs/index.md
+index 8e73c7f1f6f3014d9757c3f72e4a1abd2f7d0168..562ad6218085533193722540c9fe7acea05d6823
+--- a/docs/index.md
++++ b/docs/index.md
+@@ -11,6 +11,7 @@
+ - [Extract](extract-only.md)
+ - [Firecrawl](firecrawl.md)
+ - [Language](language.md)
++- [Local LLM onboarding](local-llm-onboarding.md)
+ - [Local-first roadmap](local-first-roadmap.md)
+ - [Local model capabilities audit](local-model-capabilities-audit.md)
+ - [LLM](llm.md)
+diff --git a/docs/local-llm-onboarding.md b/docs/local-llm-onboarding.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..351a4e2b72127635c8809c3df0b6e0a3f96b8fb5
+--- /dev/null
++++ b/docs/local-llm-onboarding.md
+@@ -0,0 +1,228 @@
++---
++summary: "Mac-first local LLM setup for llama.cpp, Ollama, routing, probes, daemon, and extension."
++read_when:
++  - "When setting up local LLM runtimes, language-aware local routing, or local-only mode."
++---
++
++# Mac-first local LLM onboarding
++
++This guide connects a local LLM server to the Summarize CLI, daemon, and browser extension on macOS.
++
++Summarize talks to localhost model servers through the existing OpenAI-compatible provider path. In practice:
++
++- Set `openai.baseUrl` or `OPENAI_BASE_URL` to the local `/v1` endpoint.
++- Use `openai/<local-model-name>` model ids, or bare local model names in `localRouting`.
++- Set a dummy `OPENAI_API_KEY`; local servers usually ignore it, but Summarize still requires the key before provider setup.
++- Restart the daemon after changing `~/.summarize/config.json` or the environment; the daemon reads config at startup.
++
++The config file is `~/.summarize/config.json`. It is JSON5, but comments are rejected.
++
++## llama.cpp server
++
++Install the server on macOS:
++
++```bash
++brew install llama.cpp
++```
++
++Download a chat/instruct GGUF model, then start `llama-server` on loopback. The `--alias` value is the model id returned
++by `/v1/models`, so use the same name in Summarize config.
++
++```bash
++mkdir -p ~/Models/llama.cpp
++export SUMMARIZE_LLAMA_GGUF="$HOME/Models/llama.cpp/qwen3-local.gguf"
++
++llama-server \
++  -m "$SUMMARIZE_LLAMA_GGUF" \
++  --host 127.0.0.1 \
++  --port 8080 \
++  --alias qwen3-local \
++  -c 8192
++```
++
++Probe the server before running summaries:
++
++```bash
++summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1
++```
++
++Expected output shape:
++
++```text
++Local runtime probe
++OK llama.cpp server (llama-cpp)
++  Endpoint: http://127.0.0.1:8080/v1/models
++  Models: qwen3-local (1)
++  Server: status=200 server=llama.cpp
++```
++
++Direct `llama-server` normally exposes one loaded model. For a single-model local-only setup, route every language bucket
++to that alias:
++
++```json
++{
++  "model": "auto",
++  "openai": {
++    "baseUrl": "http://127.0.0.1:8080/v1"
++  },
++  "env": {
++    "OPENAI_API_KEY": "sk-local"
++  },
++  "localRouting": {
++    "enabled": true,
++    "englishModel": "qwen3-local",
++    "traditionalChineseModel": "qwen3-local",
++    "bilingualModel": "qwen3-local",
++    "fallbackModel": "qwen3-local"
++  },
++  "privacy": {
++    "localOnly": true
++  }
++}
++```
++
++If you run multiple llama.cpp models behind an OpenAI-compatible router, keep the same config shape and set each bucket
++to the model id exposed by that router.
++
++## Ollama
++
++Ollama is supported by the implemented local runtime registry and probe command. Install the macOS app, then start it
++once so the `ollama` CLI and localhost server are available. If you manage GUI apps with Homebrew:
++
++```bash
++brew install --cask ollama
++open -a Ollama
++```
++
++Pull local models. These names are examples; keep the config model names equal to `ollama list`.
++
++```bash
++ollama pull gemma3
++ollama pull qwen3:8b
++ollama pull llama3.2
++ollama list
++```
++
++Probe Ollama through its native tags endpoint:
++
++```bash
++summarize local-runtime probe ollama
++```
++
++Expected output shape:
++
++```text
++Local runtime probe
++OK Ollama (ollama)
++  Endpoint: http://127.0.0.1:11434/api/tags
++  Models: gemma3, qwen3:8b, llama3.2 (3)
++  Server: status=200 version=...
++```
++
++Summaries use Ollama's OpenAI-compatible API at `http://127.0.0.1:11434/v1`:
++
++```json
++{
++  "model": "auto",
++  "openai": {
++    "baseUrl": "http://127.0.0.1:11434/v1"
++  },
++  "env": {
++    "OPENAI_API_KEY": "ollama"
++  },
++  "localRouting": {
++    "enabled": true,
++    "englishModel": "gemma3",
++    "traditionalChineseModel": "qwen3:8b",
++    "bilingualModel": "qwen3:8b",
++    "fallbackModel": "llama3.2"
++  },
++  "privacy": {
++    "localOnly": true
++  }
++}
++```
++
++## Verify routing
++
++Leave `--model` unset, or set it to `auto`, when you want language-aware routing. Explicit fixed models keep precedence.
++
++```bash
++summarize "https://example.com" --language en --plain
++summarize "https://example.com" --language "Traditional Chinese" --plain
++summarize "https://example.com" --language "en+zh-TW bilingual" --plain
++```
++
++With the Ollama example above:
++
++- English routes to `openai/gemma3`.
++- Traditional Chinese routes to `openai/qwen3:8b`.
++- Bilingual output routes to `openai/qwen3:8b`.
++- `auto` or unknown language routes to `openai/llama3.2`.
++
++## Local-only mode
++
++`"privacy": { "localOnly": true }` blocks remote providers before a model request is made. Allowed summary requests must
++use an `openai/...` model with `openai.baseUrl` or `OPENAI_BASE_URL` set to localhost.
++
++Expected allowed probe:
++
++```bash
++summarize local-runtime probe --json
++```
++
++```json
++{
++  "ok": true,
++  "warnings": [],
++  "results": [
++    {
++      "ok": true,
++      "endpoint": "http://127.0.0.1:11434/v1/models",
++      "runtime": {
++        "kind": "openai-compatible",
++        "baseUrl": "http://127.0.0.1:11434/v1",
++        "baseUrlSource": "configured"
++      },
++      "models": [{ "id": "gemma3" }]
++    }
++  ]
++}
++```
++
++Expected blocked run:
++
++```bash
++summarize "https://example.com" --model google/gemini-3-flash
++```
++
++```text
++Local-only mode (privacy.localOnly) blocked google/gemini-3-flash: google/... is a remote provider; local-only mode only allows OpenAI-compatible localhost endpoints. Use an openai/... model with OPENAI_BASE_URL or openai.baseUrl set to a localhost OpenAI-compatible endpoint, or set "privacy.localOnly": false in config.
++```
++
++## Daemon and extension
++
++After changing local model config:
++
++```bash
++summarize daemon restart
++summarize daemon status
++summarize local-runtime probe
++```
++
++Then open the browser side panel. The compact local status surface should show:
++
++- `Local-only on` when `privacy.localOnly` is enabled.
++- The selected route, for example `Route: English -> openai/gemma3`.
++- Runtime reachability, for example `Runtime reachable: OpenAI-compatible local endpoint at 127.0.0.1:11434`.
++
++If the panel still shows stale values, restart the daemon again. If the daemon was installed before you exported local
++environment variables, rerun the install command from the extension setup screen so the daemon service captures the new
++environment snapshot.
++
++## References
++
++- [llama.cpp server README](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
++- [Homebrew llama.cpp formula](https://formulae.brew.sh/formula/llama.cpp)
++- [Ollama macOS docs](https://docs.ollama.com/macos)
++- [Ollama OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility)
+
