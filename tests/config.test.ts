@@ -71,6 +71,29 @@ describe("config loading", () => {
     });
   });
 
+  it("loads local model routing config", () => {
+    const { root } = writeJsonConfig({
+      localRouting: {
+        enabled: true,
+        englishModel: " gemma-3-12b-it ",
+        traditionalChineseModel: "openai/qwen3-32b",
+        bilingualModel: "qwen3-bilingual",
+        fallbackModel: "llama-3.1-8b-instruct",
+      },
+    });
+
+    const result = loadSummarizeConfig({ env: { HOME: root } });
+    expect(result.config).toEqual({
+      localRouting: {
+        enabled: true,
+        englishModel: "gemma-3-12b-it",
+        traditionalChineseModel: "openai/qwen3-32b",
+        bilingualModel: "qwen3-bilingual",
+        fallbackModel: "llama-3.1-8b-instruct",
+      },
+    });
+  });
+
   it("supports ui.theme", () => {
     const { root } = writeJsonConfig({
       model: { id: "openai/gpt-5-mini" },
@@ -491,6 +514,28 @@ describe("config loading", () => {
 
     const { root: badMin } = writeJsonConfig({ slides: { minDuration: -1 } });
     expect(() => loadSummarizeConfig({ env: { HOME: badMin } })).toThrow(/slides\.minDuration/);
+  });
+
+  it("rejects invalid local model routing config", () => {
+    const { root: badRoot } = writeJsonConfig({ localRouting: "nope" });
+    expect(() => loadSummarizeConfig({ env: { HOME: badRoot } })).toThrow(
+      /"localRouting" must be an object/,
+    );
+
+    const { root: badEnabled } = writeJsonConfig({ localRouting: { enabled: "yes" } });
+    expect(() => loadSummarizeConfig({ env: { HOME: badEnabled } })).toThrow(
+      /localRouting\.enabled/,
+    );
+
+    const { root: badModel } = writeJsonConfig({ localRouting: { englishModel: "  " } });
+    expect(() => loadSummarizeConfig({ env: { HOME: badModel } })).toThrow(
+      /localRouting\.englishModel.*must not be empty/,
+    );
+
+    const { root: badAuto } = writeJsonConfig({ localRouting: { fallbackModel: "auto" } });
+    expect(() => loadSummarizeConfig({ env: { HOME: badAuto } })).toThrow(
+      /localRouting\.fallbackModel.*must not be "auto"/,
+    );
   });
 
   it("rejects invalid cli enabled providers", () => {

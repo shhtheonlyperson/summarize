@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parseOutputLanguage } from "../src/language.js";
 import { resolveModelSelection } from "../src/run/run-models.js";
 
 describe("run model selection", () => {
@@ -207,6 +208,184 @@ describe("run model selection", () => {
     if (result.requestedModel.kind === "fixed" && result.requestedModel.transport === "cli") {
       expect(result.requestedModel.userModelId).toBe("cli/opencode/openai/gpt-5.4");
     }
+  });
+
+  it("routes English output to the configured local model when auto is selected", () => {
+    const result = resolveModelSelection({
+      config: {
+        localRouting: {
+          enabled: true,
+          englishModel: "gemma-local",
+          fallbackModel: "llama-local",
+        },
+      },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("en"),
+    });
+
+    expect(result.requestedModelInput).toBe("openai/gemma-local");
+    expect(result.requestedModelLabel).toBe("openai/gemma-local");
+    expect(result.isFallbackModel).toBe(false);
+    expect(result.requestedModel.kind).toBe("fixed");
+    if (result.requestedModel.kind === "fixed") {
+      expect(result.requestedModel.userModelId).toBe("openai/gemma-local");
+    }
+  });
+
+  it("routes Traditional Chinese output to the configured local model", () => {
+    const result = resolveModelSelection({
+      config: {
+        localRouting: {
+          enabled: true,
+          traditionalChineseModel: "openai/qwen3-local",
+          fallbackModel: "llama-local",
+        },
+      },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: "auto",
+      outputLanguage: parseOutputLanguage("Traditional Chinese"),
+    });
+
+    expect(result.requestedModelInput).toBe("openai/qwen3-local");
+    expect(result.requestedModelLabel).toBe("openai/qwen3-local");
+    expect(result.requestedModel.kind).toBe("fixed");
+    if (result.requestedModel.kind === "fixed") {
+      expect(result.requestedModel.userModelId).toBe("openai/qwen3-local");
+    }
+  });
+
+  it("routes bilingual output to the configured local model", () => {
+    const result = resolveModelSelection({
+      config: {
+        localRouting: {
+          enabled: true,
+          bilingualModel: "qwen3-bilingual-local",
+          fallbackModel: "llama-local",
+        },
+      },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("en+zh-TW bilingual"),
+    });
+
+    expect(result.requestedModelInput).toBe("openai/qwen3-bilingual-local");
+    expect(result.requestedModel.kind).toBe("fixed");
+    if (result.requestedModel.kind === "fixed") {
+      expect(result.requestedModel.userModelId).toBe("openai/qwen3-bilingual-local");
+    }
+  });
+
+  it("uses the fallback local model for auto or unknown output language", () => {
+    const result = resolveModelSelection({
+      config: {
+        localRouting: {
+          enabled: true,
+          fallbackModel: "llama-local",
+        },
+      },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("auto"),
+    });
+
+    expect(result.requestedModelInput).toBe("openai/llama-local");
+    expect(result.requestedModel.kind).toBe("fixed");
+    if (result.requestedModel.kind === "fixed") {
+      expect(result.requestedModel.userModelId).toBe("openai/llama-local");
+    }
+  });
+
+  it("uses default local routing models when a bucket model is not configured", () => {
+    const english = resolveModelSelection({
+      config: { localRouting: { enabled: true } },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("English"),
+    });
+    const traditionalChinese = resolveModelSelection({
+      config: { localRouting: { enabled: true } },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("zh-Hant"),
+    });
+
+    expect(english.requestedModelInput.toLowerCase()).toContain("gemma");
+    expect(traditionalChinese.requestedModelInput.toLowerCase()).toContain("qwen");
+  });
+
+  it("does not override explicit fixed models with local routing", () => {
+    const explicit = resolveModelSelection({
+      config: {
+        localRouting: {
+          enabled: true,
+          englishModel: "gemma-local",
+        },
+      },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: "openai/gpt-5.2",
+      outputLanguage: parseOutputLanguage("en"),
+    });
+
+    expect(explicit.requestedModelInput).toBe("openai/gpt-5.2");
+    expect(explicit.requestedModel.kind).toBe("fixed");
+    if (explicit.requestedModel.kind === "fixed") {
+      expect(explicit.requestedModel.userModelId).toBe("openai/gpt-5.2");
+    }
+  });
+
+  it("does not override env or config fixed model defaults with local routing", () => {
+    const envDefault = resolveModelSelection({
+      config: { localRouting: { enabled: true, englishModel: "gemma-local" } },
+      configForCli: null,
+      configPath: null,
+      envForRun: { SUMMARIZE_MODEL: "openai/gpt-env" },
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("en"),
+    });
+    const configDefault = resolveModelSelection({
+      config: {
+        model: { id: "openai/gpt-config" },
+        localRouting: { enabled: true, englishModel: "gemma-local" },
+      },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("en"),
+    });
+
+    expect(envDefault.requestedModelInput).toBe("openai/gpt-env");
+    expect(configDefault.requestedModelInput).toBe("openai/gpt-config");
+  });
+
+  it("keeps bare --cli auto behavior out of local routing", () => {
+    const result = resolveModelSelection({
+      config: { localRouting: { enabled: true, englishModel: "gemma-local" } },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: "auto",
+      outputLanguage: parseOutputLanguage("en"),
+      allowLanguageAwareLocalRouting: false,
+    });
+
+    expect(result.requestedModel.kind).toBe("auto");
+    expect(result.requestedModelInput).toBe("auto");
   });
 
   it("rejects unknown bare model ids with a config hint", () => {

@@ -201,6 +201,10 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
   const configForCliWithMagic = applyAutoCliFallbackOverrides(configForCli, resolvedOverrides);
   const allowAutoCliFallback = resolvedOverrides.autoCliFallbackEnabled === true;
   const { lengthArg } = resolveSummaryLength(lengthRaw, config?.output?.length ?? "xl");
+  const outputLanguage = resolveOutputLanguageSetting({
+    raw: languageRaw,
+    fallback: outputLanguageFromConfig,
+  });
 
   const {
     requestedModel,
@@ -217,6 +221,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     configPath,
     envForRun,
     explicitModelArg: modelOverride?.trim() ? modelOverride.trim() : null,
+    outputLanguage,
   });
 
   const fixedModelSpec: FixedModelSpec | null =
@@ -273,11 +278,6 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     zai: { apiKey: zaiApiKey, baseUrl: zaiBaseUrl },
     nvidia: { apiKey: nvidiaApiKey, baseUrl: nvidiaBaseUrl },
     providerBaseUrls,
-  });
-
-  const outputLanguage = resolveOutputLanguageSetting({
-    raw: languageRaw,
-    fallback: outputLanguageFromConfig,
   });
 
   const lengthInstruction = promptOverride ? buildPromptLengthInstruction(lengthArg) : null;

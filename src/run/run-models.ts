@@ -1,8 +1,10 @@
 import type { CliProvider, ModelConfig, SummarizeConfig } from "../config.js";
 import { mergeModelRequestOptions } from "../llm/model-options.js";
+import type { OutputLanguage } from "../language.js";
 import type { RequestedModel } from "../model-spec.js";
 import { parseRequestedModelId } from "../model-spec.js";
 import { BUILTIN_MODELS } from "./constants.js";
+import { resolveLanguageAwareLocalModelInput } from "./local-model-routing.js";
 
 function resolveConfiguredCliModel(
   provider: CliProvider,
@@ -74,12 +76,16 @@ export function resolveModelSelection({
   configPath,
   envForRun,
   explicitModelArg,
+  outputLanguage,
+  allowLanguageAwareLocalRouting = true,
 }: {
   config: SummarizeConfig | null;
   configForCli: SummarizeConfig | null;
   configPath: string | null;
   envForRun: Record<string, string | undefined>;
   explicitModelArg: string | null;
+  outputLanguage?: OutputLanguage | null;
+  allowLanguageAwareLocalRouting?: boolean;
 }): ModelSelection {
   const modelMap = (() => {
     const out = new Map<string, { name: string; model: ModelConfig }>();
@@ -121,9 +127,17 @@ export function resolveModelSelection({
   })();
 
   const explicitModelInput = explicitModelArg?.trim() ?? "";
-  const requestedModelInput = (explicitModelInput || defaultModelResolution.value).trim();
-  const requestedModelSource =
-    explicitModelInput.length > 0 ? ("explicit" as const) : defaultModelResolution.source;
+  const baseRequestedModelInput = (explicitModelInput || defaultModelResolution.value).trim();
+  const localRoute =
+    allowLanguageAwareLocalRouting && baseRequestedModelInput.toLowerCase() === "auto"
+      ? resolveLanguageAwareLocalModelInput({ config, outputLanguage })
+      : null;
+  const requestedModelInput = (localRoute?.modelInput ?? baseRequestedModelInput).trim();
+  const requestedModelSource = localRoute
+    ? ("localRouting" as const)
+    : explicitModelInput.length > 0
+      ? ("explicit" as const)
+      : defaultModelResolution.source;
   const requestedModelInputLower = requestedModelInput.toLowerCase();
   const wantsFreeNamedModel = requestedModelInputLower === "free";
 
