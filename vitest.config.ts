@@ -39,6 +39,10 @@ export default defineConfig({
         replacement: resolve(rootDir, "packages/core/src/language.ts"),
       },
       {
+        find: /^@steipete\/summarize-core\/local-runtime$/,
+        replacement: resolve(rootDir, "packages/core/src/local-runtime.ts"),
+      },
+      {
         find: /^@steipete\/summarize-core$/,
         replacement: resolve(rootDir, "packages/core/src/index.ts"),
       },
