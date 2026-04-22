@@ -1,5 +1,6 @@
 import { parseSseEvent, type SseMetaData, type SseSlidesData } from "../../lib/runtime-contracts";
 import { parseSseStream, type SseMessage } from "../../lib/sse";
+import { t } from "./i18n";
 import {
   accumulateChatChunk,
   accumulateSummarizeChunk,
@@ -63,7 +64,7 @@ export function createStreamController(options: StreamControllerOptions): Stream
     mode = "summarize",
     streamingStatusText,
     idleTimeoutMs = 120_000,
-    idleTimeoutMessage = "No response from the daemon for a while. It may have stopped. Click “Try again”.",
+    idleTimeoutMessage = t("noResponseFromDaemon"),
   } = options;
   let controller: AbortController | null = null;
   let activeAbortState: { reason: "manual" | "timeout" | null } | null = null;
@@ -114,7 +115,7 @@ export function createStreamController(options: StreamControllerOptions): Stream
   const start = async (run: RunStart) => {
     const token = (await getToken()).trim();
     if (!token) {
-      onStatus("Setup required (missing token)");
+      onStatus(t("setupRequiredMissingTokenNoPeriod"));
       return;
     }
 
@@ -136,7 +137,7 @@ export function createStreamController(options: StreamControllerOptions): Stream
 
     onBaseTitle?.(run.title || run.url);
     onBaseSubtitle?.("");
-    onStatus("Connecting…");
+    onStatus(t("connecting"));
 
     try {
       const res = await (fetchImpl ?? fetch)(
@@ -147,9 +148,9 @@ export function createStreamController(options: StreamControllerOptions): Stream
         },
       );
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      if (!res.body) throw new Error("Missing stream body");
+      if (!res.body) throw new Error(t("missingStreamBody"));
 
-      onStatus(streamingStatusText ?? (mode === "chat" ? "" : "Summarizing…"));
+      onStatus(streamingStatusText ?? (mode === "chat" ? "" : t("summarizing")));
       onPhaseChange("streaming");
 
       const iterator = parseSseStream(res.body);

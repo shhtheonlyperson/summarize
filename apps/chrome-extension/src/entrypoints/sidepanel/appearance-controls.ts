@@ -1,6 +1,7 @@
 import { defaultSettings } from "../../lib/settings";
 import { applyTheme } from "../../lib/theme";
 import { mountCheckbox } from "../../ui/zag-checkbox";
+import { t } from "./i18n";
 import { mountSidepanelLengthPicker, mountSidepanelPickers } from "./pickers";
 
 export function createAppearanceControls(options: {
@@ -24,7 +25,7 @@ export function createAppearanceControls(options: {
   const updateAutoToggle = () => {
     autoToggle.update({
       id: "sidepanel-auto",
-      label: "Auto summarize",
+      label: t("autoSummarize"),
       checked: autoValue,
       onCheckedChange: (checked) => {
         autoValue = checked;
@@ -77,7 +78,7 @@ export function createAppearanceControls(options: {
 
   const autoToggle = mountCheckbox(options.autoToggleRoot, {
     id: "sidepanel-auto",
-    label: "Auto summarize",
+    label: t("autoSummarize"),
     checked: autoValue,
     onCheckedChange: (checked) => {
       autoValue = checked;
@@ -100,6 +101,21 @@ export function createAppearanceControls(options: {
         onLengthChange: pickerHandlers.onLengthChange,
       });
       return true;
+    },
+    refreshLabels: () => {
+      updateAutoToggle();
+      pickers.update({
+        scheme: pickerSettings.scheme,
+        mode: pickerSettings.mode,
+        fontFamily: pickerSettings.fontFamily,
+        onSchemeChange: pickerHandlers.onSchemeChange,
+        onModeChange: pickerHandlers.onModeChange,
+        onFontChange: pickerHandlers.onFontChange,
+      });
+      lengthPicker.update({
+        length: pickerSettings.length,
+        onLengthChange: pickerHandlers.onLengthChange,
+      });
     },
     initializeFromSettings: (settings: {
       autoSummarize: boolean;

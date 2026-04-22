@@ -1,4 +1,5 @@
 import { coerceSummaryWithSlides } from "../../lib/slides-text";
+import { t } from "./i18n";
 import { resolveSlidesLengthArg } from "./slides-state";
 import { createStreamController } from "./stream-controller";
 import type { PanelState, RunStart, UiState } from "./types";
@@ -112,7 +113,7 @@ export function createSlidesSummaryController(options: SlidesSummaryControllerOp
       onStatus: () => {},
       onPhaseChange: () => {},
       idleTimeoutMs: 600_000,
-      idleTimeoutMessage: "Slides summary stalled. The daemon may have stopped.",
+      idleTimeoutMessage: t("slidesSummaryStalled"),
       onMeta: (meta) => {
         if (!isCurrentGeneration(generation)) return;
         if (typeof meta.model === "string") {
@@ -143,7 +144,7 @@ export function createSlidesSummaryController(options: SlidesSummaryControllerOp
       onError: (error) => {
         if (!isCurrentGeneration(generation)) return "";
         state.hadError = true;
-        return options.friendlyFetchError(error, "Slides summary failed");
+        return options.friendlyFetchError(error, t("slidesSummaryFailed"));
       },
       onDone: () => {
         if (!isCurrentGeneration(generation)) return;

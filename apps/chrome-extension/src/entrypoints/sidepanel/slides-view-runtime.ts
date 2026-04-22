@@ -1,6 +1,7 @@
 import type MarkdownIt from "markdown-it";
 import type { SseSlidesData } from "../../lib/runtime-contracts";
 import type { SlidesLayout } from "../../lib/settings";
+import { formatSlideLabel } from "./i18n";
 import { createSlideImageLoader, normalizeSlideImageUrl } from "./slide-images";
 import { resolveSlidesPayload, slidesPayloadChanged } from "./slides-payload";
 import { createSlidesRenderer } from "./slides-renderer";
@@ -134,7 +135,7 @@ export function createSlidesViewRuntime({
   ) => {
     const formatted = formatSlideTimestamp(timestamp);
     const totalCount = typeof total === "number" && total > 0 ? total : null;
-    const slideLabel = totalCount ? `Slide ${index}/${totalCount}` : `Slide ${index}`;
+    const slideLabel = formatSlideLabel(index, totalCount);
     if (title) {
       el.textContent = formatted ? `${title} · ${formatted}` : title;
       return;

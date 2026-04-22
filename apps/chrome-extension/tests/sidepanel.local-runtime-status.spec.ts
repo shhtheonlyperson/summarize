@@ -78,12 +78,12 @@ test("sidepanel renders local-only runtime and selected route", async ({
     const status = page.locator("#localRuntimeStatus");
     await expect(status).toBeVisible();
     await expect(status).toHaveAttribute("data-state", "ok");
-    await expect(page.locator("#localRuntimePrivacy")).toHaveText("Local-only on");
+    await expect(page.locator("#localRuntimePrivacy")).toHaveText("僅限本機");
     await expect(page.locator("#localRuntimeRoute")).toHaveText(
-      "Route: Traditional Chinese -> openai/qwen-local",
+      "路由：繁體中文 -> openai/qwen-local",
     );
     await expect(page.locator("#localRuntimeDetail")).toContainText(
-      "Runtime reachable: OpenAI-compatible at 127.0.0.1:8080.",
+      "執行環境可連線：OpenAI-compatible，位於 127.0.0.1:8080。",
     );
     await expect(status).not.toContainText("sk-");
     assertNoErrors(harness);
@@ -120,10 +120,10 @@ test("sidepanel warns when remote providers are allowed", async ({
     });
 
     await expect(page.locator("#localRuntimeStatus")).toHaveAttribute("data-state", "warn");
-    await expect(page.locator("#localRuntimePrivacy")).toHaveText("Remote allowed");
-    await expect(page.locator("#localRuntimeRoute")).toHaveText("Model: free");
+    await expect(page.locator("#localRuntimePrivacy")).toHaveText("允許遠端");
+    await expect(page.locator("#localRuntimeRoute")).toHaveText("模型：free");
     await expect(page.locator("#localRuntimeDetail")).toContainText(
-      "Enable privacy.localOnly in daemon config",
+      "啟用 privacy.localOnly 以阻擋遠端路由",
     );
     assertNoErrors(harness);
   } finally {
@@ -165,9 +165,9 @@ test("sidepanel shows actionable local runtime setup errors", async ({
     });
 
     await expect(page.locator("#localRuntimeStatus")).toHaveAttribute("data-state", "error");
-    await expect(page.locator("#localRuntimePrivacy")).toHaveText("Local-only on");
+    await expect(page.locator("#localRuntimePrivacy")).toHaveText("僅限本機");
     await expect(page.locator("#localRuntimeDetail")).toContainText(
-      "Start your local model server or set openai.baseUrl to localhost",
+      "啟動本機模型伺服器，或將 openai.baseUrl 設為 localhost",
     );
     assertNoErrors(harness);
   } finally {

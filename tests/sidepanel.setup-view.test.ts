@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { setSidepanelUiLanguage } from "../apps/chrome-extension/src/entrypoints/sidepanel/i18n";
 import { installStepsHtml } from "../apps/chrome-extension/src/entrypoints/sidepanel/setup-view";
 
 describe("sidepanel setup view", () => {
+  beforeEach(() => {
+    setSidepanelUiLanguage("en");
+  });
+
   it("renders the official Homebrew formula for mac setup", () => {
     const html = installStepsHtml({
       token: "token",

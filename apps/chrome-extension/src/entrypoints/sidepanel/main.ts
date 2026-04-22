@@ -32,6 +32,12 @@ import { createChatUiRuntime } from "./chat-ui-runtime";
 import { createSidepanelDom } from "./dom";
 import { createErrorController } from "./error-controller";
 import { createHeaderController } from "./header-controller";
+import {
+  applyStaticSidepanelLocalization,
+  getSidepanelUiLanguage,
+  setSidepanelUiLanguage,
+  t,
+} from "./i18n";
 import { createSidepanelInteractionRuntime } from "./interaction-runtime";
 import { createLocalRuntimeStatusSurface } from "./local-runtime-status";
 import { createMetricsController } from "./metrics-controller";
@@ -126,7 +132,11 @@ const {
   subtitleEl,
   summarizeControlRoot,
   titleEl,
+  uiLanguageEl,
 } = createSidepanelDom();
+
+setSidepanelUiLanguage(defaultSettings.uiLanguage);
+applyStaticSidepanelLocalization();
 
 const metricsController = createMetricsController({
   metricsEl,
@@ -363,7 +373,7 @@ function attachSummaryRun(run: RunStart) {
   panelState.slidesRunId = slidesState.slidesParallel ? null : run.id;
   panelState.currentSource = { url: run.url, title: run.title };
   currentRunTabId = activeTabId;
-  headerController.setBaseTitle(run.title || run.url || "Summarize");
+  headerController.setBaseTitle(run.title || run.url || t("appTitle"));
   headerController.setBaseSubtitle("");
   {
     const fallbackModel = panelState.ui?.settings.model ?? null;
@@ -408,7 +418,7 @@ function showAutomationNotice({
   automationNoticeSticky = Boolean(sticky);
   automationNoticeTitleEl.textContent = title;
   automationNoticeMessageEl.textContent = message;
-  automationNoticeActionBtn.textContent = ctaLabel || "Open extension details";
+  automationNoticeActionBtn.textContent = ctaLabel || t("openExtensionDetails");
   automationNoticeActionBtn.onclick = () => {
     if (ctaAction === "options") {
       void chrome.runtime.openOptionsPage();
@@ -430,7 +440,7 @@ window.addEventListener("summarize:automation-permissions", (event) => {
   ).detail;
   if (!detail?.message) return;
   showAutomationNotice({
-    title: detail.title ?? "Automation permission required",
+    title: detail.title ?? t("automationPermissionRequired"),
     message: detail.message,
     ctaLabel: detail.ctaLabel,
     ctaAction: detail.ctaAction,
@@ -597,7 +607,7 @@ const setPhase = (phase: PanelPhase, opts?: { error?: string | null }) => {
     const message =
       panelState.error && panelState.error.trim().length > 0
         ? panelState.error
-        : "Something went wrong.";
+        : t("somethingWentWrong");
     errorController.showPanelError(message);
     setSlidesBusy(false);
   } else {
@@ -918,7 +928,7 @@ registerSidepanelTestHooks({
     panelState.slidesRunId = slidesState.slidesParallel ? null : payload.run.id;
     panelState.currentSource = { url: payload.run.url, title: payload.run.title };
     currentRunTabId = activeTabId;
-    headerController.setBaseTitle(payload.run.title || payload.run.url || "Summarize");
+    headerController.setBaseTitle(payload.run.title || payload.run.url || t("appTitle"));
     headerController.setBaseSubtitle("");
     renderMarkdown(payload.markdown);
     setPhase("idle");
@@ -1052,6 +1062,7 @@ const {
   drawerControls,
   isRefreshFreeRunning,
   maybeShowSetup,
+  localizeDefaultModelPresets,
   readCurrentModelValue,
   refreshModelsIfStale,
   runRefreshFree,
@@ -1060,6 +1071,35 @@ const {
   setModelValue,
   updateModelRowUI,
 } = setupControlsRuntime;
+
+function applyUiLanguage(value: string) {
+  const wasDefaultTitle = (titleEl.textContent ?? "").trim() === t("appTitle");
+  setSidepanelUiLanguage(value);
+  uiLanguageEl.value = getSidepanelUiLanguage();
+  applyStaticSidepanelLocalization();
+  appearanceControls.refreshLabels();
+  localizeDefaultModelPresets();
+  setModelPlaceholderFromDiscovery({});
+  summarizeControlRuntime?.refreshSummarizeControl();
+  localRuntimeStatusSurface.render(panelState.ui);
+  if (wasDefaultTitle) {
+    headerController.setBaseTitle(t("appTitle"));
+  }
+  renderMarkdownDisplay();
+  if (panelState.ui && !setupEl.classList.contains("hidden")) {
+    maybeShowSetup(panelState.ui);
+  }
+  queueSlidesRender();
+  headerController.updateHeaderOffset();
+}
+
+uiLanguageEl.addEventListener("change", () => {
+  void (async () => {
+    const uiLanguage = setSidepanelUiLanguage(uiLanguageEl.value);
+    const nextSettings = await patchSettings({ uiLanguage });
+    applyUiLanguage(nextSettings.uiLanguage);
+  })();
+});
 
 const slidesRuntime = createSidepanelSlidesRuntime({
   applySlidesPayload,
@@ -1664,6 +1704,7 @@ bootstrapSidepanel({
   setSettingsHydrated: (value) => {
     settingsHydrated = value;
   },
+  applyUiLanguage,
   typographyController,
   setAutoValue: (value) => {
     autoValue = value;
@@ -1718,6 +1759,7 @@ bootstrapSidepanel({
     setAutomationEnabledValue: (value) => {
       automationEnabledValue = value;
     },
+    applyUiLanguage,
   },
   bindSidepanelLifecycle: {
     sendReady: () => {

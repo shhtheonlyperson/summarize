@@ -205,10 +205,10 @@ test("sidepanel extracts slides from local video via daemon", async ({
     await summarizeButton.focus();
     await summarizeButton.press("ArrowDown");
     const pickerList = getOpenPickerList(page);
-    await expect(pickerList.getByText("Video + Slides", { exact: true })).toBeVisible({
+    await expect(pickerList.getByText("影片 + 投影片", { exact: true })).toBeVisible({
       timeout: 15_000,
     });
-    await pickerList.getByText("Video + Slides", { exact: true }).click();
+    await pickerList.getByText("影片 + 投影片", { exact: true }).click();
     await expect
       .poll(async () => {
         const settings = await getSettings(harness);

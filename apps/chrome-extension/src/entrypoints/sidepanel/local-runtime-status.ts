@@ -4,10 +4,17 @@ import type {
   LocalRuntimeStatusProbe,
   UiState,
 } from "../../lib/panel-contracts";
+import {
+  formatModelLabel,
+  formatRouteLabel,
+  formatRuntimeAt,
+  formatRuntimeReachable,
+  t,
+} from "./i18n";
 
 type LocalRuntimeTone = "ok" | "warn" | "error" | "neutral";
 
-type LocalRuntimeStatusView = {
+export type LocalRuntimeStatusView = {
   tone: LocalRuntimeTone;
   privacy: string;
   route: string;
@@ -28,10 +35,10 @@ function trimText(value: unknown): string {
 }
 
 function formatBucket(bucket: string): string {
-  if (bucket === "traditionalChinese") return "Traditional Chinese";
-  if (bucket === "bilingual") return "Bilingual";
-  if (bucket === "english") return "English";
-  return "Fallback";
+  if (bucket === "traditionalChinese") return t("bucketTraditionalChinese");
+  if (bucket === "bilingual") return t("bucketBilingual");
+  if (bucket === "english") return t("bucketEnglish");
+  return t("bucketFallback");
 }
 
 function selectedModelInput(status: LocalRuntimeStatusPayload, state: UiState): string {
@@ -45,17 +52,18 @@ function selectedModelInput(status: LocalRuntimeStatusPayload, state: UiState): 
 
 function routeLabel(status: LocalRuntimeStatusPayload, state: UiState): string {
   if (status.modelHints.selected) {
-    return `Route: ${formatBucket(status.modelHints.selected.bucket)} -> ${
-      status.modelHints.selected.modelInput
-    }`;
+    return formatRouteLabel(
+      formatBucket(status.modelHints.selected.bucket),
+      status.modelHints.selected.modelInput,
+    );
   }
 
   const explicitModel = trimText(state.settings.model) || "auto";
   const configured = trimText(status.modelHints.configuredModel.input);
   if (explicitModel === "auto" && configured && configured !== "auto") {
-    return `Model: auto -> ${configured}`;
+    return formatModelLabel(`auto -> ${configured}`);
   }
-  return `Model: ${explicitModel}`;
+  return formatModelLabel(explicitModel);
 }
 
 function selectProbe(status: LocalRuntimeStatusPayload): LocalRuntimeStatusProbe | null {
@@ -72,24 +80,25 @@ function selectProbe(status: LocalRuntimeStatusPayload): LocalRuntimeStatusProbe
 }
 
 function runtimeLabel(probe: LocalRuntimeStatusProbe | null): string {
-  if (!probe) return "local runtime";
-  const label = trimText(probe.runtimeLabel) || trimText(probe.runtimeType) || "local runtime";
+  if (!probe) return t("localRuntimeGeneric");
+  const label =
+    trimText(probe.runtimeLabel) || trimText(probe.runtimeType) || t("localRuntimeGeneric");
   const host = trimText(probe.endpointHost);
-  return host ? `${label} at ${host}` : label;
+  return host ? formatRuntimeAt(label, host) : label;
 }
 
 function probeAction(errorCode: string | null): string {
   if (errorCode === "invalid-runtime") {
-    return "Check openai.baseUrl; use a localhost http URL without credentials, query, or fragment.";
+    return t("invalidRuntimeAction");
   }
   if (errorCode === "timeout") {
-    return "Start your local model server, then run summarize local-runtime probe.";
+    return t("timeoutRuntimeAction");
   }
-  return "Start your local model server or set openai.baseUrl to localhost, then restart the daemon.";
+  return t("runtimeSetupAction");
 }
 
 function probeFailureDetail(probe: LocalRuntimeStatusProbe | null): string {
-  const message = trimText(probe?.error?.message) || "Local runtime is not reachable.";
+  const message = trimText(probe?.error?.message) || t("runtimeUnreachable");
   const action = probeAction(trimText(probe?.error?.code) || null);
   return `${message} ${action}`;
 }
@@ -105,35 +114,35 @@ function isConfirmedLocalModel(status: LocalRuntimeStatusPayload, modelInput: st
   );
 }
 
-function buildView(
+export function buildLocalRuntimeStatusView(
   state: UiState | null,
   localRuntimeOverride?: LocalRuntimeStatus | null,
 ): LocalRuntimeStatusView {
   if (!state) {
     return {
       tone: "neutral",
-      privacy: "Checking local privacy",
-      route: "Model: auto",
-      detail: "Waiting for daemon status.",
+      privacy: t("checkingLocalPrivacy"),
+      route: t("modelAuto"),
+      detail: t("waitingDaemonStatus"),
     };
   }
 
-  const fallbackRoute = `Model: ${trimText(state.settings.model) || "auto"}`;
+  const fallbackRoute = formatModelLabel(trimText(state.settings.model) || "auto");
   if (!state.settings.tokenPresent) {
     return {
       tone: "warn",
-      privacy: "Setup needed",
+      privacy: t("setupNeeded"),
       route: fallbackRoute,
-      detail: "Add the daemon token to check local runtime privacy.",
+      detail: t("addDaemonToken"),
     };
   }
 
   if (!state.daemon.ok || !state.daemon.authed) {
     return {
       tone: "warn",
-      privacy: "Daemon offline",
+      privacy: t("daemonOffline"),
       route: fallbackRoute,
-      detail: state.daemon.error || "Run summarize daemon status, then restart the daemon.",
+      detail: state.daemon.error || t("runDaemonStatus"),
     };
   }
 
@@ -141,16 +150,16 @@ function buildView(
   if (!status) {
     return {
       tone: "neutral",
-      privacy: "Checking local privacy",
+      privacy: t("checkingLocalPrivacy"),
       route: fallbackRoute,
-      detail: "Waiting for local runtime status.",
+      detail: t("waitingLocalRuntimeStatus"),
     };
   }
 
   if (!status.ok) {
     return {
       tone: "warn",
-      privacy: "Local status unavailable",
+      privacy: t("localStatusUnavailable"),
       route: fallbackRoute,
       detail: status.error,
     };
@@ -161,13 +170,13 @@ function buildView(
   const route = routeLabel(status, state);
   const modelInput = selectedModelInput(status, state);
   const runtimeDetail = reachable
-    ? `Runtime reachable: ${runtimeLabel(probe)}.`
+    ? formatRuntimeReachable(runtimeLabel(probe))
     : probeFailureDetail(probe);
 
   if (status.localOnly.enabled) {
     return {
       tone: reachable ? "ok" : "error",
-      privacy: "Local-only on",
+      privacy: t("localOnlyOn"),
       route,
       detail: runtimeDetail,
     };
@@ -176,7 +185,7 @@ function buildView(
   if (isConfirmedLocalModel(status, modelInput)) {
     return {
       tone: reachable ? "ok" : "warn",
-      privacy: "Local runtime",
+      privacy: t("localRuntime"),
       route,
       detail: runtimeDetail,
     };
@@ -185,11 +194,9 @@ function buildView(
   const warning = status.warnings.find((entry) => entry.trim().length > 0);
   return {
     tone: "warn",
-    privacy: "Remote allowed",
+    privacy: t("remoteAllowed"),
     route,
-    detail:
-      warning ??
-      "Cloud providers may be used. Enable privacy.localOnly in daemon config to block remote routes.",
+    detail: warning ?? t("remoteAllowedDetail"),
   };
 }
 
@@ -198,7 +205,7 @@ export function createLocalRuntimeStatusSurface(options: LocalRuntimeStatusSurfa
 
   const render = (state: UiState | null) => {
     lastState = state;
-    const view = buildView(state);
+    const view = buildLocalRuntimeStatusView(state);
     options.rootEl.dataset.state = view.tone;
     options.privacyEl.textContent = view.privacy;
     options.routeEl.textContent = view.route;

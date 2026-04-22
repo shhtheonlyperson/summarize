@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 type ErrorControllerOptions = {
   panelEl: HTMLElement;
   panelMessageEl: HTMLElement;
@@ -28,7 +30,7 @@ const hasMeaningfulMessage = (message: string) =>
 
 const normalizeMessage = (message: string) => {
   const trimmed = stripInvisible(message).trim();
-  return trimmed.length > 0 ? trimmed : "Something went wrong.";
+  return trimmed.length > 0 ? trimmed : t("somethingWentWrong");
 };
 
 export const createErrorController = (options: ErrorControllerOptions): ErrorController => {

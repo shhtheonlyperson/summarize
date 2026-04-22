@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { setSidepanelUiLanguage } from "../apps/chrome-extension/src/entrypoints/sidepanel/i18n.js";
 import { buildSummaryEmptyState } from "../apps/chrome-extension/src/entrypoints/sidepanel/summary-empty-state.js";
 
 describe("sidepanel summary empty state", () => {
+  beforeEach(() => {
+    setSidepanelUiLanguage("en");
+  });
+
   it("shows a ready state for manual summarize", () => {
     expect(
       buildSummaryEmptyState({
@@ -60,5 +65,23 @@ describe("sidepanel summary empty state", () => {
         hasSlides: true,
       }),
     ).toBeNull();
+  });
+
+  it("localizes the ready state in Traditional Chinese", () => {
+    setSidepanelUiLanguage("zh-tw");
+
+    expect(
+      buildSummaryEmptyState({
+        tabTitle: "範例頁面",
+        tabUrl: "https://example.com",
+        autoSummarize: false,
+        phase: "idle",
+        hasSlides: false,
+      }),
+    ).toEqual({
+      label: "就緒",
+      message: "點按「摘要」開始。",
+      detail: "範例頁面",
+    });
   });
 });
