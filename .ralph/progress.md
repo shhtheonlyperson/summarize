@@ -530,3 +530,51 @@ Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-ite
     `.ralph/.tmp/story-20260422-085058-72504-6.md`, `.ralph/runs/run-20260422-085058-72504-iter-5.md`, and
     `.ralph/runs/run-20260422-085058-72504-iter-6.log`.
 ---
+
+## 2026-04-22 10:45:01 PDT - LLR-012: Add Local Research Memory Schema Skeleton
+Thread:
+Run: 20260422-085058-72504 (iteration 12)
+Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-12.log
+Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-12.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 357525dc feat: add research memory schema
+- Post-commit status: clean after follow-up progress/log commit
+- Verification:
+  - Command: `pnpm -s test tests/research-memory.schema.test.ts` -> PASS
+  - Command: `pnpm -s typecheck` -> PASS
+  - Command: `pnpm -s build` -> PASS
+  - Command: `tmpdir=$(mktemp -d); sqlite3 "$tmpdir/research-memory.sqlite" < src/research-memory/migrations/001_initial.sql && sqlite3 "$tmpdir/research-memory.sqlite" ".tables"; rm -rf "$tmpdir"` -> PASS
+  - Command: `pnpm -s check` -> PASS
+  - Command: `git diff --check -- docs/README.md docs/index.md docs/local-research-memory.md src/research-memory/schema.ts src/research-memory/migrations/001_initial.sql tests/research-memory.schema.test.ts` -> PASS
+- Files changed:
+  - docs/README.md
+  - docs/index.md
+  - docs/local-research-memory.md
+  - src/research-memory/migrations/001_initial.sql
+  - src/research-memory/schema.ts
+  - tests/research-memory.schema.test.ts
+  - .agents/tasks/prd.json
+  - .ralph/.tmp/prompt-20260422-085058-72504-12.md
+  - .ralph/.tmp/story-20260422-085058-72504-12.json
+  - .ralph/.tmp/story-20260422-085058-72504-12.md
+  - .ralph/activity.log
+  - .ralph/errors.log
+  - .ralph/progress.md
+  - .ralph/runs/run-20260422-085058-72504-iter-11.log
+  - .ralph/runs/run-20260422-085058-72504-iter-11.md
+  - .ralph/runs/run-20260422-085058-72504-iter-12.log
+  - .ralph/runs/run-20260422-085058-72504-iter-12.md
+- What was implemented
+  Added the initial local research memory SQLite migration for settings, runs, sources, artifacts, events, and model
+  route metadata. Added a typed schema manifest with required table, column, index, version, and default path metadata;
+  deterministic static tests that validate the migration text without opening a database; and docs for initializing the
+  local store and artifact directory.
+- **Learnings for future iterations:**
+  - Patterns discovered: keep durable memory schema under `src/research-memory/` with versioned SQL migrations and a
+    small TypeScript manifest for tests and future runtime wiring.
+  - Gotchas encountered: default tests should parse the migration statically; use an explicit sqlite3 smoke command only
+    as manual verification so the normal test suite remains deterministic.
+  - Useful context: the migration sets WAL, normal sync, busy timeout, and foreign keys before creating tables, matching
+    the existing cache's local SQLite posture without enabling runtime writes yet.
+---

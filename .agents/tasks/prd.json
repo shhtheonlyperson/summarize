@@ -208,7 +208,7 @@
     {
       "id": "LLR-011",
       "title": "Add Local Research Memory Design",
-      "status": "in_progress",
+      "status": "done",
       "dependsOn": [
         "LLR-001"
       ],
@@ -221,13 +221,13 @@
         "Do not implement the database in this story."
       ],
       "startedAt": "2026-04-22T17:34:28.015921+00:00",
-      "completedAt": null,
-      "updatedAt": "2026-04-22T17:34:28.016055+00:00"
+      "completedAt": "2026-04-22T17:39:36.955752+00:00",
+      "updatedAt": "2026-04-22T17:39:36.955621+00:00"
     },
     {
       "id": "LLR-012",
       "title": "Add Local Research Memory Schema Skeleton",
-      "status": "open",
+      "status": "in_progress",
       "dependsOn": [
         "LLR-011"
       ],
@@ -238,7 +238,10 @@
         "Add static schema tests that validate required entities and indexes.",
         "Document how to initialize the local research memory store.",
         "Run targeted tests plus pnpm -s typecheck."
-      ]
+      ],
+      "startedAt": "2026-04-22T17:39:39.024993+00:00",
+      "completedAt": null,
+      "updatedAt": "2026-04-22T17:39:39.025120+00:00"
     }
   ]
 }
