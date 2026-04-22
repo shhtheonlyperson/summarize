@@ -14,6 +14,7 @@ summary: "Docs index for summarize behaviors and modes."
 - [Local LLM onboarding](local-llm-onboarding.md)
 - [Local-first roadmap](local-first-roadmap.md)
 - [Local model capabilities audit](local-model-capabilities-audit.md)
+- [Local research memory](local-research-memory.md)
 - [Local research memory design](local-research-memory-design.md)
 - [LLM](llm.md)
 - [Manual tests](manual-tests.md)
