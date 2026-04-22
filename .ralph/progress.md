@@ -6,6 +6,46 @@ Started: Wed Apr 22 08:50:58 PDT 2026
 
 ---
 
+## 2026-04-22 10:38:51 PDT - LLR-011: Add Local Research Memory Design
+Thread:
+Run: 20260422-085058-72504 (iteration 11)
+Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-11.log
+Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-11.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 5efdca97 docs: add local research memory design
+- Post-commit status: clean after follow-up progress/log commit
+- Verification:
+  - Command: `pnpm -s docs:list` -> PASS
+  - Command: `git diff --check -- docs/README.md docs/index.md docs/local-first-roadmap.md docs/local-research-memory-design.md` -> PASS
+  - Command: `pnpm -s typecheck` -> PASS
+  - Command: `pnpm -s build` -> PASS
+  - Command: `pnpm -s check` -> FAIL (Markdown formatting issue in new design doc; fixed with `pnpm exec oxfmt --write docs/local-research-memory-design.md`)
+  - Command: `pnpm -s check` -> PASS
+- Files changed:
+  - docs/local-research-memory-design.md
+  - docs/README.md
+  - docs/index.md
+  - docs/local-first-roadmap.md
+  - .ralph/activity.log
+  - .ralph/progress.md
+  - .ralph/runs/run-20260422-085058-72504-iter-11.md
+- What was implemented
+  Added a design-only local research memory document that chooses a dedicated SQLite metadata store plus local artifact
+  files, compares Postgres, SQLite, and existing cache/session storage for this fork's local-first goals, defines initial
+  entities for runs, sources, artifacts, prompts, events, model route metadata, privacy mode metadata, and failures, and
+  states which data must never leave localhost in local-only mode. Linked the design from the docs indexes and the
+  roadmap Stage 6 note. No database, migration, or runtime storage code was implemented.
+- **Learnings for future iterations:**
+  - Patterns discovered: the existing cache is a TTL/size-bounded SQLite `cache_entries` store, daemon sessions are
+    short-lived in-memory SSE buffers, and extension automation artifacts prefer `chrome.storage.session`; none of them
+    fit durable run history.
+  - Gotchas encountered: `pnpm -s check` formats Markdown tables through `oxfmt`, so run the formatter after adding
+    long comparison tables.
+  - Useful context: `/Users/shh/proj/summarize/ralph` and `committer` are unavailable in this checkout; use
+    `.agents/ralph/log-activity.sh` and conventional `git commit` when needed.
+---
+
 ## 2026-04-22 10:32:38 PDT - LLR-010: Add Mac-First Local LLM Onboarding
 Thread:
 Run: 20260422-085058-72504 (iteration 10)

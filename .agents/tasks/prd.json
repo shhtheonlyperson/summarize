@@ -187,7 +187,7 @@
     {
       "id": "LLR-010",
       "title": "Add Mac-First Local LLM Onboarding",
-      "status": "in_progress",
+      "status": "done",
       "dependsOn": [
         "LLR-005",
         "LLR-009"
@@ -202,13 +202,13 @@
         "Run documentation-safe verification and typecheck if no runtime files changed."
       ],
       "startedAt": "2026-04-22T17:23:17.357634+00:00",
-      "completedAt": null,
-      "updatedAt": "2026-04-22T17:23:17.357781+00:00"
+      "completedAt": "2026-04-22T17:34:25.946098+00:00",
+      "updatedAt": "2026-04-22T17:34:25.945974+00:00"
     },
     {
       "id": "LLR-011",
       "title": "Add Local Research Memory Design",
-      "status": "open",
+      "status": "in_progress",
       "dependsOn": [
         "LLR-001"
       ],
@@ -219,7 +219,10 @@
         "Define initial entities for runs, sources, artifacts, events, model route metadata, and privacy mode metadata.",
         "State which data must never leave localhost in local-only mode.",
         "Do not implement the database in this story."
-      ]
+      ],
+      "startedAt": "2026-04-22T17:34:28.015921+00:00",
+      "completedAt": null,
+      "updatedAt": "2026-04-22T17:34:28.016055+00:00"
     },
     {
       "id": "LLR-012",
