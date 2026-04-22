@@ -33069,3 +33069,1428 @@ index ab19dbbe2eed47da0bbdd3fa16b113d962131829..ddd01484696184bd5442c111c78c0f1f
 
 codex
 I’m committing the progress/activity artifacts now. This repository’s Ralph run log is live during tool execution, so I’m capturing status and HEAD in the same command, matching the prior iteration pattern as closely as possible.
+exec
+/bin/zsh -lc 'git add -A && git commit -m "chore: record LLR-006 progress" && git status --porcelain=v1 && git show -s --format="%h %s" HEAD' in /Users/shh/proj/summarize succeeded in 0ms:
+[main 6fdfc50b] chore: record LLR-006 progress
+ 10 files changed, 34980 insertions(+), 5 deletions(-)
+ create mode 100644 .ralph/.tmp/prompt-20260422-085058-72504-6.md
+ create mode 100644 .ralph/.tmp/story-20260422-085058-72504-6.json
+ create mode 100644 .ralph/.tmp/story-20260422-085058-72504-6.md
+ create mode 100644 .ralph/runs/run-20260422-085058-72504-iter-5.md
+ create mode 100644 .ralph/runs/run-20260422-085058-72504-iter-6.log
+6fdfc50b chore: record LLR-006 progress
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 02428463ce53cf2c919b18b82b29618dc56409a4..05edc8c3357c85805573597ae61bf258b03d0f4b
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -227,3 +227,52 @@
+   - Useful context: `pnpm -s test -- tests/local-runtime.test.ts` invokes the repository test script and currently runs
+     the full suite; `pnpm exec vitest run tests/local-runtime.test.ts` is the precise single-file test path.
+ ---
++
++## 2026-04-22 09:39:46 PDT - LLR-006: Add Language-Aware Local Model Routing
++Thread:
++Run: 20260422-085058-72504 (iteration 6)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-6.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-6.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: b4ce4f01 feat: add language-aware local routing
++- Post-commit status: dirty with pre-existing/generated Ralph and PRD files listed in this entry
++- Verification:
++  - Command: `pnpm -s test -- tests/run.models.test.ts tests/config.test.ts` -> PASS
++  - Command: `pnpm exec vitest run tests/run.models.test.ts tests/config.test.ts` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++  - Command: `git diff --check -- src/config.ts src/config/sections.ts src/config/types.ts src/daemon/flow-context.ts src/run/local-model-routing.ts src/run/run-models.ts src/run/runner-plan.ts tests/config.test.ts tests/run.models.test.ts` -> PASS
++  - Command: `git diff --check` -> FAIL (pre-existing trailing whitespace in `.ralph/runs/run-20260422-085058-72504-iter-5.log`)
++- Files changed:
++  - src/config.ts
++  - src/config/sections.ts
++  - src/config/types.ts
++  - src/daemon/flow-context.ts
++  - src/run/local-model-routing.ts
++  - src/run/run-models.ts
++  - src/run/runner-plan.ts
++  - tests/config.test.ts
++  - tests/run.models.test.ts
++  - .ralph/activity.log
++  - .ralph/progress.md
++- What was implemented
++  Added `localRouting` config with `enabled`, `englishModel`, `traditionalChineseModel`, `bilingualModel`, and
++  `fallbackModel`. Model selection now applies language-aware local routing only when the effective requested model is
++  `auto`, including daemon summary requests, and leaves fixed CLI args, env defaults, config defaults, and bare `--cli`
++  auto behavior unchanged. Default enabled routing prefers a Gemma local model for English, Qwen for Traditional Chinese
++  and bilingual output, and Llama as the fallback. Tests cover config parsing, bucket choices, default profile choices,
++  bare local model normalization to OpenAI-compatible ids, and explicit-model precedence.
++- **Learnings for future iterations:**
++  - Patterns discovered: CLI and daemon summary runs both converge on `resolveModelSelection`; pass resolved
++    `OutputLanguage` there to keep routing behavior shared.
++  - Gotchas encountered: do not run `pnpm -s typecheck` concurrently with `pnpm -s build`; build cleans `packages/core`
++    declaration output while root typecheck resolves workspace package subpaths.
++  - Useful context: `/Users/shh/proj/summarize/ralph` and `committer` are unavailable in this checkout; use
++    `.agents/ralph/log-activity.sh` and conventional `git commit`. Remaining dirty files seen during this run were
++    `.agents/tasks/prd.json`, `.ralph/errors.log`, `.ralph/runs/run-20260422-085058-72504-iter-5.log`,
++    `.ralph/.tmp/prompt-20260422-085058-72504-6.md`, `.ralph/.tmp/story-20260422-085058-72504-6.json`,
++    `.ralph/.tmp/story-20260422-085058-72504-6.md`, `.ralph/runs/run-20260422-085058-72504-iter-5.md`, and
++    `.ralph/runs/run-20260422-085058-72504-iter-6.log`.
++---
+diff --git a/src/config.ts b/src/config.ts
+index 93bc883d85c70da7aa55cbcb93be3959047319e9..4fde123a753a1cdfbfb9829f923d40bd6af87479
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -6,6 +6,7 @@
+   parseCliConfig,
+   parseEnvConfig,
+   parseLoggingConfig,
++  parseLocalModelRoutingConfig,
+   parseMediaConfig,
+   parseOpenAiConfig,
+   parseOutputConfig,
+@@ -30,6 +31,7 @@
+   LoggingConfig,
+   LoggingFormat,
+   LoggingLevel,
++  LocalModelRoutingConfig,
+   MediaCacheConfig,
+   MediaCacheVerifyMode,
+   ModelConfig,
+@@ -88,6 +90,7 @@
+   const output = parseOutputConfig(parsed, path);
+   const ui = parseUiConfig(parsed, path);
+   const logging = parseLoggingConfig(parsed, path);
++  const localRouting = parseLocalModelRoutingConfig(parsed, path);
+   const openai = parseOpenAiConfig(parsed, path);
+ 
+   const nvidia = parseProviderBaseUrlConfig(
+@@ -121,6 +124,7 @@
+       ...(google ? { google } : {}),
+       ...(xai ? { xai } : {}),
+       ...(zai ? { zai } : {}),
++      ...(localRouting ? { localRouting } : {}),
+       ...(logging ? { logging } : {}),
+       ...(configEnv ? { env: configEnv } : {}),
+       ...(apiKeys ? { apiKeys } : {}),
+diff --git a/src/config/sections.ts b/src/config/sections.ts
+index c52d2221c96089693017f6f3700180cc6a42e145..8ec43a449f878b62e48196a74a4f6ea7fa53b913
+--- a/src/config/sections.ts
++++ b/src/config/sections.ts
+@@ -15,6 +15,7 @@
+   CliProvider,
+   CliProviderConfig,
+   EnvConfig,
++  LocalModelRoutingConfig,
+   LoggingConfig,
+   MediaCacheConfig,
+   MediaCacheVerifyMode,
+@@ -22,6 +23,21 @@
+   VideoMode,
+ } from "./types.js";
+ 
++function parseLocalRoutingModel(raw: unknown, path: string, label: string): string | undefined {
++  if (typeof raw === "undefined") return undefined;
++  if (typeof raw !== "string") {
++    throw new Error(`Invalid config file ${path}: "localRouting.${label}" must be a string.`);
++  }
++  const trimmed = raw.trim();
++  if (!trimmed) {
++    throw new Error(`Invalid config file ${path}: "localRouting.${label}" must not be empty.`);
++  }
++  if (trimmed.toLowerCase() === "auto") {
++    throw new Error(`Invalid config file ${path}: "localRouting.${label}" must not be "auto".`);
++  }
++  return trimmed;
++}
++
+ export function parseProviderBaseUrlConfig(
+   raw: unknown,
+   path: string,
+@@ -474,6 +490,50 @@
+     : undefined;
+ }
+ 
++export function parseLocalModelRoutingConfig(
++  root: Record<string, unknown>,
++  path: string,
++): LocalModelRoutingConfig | undefined {
++  const value = root.localRouting;
++  if (typeof value === "undefined") return undefined;
++  if (!isRecord(value)) {
++    throw new Error(`Invalid config file ${path}: "localRouting" must be an object.`);
++  }
++
++  const enabled =
++    typeof value.enabled === "boolean"
++      ? value.enabled
++      : typeof value.enabled === "undefined"
++        ? undefined
++        : (() => {
++            throw new Error(
++              `Invalid config file ${path}: "localRouting.enabled" must be a boolean.`,
++            );
++          })();
++  const englishModel = parseLocalRoutingModel(value.englishModel, path, "englishModel");
++  const traditionalChineseModel = parseLocalRoutingModel(
++    value.traditionalChineseModel,
++    path,
++    "traditionalChineseModel",
++  );
++  const bilingualModel = parseLocalRoutingModel(value.bilingualModel, path, "bilingualModel");
++  const fallbackModel = parseLocalRoutingModel(value.fallbackModel, path, "fallbackModel");
++
++  return typeof enabled === "boolean" ||
++    englishModel ||
++    traditionalChineseModel ||
++    bilingualModel ||
++    fallbackModel
++    ? {
++        ...(typeof enabled === "boolean" ? { enabled } : {}),
++        ...(englishModel ? { englishModel } : {}),
++        ...(traditionalChineseModel ? { traditionalChineseModel } : {}),
++        ...(bilingualModel ? { bilingualModel } : {}),
++        ...(fallbackModel ? { fallbackModel } : {}),
++      }
++    : undefined;
++}
++
+ export function parseOpenAiConfig(
+   root: Record<string, unknown>,
+   path: string,
+diff --git a/src/config/types.ts b/src/config/types.ts
+index fe78a1f3c680800d470aad09ee65f3f059fcf13c..701fb88326033316376a09c419625607ae44dadf
+--- a/src/config/types.ts
++++ b/src/config/types.ts
+@@ -131,6 +131,29 @@
+   baseUrl?: string;
+ };
+ 
++export type LocalModelRoutingConfig = {
++  /**
++   * Enable language-aware local model routing when the requested model is auto.
++   */
++  enabled?: boolean;
++  /**
++   * Preferred local model for English output.
++   */
++  englishModel?: string;
++  /**
++   * Preferred local model for Traditional Chinese output.
++   */
++  traditionalChineseModel?: string;
++  /**
++   * Preferred local model for bilingual output.
++   */
++  bilingualModel?: string;
++  /**
++   * Local model used when the language bucket is auto, unknown, or missing.
++   */
++  fallbackModel?: string;
++};
++
+ export type AutoRule = {
+   /**
+    * Input kinds this rule applies to.
+@@ -235,6 +258,7 @@
+   google?: GoogleConfig;
+   xai?: XaiConfig;
+   zai?: ZaiConfig;
++  localRouting?: LocalModelRoutingConfig;
+   logging?: LoggingConfig;
+   /**
+    * Generic environment variable defaults.
+diff --git a/src/daemon/flow-context.ts b/src/daemon/flow-context.ts
+index 34f3a9e6e47cc010e1e613c78c553851fd35afc2..a72f94b8d22d03ee41c1f26f9f16c282c5860d6f
+--- a/src/daemon/flow-context.ts
++++ b/src/daemon/flow-context.ts
+@@ -201,6 +201,10 @@
+   const configForCliWithMagic = applyAutoCliFallbackOverrides(configForCli, resolvedOverrides);
+   const allowAutoCliFallback = resolvedOverrides.autoCliFallbackEnabled === true;
+   const { lengthArg } = resolveSummaryLength(lengthRaw, config?.output?.length ?? "xl");
++  const outputLanguage = resolveOutputLanguageSetting({
++    raw: languageRaw,
++    fallback: outputLanguageFromConfig,
++  });
+ 
+   const {
+     requestedModel,
+@@ -217,6 +221,7 @@
+     configPath,
+     envForRun,
+     explicitModelArg: modelOverride?.trim() ? modelOverride.trim() : null,
++    outputLanguage,
+   });
+ 
+   const fixedModelSpec: FixedModelSpec | null =
+@@ -273,11 +278,6 @@
+     zai: { apiKey: zaiApiKey, baseUrl: zaiBaseUrl },
+     nvidia: { apiKey: nvidiaApiKey, baseUrl: nvidiaBaseUrl },
+     providerBaseUrls,
+-  });
+-
+-  const outputLanguage = resolveOutputLanguageSetting({
+-    raw: languageRaw,
+-    fallback: outputLanguageFromConfig,
+   });
+ 
+   const lengthInstruction = promptOverride ? buildPromptLengthInstruction(lengthArg) : null;
+diff --git a/src/run/local-model-routing.ts b/src/run/local-model-routing.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..227eec9fab695672e36e894c4092be808ef88fd3
+--- /dev/null
++++ b/src/run/local-model-routing.ts
+@@ -0,0 +1,119 @@
++import type { LocalModelRoutingConfig, ModelConfig, SummarizeConfig } from "../config.js";
++import type { OutputLanguage } from "../language.js";
++
++export type LocalModelRoutingBucket = "english" | "traditionalChinese" | "bilingual" | "fallback";
++
++export const DEFAULT_LOCAL_MODEL_ROUTING_MODELS = {
++  englishModel: "openai/gemma-3-12b-it",
++  traditionalChineseModel: "openai/qwen3-32b",
++  bilingualModel: "openai/qwen3-32b",
++  fallbackModel: "openai/llama-3.1-8b-instruct",
++} as const satisfies Required<Omit<LocalModelRoutingConfig, "enabled">>;
++
++function normalizeForMatch(value: string): string {
++  return value
++    .trim()
++    .toLowerCase()
++    .replaceAll("_", "-")
++    .replaceAll(/[^a-z0-9\u4e00-\u9fff+-]+/g, "-")
++    .replaceAll(/-+/g, "-")
++    .replaceAll(/^-|-$/g, "");
++}
++
++function isBilingualLanguage(language: OutputLanguage): boolean {
++  if (language.kind !== "fixed") return false;
++  const values = [language.tag, language.label].map(normalizeForMatch);
++  return values.some((value) => {
++    if (value.includes("bilingual")) return true;
++    if (value.includes("\u4e2d\u82f1") || value.includes("\u82f1\u4e2d")) return true;
++    const mentionsEnglish = value.includes("english") || /\ben\b/.test(value);
++    const mentionsChinese =
++      value.includes("chinese") ||
++      value.includes("zh") ||
++      value.includes("\u4e2d\u6587") ||
++      value.includes("\u6f22") ||
++      value.includes("\u7e41\u9ad4");
++    return mentionsEnglish && mentionsChinese;
++  });
++}
++
++function isTraditionalChineseLanguage(language: OutputLanguage): boolean {
++  if (language.kind !== "fixed") return false;
++  const values = [language.tag, language.label].map(normalizeForMatch);
++  return values.some(
++    (value) =>
++      value === "zh-tw" ||
++      value === "zh-hant" ||
++      value.includes("traditional-chinese") ||
++      value.includes("chinese-traditional") ||
++      value.includes("\u7e41\u9ad4") ||
++      value.includes("\u6b63\u9ad4"),
++  );
++}
++
++function isEnglishLanguage(language: OutputLanguage): boolean {
++  if (language.kind !== "fixed") return false;
++  const tag = normalizeForMatch(language.tag);
++  const label = normalizeForMatch(language.label);
++  return tag === "en" || tag.startsWith("en-") || label === "english";
++}
++
++export function classifyLocalModelRoutingLanguage(
++  language: OutputLanguage,
++): LocalModelRoutingBucket {
++  if (isBilingualLanguage(language)) return "bilingual";
++  if (isTraditionalChineseLanguage(language)) return "traditionalChinese";
++  if (isEnglishLanguage(language)) return "english";
++  return "fallback";
++}
++
++function findNamedModel(config: SummarizeConfig | null, rawModel: string): ModelConfig | null {
++  const requested = rawModel.trim().toLowerCase();
++  if (!requested || requested === "auto") return null;
++  for (const [name, model] of Object.entries(config?.models ?? {})) {
++    if (name.trim().toLowerCase() === requested) return model;
++  }
++  return null;
++}
++
++function normalizeRoutedModelInput(config: SummarizeConfig | null, rawModel: string): string {
++  const trimmed = rawModel.trim();
++  if (findNamedModel(config, trimmed)) return trimmed;
++  return trimmed.includes("/") ? trimmed : `openai/${trimmed}`;
++}
++
++export function resolveLanguageAwareLocalModelInput({
++  config,
++  outputLanguage,
++}: {
++  config: SummarizeConfig | null;
++  outputLanguage: OutputLanguage | null | undefined;
++}): { modelInput: string; bucket: LocalModelRoutingBucket } | null {
++  const routing = config?.localRouting;
++  if (routing?.enabled !== true) return null;
++
++  const bucket = outputLanguage
++    ? classifyLocalModelRoutingLanguage(outputLanguage)
++    : ("fallback" as const);
++  const configured =
++    bucket === "english"
++      ? routing.englishModel
++      : bucket === "traditionalChinese"
++        ? routing.traditionalChineseModel
++        : bucket === "bilingual"
++          ? routing.bilingualModel
++          : routing.fallbackModel;
++  const defaultModel =
++    bucket === "english"
++      ? DEFAULT_LOCAL_MODEL_ROUTING_MODELS.englishModel
++      : bucket === "traditionalChinese"
++        ? DEFAULT_LOCAL_MODEL_ROUTING_MODELS.traditionalChineseModel
++        : bucket === "bilingual"
++          ? DEFAULT_LOCAL_MODEL_ROUTING_MODELS.bilingualModel
++          : DEFAULT_LOCAL_MODEL_ROUTING_MODELS.fallbackModel;
++  const selected = configured ?? routing.fallbackModel ?? defaultModel;
++  return {
++    modelInput: normalizeRoutedModelInput(config, selected),
++    bucket,
++  };
++}
+diff --git a/src/run/run-models.ts b/src/run/run-models.ts
+index 2dfb4209294b653a2ea998991d2656d545ed3f32..25bde0a9244981e9c1139772cd7cebe469dfe8a2
+--- a/src/run/run-models.ts
++++ b/src/run/run-models.ts
+@@ -1,7 +1,9 @@
+ import type { CliProvider, ModelConfig, SummarizeConfig } from "../config.js";
++import type { OutputLanguage } from "../language.js";
+ import type { RequestedModel } from "../model-spec.js";
+ import { parseRequestedModelId } from "../model-spec.js";
+ import { BUILTIN_MODELS } from "./constants.js";
++import { resolveLanguageAwareLocalModelInput } from "./local-model-routing.js";
+ 
+ function resolveConfiguredCliModel(
+   provider: CliProvider,
+@@ -57,12 +59,16 @@
+   configPath,
+   envForRun,
+   explicitModelArg,
++  outputLanguage,
++  allowLanguageAwareLocalRouting = true,
+ }: {
+   config: SummarizeConfig | null;
+   configForCli: SummarizeConfig | null;
+   configPath: string | null;
+   envForRun: Record<string, string | undefined>;
+   explicitModelArg: string | null;
++  outputLanguage?: OutputLanguage | null;
++  allowLanguageAwareLocalRouting?: boolean;
+ }): ModelSelection {
+   const modelMap = (() => {
+     const out = new Map<string, { name: string; model: ModelConfig }>();
+@@ -104,9 +110,17 @@
+   })();
+ 
+   const explicitModelInput = explicitModelArg?.trim() ?? "";
+-  const requestedModelInput = (explicitModelInput || defaultModelResolution.value).trim();
+-  const requestedModelSource =
+-    explicitModelInput.length > 0 ? ("explicit" as const) : defaultModelResolution.source;
++  const baseRequestedModelInput = (explicitModelInput || defaultModelResolution.value).trim();
++  const localRoute =
++    allowLanguageAwareLocalRouting && baseRequestedModelInput.toLowerCase() === "auto"
++      ? resolveLanguageAwareLocalModelInput({ config, outputLanguage })
++      : null;
++  const requestedModelInput = (localRoute?.modelInput ?? baseRequestedModelInput).trim();
++  const requestedModelSource = localRoute
++    ? ("localRouting" as const)
++    : explicitModelInput.length > 0
++      ? ("explicit" as const)
++      : defaultModelResolution.source;
+   const requestedModelInputLower = requestedModelInput.toLowerCase();
+   const wantsFreeNamedModel = requestedModelInputLower === "free";
+ 
+diff --git a/src/run/runner-plan.ts b/src/run/runner-plan.ts
+index 4ebfe6873cbb2a0dba85c545480e1f3c24de11d2..6b3b96d1699e8d4d210293b23f32a80e9af5139f
+--- a/src/run/runner-plan.ts
++++ b/src/run/runner-plan.ts
+@@ -260,6 +260,8 @@
+     configPath,
+     envForRun,
+     explicitModelArg,
++    outputLanguage,
++    allowLanguageAwareLocalRouting: !cliFlagPresent,
+   });
+ 
+   const verboseColor = supportsColor(stderr, envForRun);
+diff --git a/tests/config.test.ts b/tests/config.test.ts
+index 9d779f8b54f5ce3ba2935adb7a32f71e5dab126b..123926fd18dcbc62b5a3f89fe3e591d81644b51e
+--- a/tests/config.test.ts
++++ b/tests/config.test.ts
+@@ -71,6 +71,29 @@
+     });
+   });
+ 
++  it("loads local model routing config", () => {
++    const { root } = writeJsonConfig({
++      localRouting: {
++        enabled: true,
++        englishModel: " gemma-3-12b-it ",
++        traditionalChineseModel: "openai/qwen3-32b",
++        bilingualModel: "qwen3-bilingual",
++        fallbackModel: "llama-3.1-8b-instruct",
++      },
++    });
++
++    const result = loadSummarizeConfig({ env: { HOME: root } });
++    expect(result.config).toEqual({
++      localRouting: {
++        enabled: true,
++        englishModel: "gemma-3-12b-it",
++        traditionalChineseModel: "openai/qwen3-32b",
++        bilingualModel: "qwen3-bilingual",
++        fallbackModel: "llama-3.1-8b-instruct",
++      },
++    });
++  });
++
+   it("supports ui.theme", () => {
+     const { root } = writeJsonConfig({
+       model: { id: "openai/gpt-5-mini" },
+@@ -493,6 +516,28 @@
+     expect(() => loadSummarizeConfig({ env: { HOME: badMin } })).toThrow(/slides\.minDuration/);
+   });
+ 
++  it("rejects invalid local model routing config", () => {
++    const { root: badRoot } = writeJsonConfig({ localRouting: "nope" });
++    expect(() => loadSummarizeConfig({ env: { HOME: badRoot } })).toThrow(
++      /"localRouting" must be an object/,
++    );
++
++    const { root: badEnabled } = writeJsonConfig({ localRouting: { enabled: "yes" } });
++    expect(() => loadSummarizeConfig({ env: { HOME: badEnabled } })).toThrow(
++      /localRouting\.enabled/,
++    );
++
++    const { root: badModel } = writeJsonConfig({ localRouting: { englishModel: "  " } });
++    expect(() => loadSummarizeConfig({ env: { HOME: badModel } })).toThrow(
++      /localRouting\.englishModel.*must not be empty/,
++    );
++
++    const { root: badAuto } = writeJsonConfig({ localRouting: { fallbackModel: "auto" } });
++    expect(() => loadSummarizeConfig({ env: { HOME: badAuto } })).toThrow(
++      /localRouting\.fallbackModel.*must not be "auto"/,
++    );
++  });
++
+   it("rejects invalid cli enabled providers", () => {
+     const { root } = writeJsonConfig({ cli: { enabled: ["nope"] } });
+     expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/unknown CLI provider/);
+diff --git a/tests/run.models.test.ts b/tests/run.models.test.ts
+index ab19dbbe2eed47da0bbdd3fa16b113d962131829..ddd01484696184bd5442c111c78c0f1f27980f88
+--- a/tests/run.models.test.ts
++++ b/tests/run.models.test.ts
+@@ -1,4 +1,5 @@
+ import { describe, expect, it } from "vitest";
++import { parseOutputLanguage } from "../src/language.js";
+ import { resolveModelSelection } from "../src/run/run-models.js";
+ 
+ describe("run model selection", () => {
+@@ -150,6 +151,184 @@
+     }
+   });
+ 
++  it("routes English output to the configured local model when auto is selected", () => {
++    const result = resolveModelSelection({
++      config: {
++        localRouting: {
++          enabled: true,
++          englishModel: "gemma-local",
++          fallbackModel: "llama-local",
++        },
++      },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("en"),
++    });
++
++    expect(result.requestedModelInput).toBe("openai/gemma-local");
++    expect(result.requestedModelLabel).toBe("openai/gemma-local");
++    expect(result.isFallbackModel).toBe(false);
++    expect(result.requestedModel.kind).toBe("fixed");
++    if (result.requestedModel.kind === "fixed") {
++      expect(result.requestedModel.userModelId).toBe("openai/gemma-local");
++    }
++  });
++
++  it("routes Traditional Chinese output to the configured local model", () => {
++    const result = resolveModelSelection({
++      config: {
++        localRouting: {
++          enabled: true,
++          traditionalChineseModel: "openai/qwen3-local",
++          fallbackModel: "llama-local",
++        },
++      },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: "auto",
++      outputLanguage: parseOutputLanguage("Traditional Chinese"),
++    });
++
++    expect(result.requestedModelInput).toBe("openai/qwen3-local");
++    expect(result.requestedModelLabel).toBe("openai/qwen3-local");
++    expect(result.requestedModel.kind).toBe("fixed");
++    if (result.requestedModel.kind === "fixed") {
++      expect(result.requestedModel.userModelId).toBe("openai/qwen3-local");
++    }
++  });
++
++  it("routes bilingual output to the configured local model", () => {
++    const result = resolveModelSelection({
++      config: {
++        localRouting: {
++          enabled: true,
++          bilingualModel: "qwen3-bilingual-local",
++          fallbackModel: "llama-local",
++        },
++      },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("en+zh-TW bilingual"),
++    });
++
++    expect(result.requestedModelInput).toBe("openai/qwen3-bilingual-local");
++    expect(result.requestedModel.kind).toBe("fixed");
++    if (result.requestedModel.kind === "fixed") {
++      expect(result.requestedModel.userModelId).toBe("openai/qwen3-bilingual-local");
++    }
++  });
++
++  it("uses the fallback local model for auto or unknown output language", () => {
++    const result = resolveModelSelection({
++      config: {
++        localRouting: {
++          enabled: true,
++          fallbackModel: "llama-local",
++        },
++      },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("auto"),
++    });
++
++    expect(result.requestedModelInput).toBe("openai/llama-local");
++    expect(result.requestedModel.kind).toBe("fixed");
++    if (result.requestedModel.kind === "fixed") {
++      expect(result.requestedModel.userModelId).toBe("openai/llama-local");
++    }
++  });
++
++  it("uses default local routing models when a bucket model is not configured", () => {
++    const english = resolveModelSelection({
++      config: { localRouting: { enabled: true } },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("English"),
++    });
++    const traditionalChinese = resolveModelSelection({
++      config: { localRouting: { enabled: true } },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("zh-Hant"),
++    });
++
++    expect(english.requestedModelInput.toLowerCase()).toContain("gemma");
++    expect(traditionalChinese.requestedModelInput.toLowerCase()).toContain("qwen");
++  });
++
++  it("does not override explicit fixed models with local routing", () => {
++    const explicit = resolveModelSelection({
++      config: {
++        localRouting: {
++          enabled: true,
++          englishModel: "gemma-local",
++        },
++      },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: "openai/gpt-5.2",
++      outputLanguage: parseOutputLanguage("en"),
++    });
++
++    expect(explicit.requestedModelInput).toBe("openai/gpt-5.2");
++    expect(explicit.requestedModel.kind).toBe("fixed");
++    if (explicit.requestedModel.kind === "fixed") {
++      expect(explicit.requestedModel.userModelId).toBe("openai/gpt-5.2");
++    }
++  });
++
++  it("does not override env or config fixed model defaults with local routing", () => {
++    const envDefault = resolveModelSelection({
++      config: { localRouting: { enabled: true, englishModel: "gemma-local" } },
++      configForCli: null,
++      configPath: null,
++      envForRun: { SUMMARIZE_MODEL: "openai/gpt-env" },
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("en"),
++    });
++    const configDefault = resolveModelSelection({
++      config: {
++        model: { id: "openai/gpt-config" },
++        localRouting: { enabled: true, englishModel: "gemma-local" },
++      },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("en"),
++    });
++
++    expect(envDefault.requestedModelInput).toBe("openai/gpt-env");
++    expect(configDefault.requestedModelInput).toBe("openai/gpt-config");
++  });
++
++  it("keeps bare --cli auto behavior out of local routing", () => {
++    const result = resolveModelSelection({
++      config: { localRouting: { enabled: true, englishModel: "gemma-local" } },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: "auto",
++      outputLanguage: parseOutputLanguage("en"),
++      allowLanguageAwareLocalRouting: false,
++    });
++
++    expect(result.requestedModel.kind).toBe("auto");
++    expect(result.requestedModelInput).toBe("auto");
++  });
++
+   it("rejects unknown bare model ids with a config hint", () => {
+     expect(() =>
+       resolveModelSelection({
+
+codex
+<promise>COMPLETE</promise>
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 02428463ce53cf2c919b18b82b29618dc56409a4..05edc8c3357c85805573597ae61bf258b03d0f4b
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -227,3 +227,52 @@
+   - Useful context: `pnpm -s test -- tests/local-runtime.test.ts` invokes the repository test script and currently runs
+     the full suite; `pnpm exec vitest run tests/local-runtime.test.ts` is the precise single-file test path.
+ ---
++
++## 2026-04-22 09:39:46 PDT - LLR-006: Add Language-Aware Local Model Routing
++Thread:
++Run: 20260422-085058-72504 (iteration 6)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-6.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-6.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: b4ce4f01 feat: add language-aware local routing
++- Post-commit status: dirty with pre-existing/generated Ralph and PRD files listed in this entry
++- Verification:
++  - Command: `pnpm -s test -- tests/run.models.test.ts tests/config.test.ts` -> PASS
++  - Command: `pnpm exec vitest run tests/run.models.test.ts tests/config.test.ts` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++  - Command: `git diff --check -- src/config.ts src/config/sections.ts src/config/types.ts src/daemon/flow-context.ts src/run/local-model-routing.ts src/run/run-models.ts src/run/runner-plan.ts tests/config.test.ts tests/run.models.test.ts` -> PASS
++  - Command: `git diff --check` -> FAIL (pre-existing trailing whitespace in `.ralph/runs/run-20260422-085058-72504-iter-5.log`)
++- Files changed:
++  - src/config.ts
++  - src/config/sections.ts
++  - src/config/types.ts
++  - src/daemon/flow-context.ts
++  - src/run/local-model-routing.ts
++  - src/run/run-models.ts
++  - src/run/runner-plan.ts
++  - tests/config.test.ts
++  - tests/run.models.test.ts
++  - .ralph/activity.log
++  - .ralph/progress.md
++- What was implemented
++  Added `localRouting` config with `enabled`, `englishModel`, `traditionalChineseModel`, `bilingualModel`, and
++  `fallbackModel`. Model selection now applies language-aware local routing only when the effective requested model is
++  `auto`, including daemon summary requests, and leaves fixed CLI args, env defaults, config defaults, and bare `--cli`
++  auto behavior unchanged. Default enabled routing prefers a Gemma local model for English, Qwen for Traditional Chinese
++  and bilingual output, and Llama as the fallback. Tests cover config parsing, bucket choices, default profile choices,
++  bare local model normalization to OpenAI-compatible ids, and explicit-model precedence.
++- **Learnings for future iterations:**
++  - Patterns discovered: CLI and daemon summary runs both converge on `resolveModelSelection`; pass resolved
++    `OutputLanguage` there to keep routing behavior shared.
++  - Gotchas encountered: do not run `pnpm -s typecheck` concurrently with `pnpm -s build`; build cleans `packages/core`
++    declaration output while root typecheck resolves workspace package subpaths.
++  - Useful context: `/Users/shh/proj/summarize/ralph` and `committer` are unavailable in this checkout; use
++    `.agents/ralph/log-activity.sh` and conventional `git commit`. Remaining dirty files seen during this run were
++    `.agents/tasks/prd.json`, `.ralph/errors.log`, `.ralph/runs/run-20260422-085058-72504-iter-5.log`,
++    `.ralph/.tmp/prompt-20260422-085058-72504-6.md`, `.ralph/.tmp/story-20260422-085058-72504-6.json`,
++    `.ralph/.tmp/story-20260422-085058-72504-6.md`, `.ralph/runs/run-20260422-085058-72504-iter-5.md`, and
++    `.ralph/runs/run-20260422-085058-72504-iter-6.log`.
++---
+diff --git a/src/config.ts b/src/config.ts
+index 93bc883d85c70da7aa55cbcb93be3959047319e9..4fde123a753a1cdfbfb9829f923d40bd6af87479
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -6,6 +6,7 @@
+   parseCliConfig,
+   parseEnvConfig,
+   parseLoggingConfig,
++  parseLocalModelRoutingConfig,
+   parseMediaConfig,
+   parseOpenAiConfig,
+   parseOutputConfig,
+@@ -30,6 +31,7 @@
+   LoggingConfig,
+   LoggingFormat,
+   LoggingLevel,
++  LocalModelRoutingConfig,
+   MediaCacheConfig,
+   MediaCacheVerifyMode,
+   ModelConfig,
+@@ -88,6 +90,7 @@
+   const output = parseOutputConfig(parsed, path);
+   const ui = parseUiConfig(parsed, path);
+   const logging = parseLoggingConfig(parsed, path);
++  const localRouting = parseLocalModelRoutingConfig(parsed, path);
+   const openai = parseOpenAiConfig(parsed, path);
+ 
+   const nvidia = parseProviderBaseUrlConfig(
+@@ -121,6 +124,7 @@
+       ...(google ? { google } : {}),
+       ...(xai ? { xai } : {}),
+       ...(zai ? { zai } : {}),
++      ...(localRouting ? { localRouting } : {}),
+       ...(logging ? { logging } : {}),
+       ...(configEnv ? { env: configEnv } : {}),
+       ...(apiKeys ? { apiKeys } : {}),
+diff --git a/src/config/sections.ts b/src/config/sections.ts
+index c52d2221c96089693017f6f3700180cc6a42e145..8ec43a449f878b62e48196a74a4f6ea7fa53b913
+--- a/src/config/sections.ts
++++ b/src/config/sections.ts
+@@ -15,6 +15,7 @@
+   CliProvider,
+   CliProviderConfig,
+   EnvConfig,
++  LocalModelRoutingConfig,
+   LoggingConfig,
+   MediaCacheConfig,
+   MediaCacheVerifyMode,
+@@ -22,6 +23,21 @@
+   VideoMode,
+ } from "./types.js";
+ 
++function parseLocalRoutingModel(raw: unknown, path: string, label: string): string | undefined {
++  if (typeof raw === "undefined") return undefined;
++  if (typeof raw !== "string") {
++    throw new Error(`Invalid config file ${path}: "localRouting.${label}" must be a string.`);
++  }
++  const trimmed = raw.trim();
++  if (!trimmed) {
++    throw new Error(`Invalid config file ${path}: "localRouting.${label}" must not be empty.`);
++  }
++  if (trimmed.toLowerCase() === "auto") {
++    throw new Error(`Invalid config file ${path}: "localRouting.${label}" must not be "auto".`);
++  }
++  return trimmed;
++}
++
+ export function parseProviderBaseUrlConfig(
+   raw: unknown,
+   path: string,
+@@ -474,6 +490,50 @@
+     : undefined;
+ }
+ 
++export function parseLocalModelRoutingConfig(
++  root: Record<string, unknown>,
++  path: string,
++): LocalModelRoutingConfig | undefined {
++  const value = root.localRouting;
++  if (typeof value === "undefined") return undefined;
++  if (!isRecord(value)) {
++    throw new Error(`Invalid config file ${path}: "localRouting" must be an object.`);
++  }
++
++  const enabled =
++    typeof value.enabled === "boolean"
++      ? value.enabled
++      : typeof value.enabled === "undefined"
++        ? undefined
++        : (() => {
++            throw new Error(
++              `Invalid config file ${path}: "localRouting.enabled" must be a boolean.`,
++            );
++          })();
++  const englishModel = parseLocalRoutingModel(value.englishModel, path, "englishModel");
++  const traditionalChineseModel = parseLocalRoutingModel(
++    value.traditionalChineseModel,
++    path,
++    "traditionalChineseModel",
++  );
++  const bilingualModel = parseLocalRoutingModel(value.bilingualModel, path, "bilingualModel");
++  const fallbackModel = parseLocalRoutingModel(value.fallbackModel, path, "fallbackModel");
++
++  return typeof enabled === "boolean" ||
++    englishModel ||
++    traditionalChineseModel ||
++    bilingualModel ||
++    fallbackModel
++    ? {
++        ...(typeof enabled === "boolean" ? { enabled } : {}),
++        ...(englishModel ? { englishModel } : {}),
++        ...(traditionalChineseModel ? { traditionalChineseModel } : {}),
++        ...(bilingualModel ? { bilingualModel } : {}),
++        ...(fallbackModel ? { fallbackModel } : {}),
++      }
++    : undefined;
++}
++
+ export function parseOpenAiConfig(
+   root: Record<string, unknown>,
+   path: string,
+diff --git a/src/config/types.ts b/src/config/types.ts
+index fe78a1f3c680800d470aad09ee65f3f059fcf13c..701fb88326033316376a09c419625607ae44dadf
+--- a/src/config/types.ts
++++ b/src/config/types.ts
+@@ -131,6 +131,29 @@
+   baseUrl?: string;
+ };
+ 
++export type LocalModelRoutingConfig = {
++  /**
++   * Enable language-aware local model routing when the requested model is auto.
++   */
++  enabled?: boolean;
++  /**
++   * Preferred local model for English output.
++   */
++  englishModel?: string;
++  /**
++   * Preferred local model for Traditional Chinese output.
++   */
++  traditionalChineseModel?: string;
++  /**
++   * Preferred local model for bilingual output.
++   */
++  bilingualModel?: string;
++  /**
++   * Local model used when the language bucket is auto, unknown, or missing.
++   */
++  fallbackModel?: string;
++};
++
+ export type AutoRule = {
+   /**
+    * Input kinds this rule applies to.
+@@ -235,6 +258,7 @@
+   google?: GoogleConfig;
+   xai?: XaiConfig;
+   zai?: ZaiConfig;
++  localRouting?: LocalModelRoutingConfig;
+   logging?: LoggingConfig;
+   /**
+    * Generic environment variable defaults.
+diff --git a/src/daemon/flow-context.ts b/src/daemon/flow-context.ts
+index 34f3a9e6e47cc010e1e613c78c553851fd35afc2..a72f94b8d22d03ee41c1f26f9f16c282c5860d6f
+--- a/src/daemon/flow-context.ts
++++ b/src/daemon/flow-context.ts
+@@ -201,6 +201,10 @@
+   const configForCliWithMagic = applyAutoCliFallbackOverrides(configForCli, resolvedOverrides);
+   const allowAutoCliFallback = resolvedOverrides.autoCliFallbackEnabled === true;
+   const { lengthArg } = resolveSummaryLength(lengthRaw, config?.output?.length ?? "xl");
++  const outputLanguage = resolveOutputLanguageSetting({
++    raw: languageRaw,
++    fallback: outputLanguageFromConfig,
++  });
+ 
+   const {
+     requestedModel,
+@@ -217,6 +221,7 @@
+     configPath,
+     envForRun,
+     explicitModelArg: modelOverride?.trim() ? modelOverride.trim() : null,
++    outputLanguage,
+   });
+ 
+   const fixedModelSpec: FixedModelSpec | null =
+@@ -273,11 +278,6 @@
+     zai: { apiKey: zaiApiKey, baseUrl: zaiBaseUrl },
+     nvidia: { apiKey: nvidiaApiKey, baseUrl: nvidiaBaseUrl },
+     providerBaseUrls,
+-  });
+-
+-  const outputLanguage = resolveOutputLanguageSetting({
+-    raw: languageRaw,
+-    fallback: outputLanguageFromConfig,
+   });
+ 
+   const lengthInstruction = promptOverride ? buildPromptLengthInstruction(lengthArg) : null;
+diff --git a/src/run/local-model-routing.ts b/src/run/local-model-routing.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..227eec9fab695672e36e894c4092be808ef88fd3
+--- /dev/null
++++ b/src/run/local-model-routing.ts
+@@ -0,0 +1,119 @@
++import type { LocalModelRoutingConfig, ModelConfig, SummarizeConfig } from "../config.js";
++import type { OutputLanguage } from "../language.js";
++
++export type LocalModelRoutingBucket = "english" | "traditionalChinese" | "bilingual" | "fallback";
++
++export const DEFAULT_LOCAL_MODEL_ROUTING_MODELS = {
++  englishModel: "openai/gemma-3-12b-it",
++  traditionalChineseModel: "openai/qwen3-32b",
++  bilingualModel: "openai/qwen3-32b",
++  fallbackModel: "openai/llama-3.1-8b-instruct",
++} as const satisfies Required<Omit<LocalModelRoutingConfig, "enabled">>;
++
++function normalizeForMatch(value: string): string {
++  return value
++    .trim()
++    .toLowerCase()
++    .replaceAll("_", "-")
++    .replaceAll(/[^a-z0-9\u4e00-\u9fff+-]+/g, "-")
++    .replaceAll(/-+/g, "-")
++    .replaceAll(/^-|-$/g, "");
++}
++
++function isBilingualLanguage(language: OutputLanguage): boolean {
++  if (language.kind !== "fixed") return false;
++  const values = [language.tag, language.label].map(normalizeForMatch);
++  return values.some((value) => {
++    if (value.includes("bilingual")) return true;
++    if (value.includes("\u4e2d\u82f1") || value.includes("\u82f1\u4e2d")) return true;
++    const mentionsEnglish = value.includes("english") || /\ben\b/.test(value);
++    const mentionsChinese =
++      value.includes("chinese") ||
++      value.includes("zh") ||
++      value.includes("\u4e2d\u6587") ||
++      value.includes("\u6f22") ||
++      value.includes("\u7e41\u9ad4");
++    return mentionsEnglish && mentionsChinese;
++  });
++}
++
++function isTraditionalChineseLanguage(language: OutputLanguage): boolean {
++  if (language.kind !== "fixed") return false;
++  const values = [language.tag, language.label].map(normalizeForMatch);
++  return values.some(
++    (value) =>
++      value === "zh-tw" ||
++      value === "zh-hant" ||
++      value.includes("traditional-chinese") ||
++      value.includes("chinese-traditional") ||
++      value.includes("\u7e41\u9ad4") ||
++      value.includes("\u6b63\u9ad4"),
++  );
++}
++
++function isEnglishLanguage(language: OutputLanguage): boolean {
++  if (language.kind !== "fixed") return false;
++  const tag = normalizeForMatch(language.tag);
++  const label = normalizeForMatch(language.label);
++  return tag === "en" || tag.startsWith("en-") || label === "english";
++}
++
++export function classifyLocalModelRoutingLanguage(
++  language: OutputLanguage,
++): LocalModelRoutingBucket {
++  if (isBilingualLanguage(language)) return "bilingual";
++  if (isTraditionalChineseLanguage(language)) return "traditionalChinese";
++  if (isEnglishLanguage(language)) return "english";
++  return "fallback";
++}
++
++function findNamedModel(config: SummarizeConfig | null, rawModel: string): ModelConfig | null {
++  const requested = rawModel.trim().toLowerCase();
++  if (!requested || requested === "auto") return null;
++  for (const [name, model] of Object.entries(config?.models ?? {})) {
++    if (name.trim().toLowerCase() === requested) return model;
++  }
++  return null;
++}
++
++function normalizeRoutedModelInput(config: SummarizeConfig | null, rawModel: string): string {
++  const trimmed = rawModel.trim();
++  if (findNamedModel(config, trimmed)) return trimmed;
++  return trimmed.includes("/") ? trimmed : `openai/${trimmed}`;
++}
++
++export function resolveLanguageAwareLocalModelInput({
++  config,
++  outputLanguage,
++}: {
++  config: SummarizeConfig | null;
++  outputLanguage: OutputLanguage | null | undefined;
++}): { modelInput: string; bucket: LocalModelRoutingBucket } | null {
++  const routing = config?.localRouting;
++  if (routing?.enabled !== true) return null;
++
++  const bucket = outputLanguage
++    ? classifyLocalModelRoutingLanguage(outputLanguage)
++    : ("fallback" as const);
++  const configured =
++    bucket === "english"
++      ? routing.englishModel
++      : bucket === "traditionalChinese"
++        ? routing.traditionalChineseModel
++        : bucket === "bilingual"
++          ? routing.bilingualModel
++          : routing.fallbackModel;
++  const defaultModel =
++    bucket === "english"
++      ? DEFAULT_LOCAL_MODEL_ROUTING_MODELS.englishModel
++      : bucket === "traditionalChinese"
++        ? DEFAULT_LOCAL_MODEL_ROUTING_MODELS.traditionalChineseModel
++        : bucket === "bilingual"
++          ? DEFAULT_LOCAL_MODEL_ROUTING_MODELS.bilingualModel
++          : DEFAULT_LOCAL_MODEL_ROUTING_MODELS.fallbackModel;
++  const selected = configured ?? routing.fallbackModel ?? defaultModel;
++  return {
++    modelInput: normalizeRoutedModelInput(config, selected),
++    bucket,
++  };
++}
+diff --git a/src/run/run-models.ts b/src/run/run-models.ts
+index 2dfb4209294b653a2ea998991d2656d545ed3f32..25bde0a9244981e9c1139772cd7cebe469dfe8a2
+--- a/src/run/run-models.ts
++++ b/src/run/run-models.ts
+@@ -1,7 +1,9 @@
+ import type { CliProvider, ModelConfig, SummarizeConfig } from "../config.js";
++import type { OutputLanguage } from "../language.js";
+ import type { RequestedModel } from "../model-spec.js";
+ import { parseRequestedModelId } from "../model-spec.js";
+ import { BUILTIN_MODELS } from "./constants.js";
++import { resolveLanguageAwareLocalModelInput } from "./local-model-routing.js";
+ 
+ function resolveConfiguredCliModel(
+   provider: CliProvider,
+@@ -57,12 +59,16 @@
+   configPath,
+   envForRun,
+   explicitModelArg,
++  outputLanguage,
++  allowLanguageAwareLocalRouting = true,
+ }: {
+   config: SummarizeConfig | null;
+   configForCli: SummarizeConfig | null;
+   configPath: string | null;
+   envForRun: Record<string, string | undefined>;
+   explicitModelArg: string | null;
++  outputLanguage?: OutputLanguage | null;
++  allowLanguageAwareLocalRouting?: boolean;
+ }): ModelSelection {
+   const modelMap = (() => {
+     const out = new Map<string, { name: string; model: ModelConfig }>();
+@@ -104,9 +110,17 @@
+   })();
+ 
+   const explicitModelInput = explicitModelArg?.trim() ?? "";
+-  const requestedModelInput = (explicitModelInput || defaultModelResolution.value).trim();
+-  const requestedModelSource =
+-    explicitModelInput.length > 0 ? ("explicit" as const) : defaultModelResolution.source;
++  const baseRequestedModelInput = (explicitModelInput || defaultModelResolution.value).trim();
++  const localRoute =
++    allowLanguageAwareLocalRouting && baseRequestedModelInput.toLowerCase() === "auto"
++      ? resolveLanguageAwareLocalModelInput({ config, outputLanguage })
++      : null;
++  const requestedModelInput = (localRoute?.modelInput ?? baseRequestedModelInput).trim();
++  const requestedModelSource = localRoute
++    ? ("localRouting" as const)
++    : explicitModelInput.length > 0
++      ? ("explicit" as const)
++      : defaultModelResolution.source;
+   const requestedModelInputLower = requestedModelInput.toLowerCase();
+   const wantsFreeNamedModel = requestedModelInputLower === "free";
+ 
+diff --git a/src/run/runner-plan.ts b/src/run/runner-plan.ts
+index 4ebfe6873cbb2a0dba85c545480e1f3c24de11d2..6b3b96d1699e8d4d210293b23f32a80e9af5139f
+--- a/src/run/runner-plan.ts
++++ b/src/run/runner-plan.ts
+@@ -260,6 +260,8 @@
+     configPath,
+     envForRun,
+     explicitModelArg,
++    outputLanguage,
++    allowLanguageAwareLocalRouting: !cliFlagPresent,
+   });
+ 
+   const verboseColor = supportsColor(stderr, envForRun);
+diff --git a/tests/config.test.ts b/tests/config.test.ts
+index 9d779f8b54f5ce3ba2935adb7a32f71e5dab126b..123926fd18dcbc62b5a3f89fe3e591d81644b51e
+--- a/tests/config.test.ts
++++ b/tests/config.test.ts
+@@ -71,6 +71,29 @@
+     });
+   });
+ 
++  it("loads local model routing config", () => {
++    const { root } = writeJsonConfig({
++      localRouting: {
++        enabled: true,
++        englishModel: " gemma-3-12b-it ",
++        traditionalChineseModel: "openai/qwen3-32b",
++        bilingualModel: "qwen3-bilingual",
++        fallbackModel: "llama-3.1-8b-instruct",
++      },
++    });
++
++    const result = loadSummarizeConfig({ env: { HOME: root } });
++    expect(result.config).toEqual({
++      localRouting: {
++        enabled: true,
++        englishModel: "gemma-3-12b-it",
++        traditionalChineseModel: "openai/qwen3-32b",
++        bilingualModel: "qwen3-bilingual",
++        fallbackModel: "llama-3.1-8b-instruct",
++      },
++    });
++  });
++
+   it("supports ui.theme", () => {
+     const { root } = writeJsonConfig({
+       model: { id: "openai/gpt-5-mini" },
+@@ -493,6 +516,28 @@
+     expect(() => loadSummarizeConfig({ env: { HOME: badMin } })).toThrow(/slides\.minDuration/);
+   });
+ 
++  it("rejects invalid local model routing config", () => {
++    const { root: badRoot } = writeJsonConfig({ localRouting: "nope" });
++    expect(() => loadSummarizeConfig({ env: { HOME: badRoot } })).toThrow(
++      /"localRouting" must be an object/,
++    );
++
++    const { root: badEnabled } = writeJsonConfig({ localRouting: { enabled: "yes" } });
++    expect(() => loadSummarizeConfig({ env: { HOME: badEnabled } })).toThrow(
++      /localRouting\.enabled/,
++    );
++
++    const { root: badModel } = writeJsonConfig({ localRouting: { englishModel: "  " } });
++    expect(() => loadSummarizeConfig({ env: { HOME: badModel } })).toThrow(
++      /localRouting\.englishModel.*must not be empty/,
++    );
++
++    const { root: badAuto } = writeJsonConfig({ localRouting: { fallbackModel: "auto" } });
++    expect(() => loadSummarizeConfig({ env: { HOME: badAuto } })).toThrow(
++      /localRouting\.fallbackModel.*must not be "auto"/,
++    );
++  });
++
+   it("rejects invalid cli enabled providers", () => {
+     const { root } = writeJsonConfig({ cli: { enabled: ["nope"] } });
+     expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/unknown CLI provider/);
+diff --git a/tests/run.models.test.ts b/tests/run.models.test.ts
+index ab19dbbe2eed47da0bbdd3fa16b113d962131829..ddd01484696184bd5442c111c78c0f1f27980f88
+--- a/tests/run.models.test.ts
++++ b/tests/run.models.test.ts
+@@ -1,4 +1,5 @@
+ import { describe, expect, it } from "vitest";
++import { parseOutputLanguage } from "../src/language.js";
+ import { resolveModelSelection } from "../src/run/run-models.js";
+ 
+ describe("run model selection", () => {
+@@ -150,6 +151,184 @@
+     }
+   });
+ 
++  it("routes English output to the configured local model when auto is selected", () => {
++    const result = resolveModelSelection({
++      config: {
++        localRouting: {
++          enabled: true,
++          englishModel: "gemma-local",
++          fallbackModel: "llama-local",
++        },
++      },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("en"),
++    });
++
++    expect(result.requestedModelInput).toBe("openai/gemma-local");
++    expect(result.requestedModelLabel).toBe("openai/gemma-local");
++    expect(result.isFallbackModel).toBe(false);
++    expect(result.requestedModel.kind).toBe("fixed");
++    if (result.requestedModel.kind === "fixed") {
++      expect(result.requestedModel.userModelId).toBe("openai/gemma-local");
++    }
++  });
++
++  it("routes Traditional Chinese output to the configured local model", () => {
++    const result = resolveModelSelection({
++      config: {
++        localRouting: {
++          enabled: true,
++          traditionalChineseModel: "openai/qwen3-local",
++          fallbackModel: "llama-local",
++        },
++      },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: "auto",
++      outputLanguage: parseOutputLanguage("Traditional Chinese"),
++    });
++
++    expect(result.requestedModelInput).toBe("openai/qwen3-local");
++    expect(result.requestedModelLabel).toBe("openai/qwen3-local");
++    expect(result.requestedModel.kind).toBe("fixed");
++    if (result.requestedModel.kind === "fixed") {
++      expect(result.requestedModel.userModelId).toBe("openai/qwen3-local");
++    }
++  });
++
++  it("routes bilingual output to the configured local model", () => {
++    const result = resolveModelSelection({
++      config: {
++        localRouting: {
++          enabled: true,
++          bilingualModel: "qwen3-bilingual-local",
++          fallbackModel: "llama-local",
++        },
++      },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("en+zh-TW bilingual"),
++    });
++
++    expect(result.requestedModelInput).toBe("openai/qwen3-bilingual-local");
++    expect(result.requestedModel.kind).toBe("fixed");
++    if (result.requestedModel.kind === "fixed") {
++      expect(result.requestedModel.userModelId).toBe("openai/qwen3-bilingual-local");
++    }
++  });
++
++  it("uses the fallback local model for auto or unknown output language", () => {
++    const result = resolveModelSelection({
++      config: {
++        localRouting: {
++          enabled: true,
++          fallbackModel: "llama-local",
++        },
++      },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("auto"),
++    });
++
++    expect(result.requestedModelInput).toBe("openai/llama-local");
++    expect(result.requestedModel.kind).toBe("fixed");
++    if (result.requestedModel.kind === "fixed") {
++      expect(result.requestedModel.userModelId).toBe("openai/llama-local");
++    }
++  });
++
++  it("uses default local routing models when a bucket model is not configured", () => {
++    const english = resolveModelSelection({
++      config: { localRouting: { enabled: true } },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("English"),
++    });
++    const traditionalChinese = resolveModelSelection({
++      config: { localRouting: { enabled: true } },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("zh-Hant"),
++    });
++
++    expect(english.requestedModelInput.toLowerCase()).toContain("gemma");
++    expect(traditionalChinese.requestedModelInput.toLowerCase()).toContain("qwen");
++  });
++
++  it("does not override explicit fixed models with local routing", () => {
++    const explicit = resolveModelSelection({
++      config: {
++        localRouting: {
++          enabled: true,
++          englishModel: "gemma-local",
++        },
++      },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: "openai/gpt-5.2",
++      outputLanguage: parseOutputLanguage("en"),
++    });
++
++    expect(explicit.requestedModelInput).toBe("openai/gpt-5.2");
++    expect(explicit.requestedModel.kind).toBe("fixed");
++    if (explicit.requestedModel.kind === "fixed") {
++      expect(explicit.requestedModel.userModelId).toBe("openai/gpt-5.2");
++    }
++  });
++
++  it("does not override env or config fixed model defaults with local routing", () => {
++    const envDefault = resolveModelSelection({
++      config: { localRouting: { enabled: true, englishModel: "gemma-local" } },
++      configForCli: null,
++      configPath: null,
++      envForRun: { SUMMARIZE_MODEL: "openai/gpt-env" },
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("en"),
++    });
++    const configDefault = resolveModelSelection({
++      config: {
++        model: { id: "openai/gpt-config" },
++        localRouting: { enabled: true, englishModel: "gemma-local" },
++      },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: null,
++      outputLanguage: parseOutputLanguage("en"),
++    });
++
++    expect(envDefault.requestedModelInput).toBe("openai/gpt-env");
++    expect(configDefault.requestedModelInput).toBe("openai/gpt-config");
++  });
++
++  it("keeps bare --cli auto behavior out of local routing", () => {
++    const result = resolveModelSelection({
++      config: { localRouting: { enabled: true, englishModel: "gemma-local" } },
++      configForCli: null,
++      configPath: null,
++      envForRun: {},
++      explicitModelArg: "auto",
++      outputLanguage: parseOutputLanguage("en"),
++      allowLanguageAwareLocalRouting: false,
++    });
++
++    expect(result.requestedModel.kind).toBe("auto");
++    expect(result.requestedModelInput).toBe("auto");
++  });
++
+   it("rejects unknown bare model ids with a config hint", () => {
+     expect(() =>
+       resolveModelSelection({
+
+tokens used
+220,511
+<promise>COMPLETE</promise>

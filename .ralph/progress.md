@@ -6,6 +6,67 @@ Started: Wed Apr 22 08:50:58 PDT 2026
 
 ---
 
+## 2026-04-22 09:53:11 PDT - LLR-007: Add Local-Only Privacy Guard
+Thread:
+Run: 20260422-085058-72504 (iteration 7)
+Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-7.log
+Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-7.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: d6591d40 feat: add local-only privacy guard
+- Post-commit status: clean after progress artifact commit
+- Verification:
+  - Command: `pnpm -s test tests/local-only.test.ts tests/config.test.ts tests/daemon.agent.test.ts tests/daemon.chat.test.ts` -> PASS
+  - Command: `pnpm -s typecheck` -> PASS
+  - Command: `pnpm -s build` -> PASS
+  - Command: `pnpm -s check` -> PASS
+- Files changed:
+  - src/config.ts
+  - src/config/sections.ts
+  - src/config/types.ts
+  - src/daemon/agent-model.ts
+  - src/daemon/agent.ts
+  - src/daemon/chat.ts
+  - src/daemon/flow-context.ts
+  - src/daemon/server-agent-route.ts
+  - src/daemon/server-summarize-execution.ts
+  - src/daemon/server-summarize-request.ts
+  - src/daemon/summarize.ts
+  - src/run/flows/asset/summary.ts
+  - src/run/flows/url/markdown.ts
+  - src/run/flows/url/summary-resolution.ts
+  - src/run/local-only.ts
+  - src/run/model-attempts.ts
+  - src/run/runner-plan.ts
+  - src/run/summary-engine.ts
+  - tests/config.test.ts
+  - tests/daemon.agent.test.ts
+  - tests/local-only.test.ts
+  - .agents/tasks/prd.json
+  - .ralph/.tmp/prompt-20260422-085058-72504-7.md
+  - .ralph/.tmp/story-20260422-085058-72504-7.json
+  - .ralph/.tmp/story-20260422-085058-72504-7.md
+  - .ralph/activity.log
+  - .ralph/errors.log
+  - .ralph/progress.md
+  - .ralph/runs/run-20260422-085058-72504-iter-6.log
+  - .ralph/runs/run-20260422-085058-72504-iter-6.md
+  - .ralph/runs/run-20260422-085058-72504-iter-7.log
+- What was implemented
+  Added `privacy.localOnly` config parsing plus daemon request `localOnly` support. The guard resolves the effective
+  policy from request override or config, blocks remote providers/OpenRouter/unverifiable CLI transports before model
+  calls, and allows only OpenAI-compatible localhost endpoints. Enforcement now covers CLI summary attempts, daemon
+  summary/extract paths, agent model resolution, chat model resolution, and LLM markdown conversion before remote
+  provider requests are made. Errors name the setting that caused the block and include a local endpoint/disable hint.
+- **Learnings for future iterations:**
+  - Patterns discovered: summary flows centralize provider calls through `createSummaryEngine` and `runModelAttempts`,
+    while daemon agent/chat paths resolve their model independently and need their own pre-call guard.
+  - Gotchas encountered: `pnpm -s check` runs formatting and caught files that targeted tests/typecheck/build did not;
+    run `pnpm exec oxfmt --write <files>` before the final check after touching formatted TypeScript.
+  - Useful context: `/Users/shh/proj/summarize/ralph` and `committer` are unavailable in this checkout; use
+    `.agents/ralph/log-activity.sh` and conventional `git commit`.
+---
+
 ## 2026-04-22 09:31:37 PDT - LLR-005: Add CLI Local Runtime Probe Command
 Thread:
 Run: 20260422-085058-72504 (iteration 5)
