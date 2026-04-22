@@ -14098,7 +14098,7 @@ Finished in 1.4s on 850 files with 2 rules using 28 threads.
 
  % Coverage report from v8
 -------------------|---------|----------|---------|---------|-------------------
-File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
 -------------------|---------|----------|---------|---------|-------------------
 file update:
 diff --git a/.oxfmtrc.jsonc b/.oxfmtrc.jsonc
@@ -15269,10 +15269,10 @@ exec
      6	- docs/README.md
      7	- docs/index.md
      8	- docs/local-model-capabilities-audit.md
-     9	
+     9
     10	### Uncommitted Changes
     11	- .ralph/activity.log
-    12	
+    12
 file update:
 diff --git a/.oxfmtrc.jsonc b/.oxfmtrc.jsonc
 index 2e300b5877be8cd7cea3dd7a050bba84a77f8040..071c5a5e44e139e30ddf1a4be1e150cfac0b71f8
@@ -15862,7 +15862,7 @@ index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c9068
 --- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
 +++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
 @@ -35,4 +35,3 @@
- 
+
  ### Uncommitted Changes
  - .ralph/activity.log
 -
@@ -16433,7 +16433,7 @@ index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c9068
 --- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
 +++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
 @@ -35,4 +35,3 @@
- 
+
  ### Uncommitted Changes
  - .ralph/activity.log
 -
@@ -17007,7 +17007,7 @@ index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c9068
 --- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
 +++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
 @@ -35,4 +35,3 @@
- 
+
  ### Uncommitted Changes
  - .ralph/activity.log
 -
@@ -17630,7 +17630,7 @@ index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c9068
 --- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
 +++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
 @@ -35,4 +35,3 @@
- 
+
  ### Uncommitted Changes
  - .ralph/activity.log
 -
@@ -18251,7 +18251,7 @@ index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c9068
 --- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
 +++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
 @@ -35,4 +35,3 @@
- 
+
  ### Uncommitted Changes
  - .ralph/activity.log
 -
@@ -18850,7 +18850,7 @@ index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c9068
 --- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
 +++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
 @@ -35,4 +35,3 @@
- 
+
  ### Uncommitted Changes
  - .ralph/activity.log
 -
@@ -19404,3 +19404,5100 @@ index 9027fb04afacf9733ba8c53ee3994a4090585d0b..e61b0a4e74216a7a98ecbf0ea8090b95
 
 codex
 Security/performance/regression review before commit: the new module is pure parsing/validation, does not make network calls, rejects credentials/query fragments, and blocks non-local hosts unless a caller opts in. Runtime behavior is unchanged because no CLI/daemon/extension call sites are wired to the registry yet; added exports and tests are the only code-facing surface.
+exec
+/bin/zsh -lc 'git add -A && git status --porcelain=v1 && git commit -m "feat: add local runtime registry types"' in /Users/shh/proj/summarize succeeded in 0ms:
+M  .agents/tasks/prd.json
+M  .oxfmtrc.jsonc
+A  .ralph/.tmp/prompt-20260422-085058-72504-3.md
+A  .ralph/.tmp/story-20260422-085058-72504-3.json
+A  .ralph/.tmp/story-20260422-085058-72504-3.md
+M  .ralph/activity.log
+M  .ralph/errors.log
+M  .ralph/runs/run-20260422-085058-72504-iter-2.md
+A  .ralph/runs/run-20260422-085058-72504-iter-3.log
+M  packages/core/package.json
+M  packages/core/src/index.ts
+A  packages/core/src/local-runtime.ts
+A  tests/local-runtime.test.ts
+M  vitest.config.ts
+[main 2f65dc8d] feat: add local runtime registry types
+ 14 files changed, 20132 insertions(+), 41 deletions(-)
+ create mode 100644 .ralph/.tmp/prompt-20260422-085058-72504-3.md
+ create mode 100644 .ralph/.tmp/story-20260422-085058-72504-3.json
+ create mode 100644 .ralph/.tmp/story-20260422-085058-72504-3.md
+ create mode 100644 .ralph/runs/run-20260422-085058-72504-iter-3.log
+file update:
+diff --git a/.oxfmtrc.jsonc b/.oxfmtrc.jsonc
+index 2e300b5877be8cd7cea3dd7a050bba84a77f8040..071c5a5e44e139e30ddf1a4be1e150cfac0b71f8
+--- a/.oxfmtrc.jsonc
++++ b/.oxfmtrc.jsonc
+@@ -7,6 +7,8 @@
+     "sortScripts": true,
+   },
+   "ignorePatterns": [
++    ".agents/",
++    ".ralph/",
+     "apps/chrome-extension/dist/",
+     "coverage/",
+     "dist/",
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c90683c148f1c
+--- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -35,4 +35,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/packages/core/package.json b/packages/core/package.json
+index a5feac1a3260d7047a868853b35b85994ab68a64..db1c6641dc76f11b122ccbae79a711da9a8ccbb6
+--- a/packages/core/package.json
++++ b/packages/core/package.json
+@@ -38,6 +38,10 @@
+     "./language": {
+       "types": "./dist/types/language.d.ts",
+       "import": "./dist/esm/language.js"
++    },
++    "./local-runtime": {
++      "types": "./dist/types/local-runtime.d.ts",
++      "import": "./dist/esm/local-runtime.js"
+     }
+   },
+   "scripts": {
+diff --git a/packages/core/src/index.ts b/packages/core/src/index.ts
+index 2da968023562582a7bcfd6e9bd3ac7fae34b8f89..208e92f2adc36f1210d84e60d812ec89ae45d9b7
+--- a/packages/core/src/index.ts
++++ b/packages/core/src/index.ts
+@@ -5,6 +5,7 @@
+   resolveConfiguredBaseUrl,
+   resolveOpenAiWhisperBaseUrl,
+ } from "./openai/base-url.js";
++export * from "./local-runtime.js";
+ export * from "./prompts/index.js";
+ export type { SummaryLength } from "./shared/contracts.js";
+ export { SUMMARY_LENGTHS } from "./shared/contracts.js";
+diff --git a/packages/core/src/local-runtime.ts b/packages/core/src/local-runtime.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2d9d47b8fa34f2d0d42561945e9145282bdc025f
+--- /dev/null
++++ b/packages/core/src/local-runtime.ts
+@@ -0,0 +1,358 @@
++export type LocalRuntimeKind = "openai-compatible" | "llama-cpp" | "ollama";
++export type LocalRuntimeProtocol = "openai-compatible" | "ollama";
++export type LocalRuntimeBaseUrlSource = "default" | "configured";
++
++export type LocalRuntimeBaseUrlValidationIssue =
++  | "missing"
++  | "invalid-url"
++  | "unsupported-protocol"
++  | "credentials-not-allowed"
++  | "query-or-hash-not-allowed"
++  | "remote-host-not-allowed";
++
++export type LocalRuntimeBaseUrlValidationOptions = {
++  /**
++   * Accept non-local hosts. Keep this false for built-in local defaults and
++   * enable it only when a caller is intentionally handling an explicit remote endpoint.
++   */
++  allowRemote?: boolean;
++  /**
++   * Additional hostnames that a caller treats as local in its own environment.
++   */
++  allowedHosts?: readonly string[];
++};
++
++export type LocalRuntimeBaseUrlValidationResult =
++  | {
++      ok: true;
++      baseUrl: string;
++      host: string;
++      hostname: string;
++      isLocal: boolean;
++    }
++  | {
++      ok: false;
++      issue: LocalRuntimeBaseUrlValidationIssue;
++      message: string;
++      value: string;
++    };
++
++type LocalRuntimeDescriptorBase = {
++  kind: LocalRuntimeKind;
++  label: string;
++  protocol: LocalRuntimeProtocol;
++  baseUrl: string;
++  baseUrlSource: LocalRuntimeBaseUrlSource;
++  modelsPath: string;
++  openAiCompatibleBaseUrl: string;
++};
++
++export type OpenAiCompatibleLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "openai-compatible";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type LlamaCppLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "llama-cpp";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type OllamaLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "ollama";
++  protocol: "ollama";
++  modelsPath: "/api/tags";
++};
++
++export type LocalRuntimeDescriptor =
++  | OpenAiCompatibleLocalRuntimeDescriptor
++  | LlamaCppLocalRuntimeDescriptor
++  | OllamaLocalRuntimeDescriptor;
++
++type LocalRuntimeRegistryEntry = Omit<
++  LocalRuntimeDescriptorBase,
++  "baseUrl" | "baseUrlSource" | "openAiCompatibleBaseUrl"
++> & {
++  defaultBaseUrl: string;
++  defaultOpenAiCompatibleBaseUrl?: string;
++};
++
++export const LOCAL_RUNTIME_REGISTRY = {
++  "openai-compatible": {
++    kind: "openai-compatible",
++    label: "OpenAI-compatible local endpoint",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  "llama-cpp": {
++    kind: "llama-cpp",
++    label: "llama.cpp server",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  ollama: {
++    kind: "ollama",
++    label: "Ollama",
++    protocol: "ollama",
++    defaultBaseUrl: "http://127.0.0.1:11434",
++    defaultOpenAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    modelsPath: "/api/tags",
++  },
++} as const satisfies Record<LocalRuntimeKind, LocalRuntimeRegistryEntry>;
++
++export const LOCAL_RUNTIME_KINDS = Object.keys(LOCAL_RUNTIME_REGISTRY) as LocalRuntimeKind[];
++
++export type LocalRuntimeDescriptorInput =
++  | LocalRuntimeKind
++  | {
++      kind?: unknown;
++      type?: unknown;
++      runtime?: unknown;
++      baseUrl?: unknown;
++      openAiCompatibleBaseUrl?: unknown;
++    };
++
++export type ParseLocalRuntimeDescriptorOptions = {
++  allowRemoteBaseUrls?: boolean;
++  allowedHosts?: readonly string[];
++};
++
++function normalizeHostname(hostname: string): string {
++  return hostname
++    .trim()
++    .toLowerCase()
++    .replace(/^\[(.*)]$/, "$1")
++    .replace(/\.$/, "");
++}
++
++function normalizeAllowedHosts(hosts: readonly string[] | undefined): Set<string> {
++  const normalized = new Set<string>();
++  for (const host of hosts ?? []) {
++    const value = normalizeHostname(host);
++    if (value.length > 0) normalized.add(value);
++  }
++  return normalized;
++}
++
++function isLoopbackIpv4(hostname: string): boolean {
++  const parts = hostname.split(".");
++  if (parts.length !== 4) return false;
++  const octets = parts.map((part) => {
++    if (!/^\d{1,3}$/.test(part)) return null;
++    const value = Number(part);
++    return Number.isInteger(value) && value >= 0 && value <= 255 ? value : null;
++  });
++  return octets.every((part): part is number => typeof part === "number") && octets[0] === 127;
++}
++
++export function isLocalRuntimeHostname(
++  hostname: string,
++  options: Pick<LocalRuntimeBaseUrlValidationOptions, "allowedHosts"> = {},
++): boolean {
++  const normalized = normalizeHostname(hostname);
++  if (!normalized) return false;
++  if (normalizeAllowedHosts(options.allowedHosts).has(normalized)) return true;
++  if (normalized === "localhost" || normalized.endsWith(".localhost")) return true;
++  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") return true;
++  return isLoopbackIpv4(normalized);
++}
++
++function normalizeUrl(url: URL): string {
++  return url.toString().replace(/\/+$/, "");
++}
++
++export function validateLocalRuntimeBaseUrl(
++  raw: unknown,
++  options: LocalRuntimeBaseUrlValidationOptions = {},
++): LocalRuntimeBaseUrlValidationResult {
++  const value = typeof raw === "string" ? raw.trim() : "";
++  if (!value) {
++    return {
++      ok: false,
++      issue: "missing",
++      message: "Local runtime base URL is required.",
++      value,
++    };
++  }
++
++  let url: URL;
++  try {
++    url = new URL(value);
++  } catch {
++    return {
++      ok: false,
++      issue: "invalid-url",
++      message: `Invalid local runtime base URL: ${value}`,
++      value,
++    };
++  }
++
++  if (url.protocol !== "http:" && url.protocol !== "https:") {
++    return {
++      ok: false,
++      issue: "unsupported-protocol",
++      message: `Local runtime base URL must use http or https: ${value}`,
++      value,
++    };
++  }
++
++  if (url.username || url.password) {
++    return {
++      ok: false,
++      issue: "credentials-not-allowed",
++      message: "Local runtime base URL must not include credentials.",
++      value,
++    };
++  }
++
++  if (url.search || url.hash) {
++    return {
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++      message: "Local runtime base URL must not include query strings or fragments.",
++      value,
++    };
++  }
++
++  const isLocal = isLocalRuntimeHostname(url.hostname, { allowedHosts: options.allowedHosts });
++  if (!isLocal && !options.allowRemote) {
++    return {
++      ok: false,
++      issue: "remote-host-not-allowed",
++      message: `Local runtime base URL host must be localhost or explicitly allowed: ${url.host}`,
++      value,
++    };
++  }
++
++  return {
++    ok: true,
++    baseUrl: normalizeUrl(url),
++    host: url.host,
++    hostname: url.hostname,
++    isLocal,
++  };
++}
++
++export function normalizeLocalRuntimeKind(raw: unknown): LocalRuntimeKind | null {
++  if (typeof raw !== "string") return null;
++  const normalized = raw.trim().toLowerCase().replaceAll("_", "-").replace(/\s+/g, "-");
++  if (normalized === "openai" || normalized === "openai-compatible") {
++    return "openai-compatible";
++  }
++  if (
++    normalized === "llama" ||
++    normalized === "llama-cpp" ||
++    normalized === "llama.cpp" ||
++    normalized === "llamacpp"
++  ) {
++    return "llama-cpp";
++  }
++  if (normalized === "ollama") return "ollama";
++  return null;
++}
++
++function assertValidBaseUrl(raw: unknown, options: LocalRuntimeBaseUrlValidationOptions): string {
++  const result = validateLocalRuntimeBaseUrl(raw, options);
++  if (!result.ok) {
++    throw new Error(result.message);
++  }
++  return result.baseUrl;
++}
++
++function appendPath(baseUrl: string, path: string): string {
++  const url = new URL(baseUrl);
++  const currentPath = url.pathname.replace(/\/+$/, "");
++  url.pathname = `${currentPath}/${path.replace(/^\/+/, "")}`;
++  return normalizeUrl(url);
++}
++
++function removeTrailingPathSegment(baseUrl: string, segment: string): string | null {
++  const url = new URL(baseUrl);
++  const suffix = `/${segment.replace(/^\/+/, "")}`;
++  const path = url.pathname.replace(/\/+$/, "");
++  if (path !== suffix && !path.endsWith(suffix)) return null;
++  url.pathname = path.slice(0, -suffix.length) || "/";
++  return normalizeUrl(url);
++}
++
++function resolveOllamaBaseUrls({
++  baseUrl,
++  openAiCompatibleBaseUrl,
++}: {
++  baseUrl: string;
++  openAiCompatibleBaseUrl?: string;
++}): { baseUrl: string; openAiCompatibleBaseUrl: string } {
++  const rootBaseUrl = removeTrailingPathSegment(baseUrl, "v1") ?? baseUrl;
++  return {
++    baseUrl: rootBaseUrl,
++    openAiCompatibleBaseUrl: openAiCompatibleBaseUrl ?? appendPath(rootBaseUrl, "v1"),
++  };
++}
++
++export function getDefaultLocalRuntimeDescriptor(kind: LocalRuntimeKind): LocalRuntimeDescriptor {
++  return parseLocalRuntimeDescriptor(kind);
++}
++
++export function parseLocalRuntimeDescriptor(
++  input: unknown,
++  options: ParseLocalRuntimeDescriptorOptions = {},
++): LocalRuntimeDescriptor {
++  const inputRecord =
++    typeof input === "object" && input !== null && !Array.isArray(input)
++      ? (input as Record<string, unknown>)
++      : null;
++  const kind = normalizeLocalRuntimeKind(
++    typeof input === "string"
++      ? input
++      : (inputRecord?.kind ?? inputRecord?.type ?? inputRecord?.runtime),
++  );
++  if (!kind) {
++    throw new Error(`Unknown local runtime kind: ${String(input)}`);
++  }
++
++  const registryEntry = LOCAL_RUNTIME_REGISTRY[kind];
++  const validationOptions = {
++    allowRemote: options.allowRemoteBaseUrls,
++    allowedHosts: options.allowedHosts,
++  };
++  const rawBaseUrl = inputRecord?.baseUrl;
++  const hasConfiguredBaseUrl = typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0;
++  const baseUrl = assertValidBaseUrl(
++    hasConfiguredBaseUrl ? rawBaseUrl : registryEntry.defaultBaseUrl,
++    validationOptions,
++  );
++
++  const rawOpenAiCompatibleBaseUrl = inputRecord?.openAiCompatibleBaseUrl;
++  const configuredOpenAiCompatibleBaseUrl =
++    typeof rawOpenAiCompatibleBaseUrl === "string" && rawOpenAiCompatibleBaseUrl.trim().length > 0
++      ? assertValidBaseUrl(rawOpenAiCompatibleBaseUrl, validationOptions)
++      : undefined;
++
++  const common = {
++    ...registryEntry,
++    baseUrl,
++    baseUrlSource: hasConfiguredBaseUrl ? "configured" : "default",
++    openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl ?? baseUrl,
++  };
++
++  if (kind === "ollama") {
++    const resolved = resolveOllamaBaseUrls({
++      baseUrl,
++      openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl,
++    });
++    return {
++      ...common,
++      baseUrl: resolved.baseUrl,
++      openAiCompatibleBaseUrl: resolved.openAiCompatibleBaseUrl,
++    } as OllamaLocalRuntimeDescriptor;
++  }
++
++  return common as LocalRuntimeDescriptor;
++}
++
++export const DEFAULT_LOCAL_RUNTIME_DESCRIPTORS = Object.fromEntries(
++  LOCAL_RUNTIME_KINDS.map((kind) => [kind, getDefaultLocalRuntimeDescriptor(kind)]),
++) as Readonly<Record<LocalRuntimeKind, LocalRuntimeDescriptor>>;
+diff --git a/tests/local-runtime.test.ts b/tests/local-runtime.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2b87ba118f69d9fad7dfe3e58dff4fbb32f946db
+--- /dev/null
++++ b/tests/local-runtime.test.ts
+@@ -0,0 +1,135 @@
++import {
++  DEFAULT_LOCAL_RUNTIME_DESCRIPTORS,
++  LOCAL_RUNTIME_KINDS,
++  isLocalRuntimeHostname,
++  parseLocalRuntimeDescriptor,
++  validateLocalRuntimeBaseUrl,
++} from "@steipete/summarize-core/local-runtime";
++import { describe, expect, it } from "vitest";
++
++describe("local runtime registry", () => {
++  it("ships localhost-first defaults for each supported runtime", () => {
++    expect(LOCAL_RUNTIME_KINDS).toEqual(["openai-compatible", "llama-cpp", "ollama"]);
++
++    for (const descriptor of Object.values(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS)) {
++      expect(descriptor.baseUrlSource).toBe("default");
++      expect(descriptor.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:/);
++
++      const validation = validateLocalRuntimeBaseUrl(descriptor.baseUrl);
++      expect(validation).toMatchObject({ ok: true, isLocal: true });
++    }
++
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["openai-compatible"]).toMatchObject({
++      kind: "openai-compatible",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["llama-cpp"]).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS.ollama).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("parses string aliases and configured descriptor objects", () => {
++    expect(parseLocalRuntimeDescriptor("openai")).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      baseUrlSource: "default",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        kind: "llama.cpp",
++        baseUrl: " http://localhost:8080/v1/ ",
++      }),
++    ).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://localhost:8080/v1",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://localhost:8080/v1",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        type: "ollama",
++        baseUrl: "http://127.0.0.1:11434/v1",
++      }),
++    ).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("rejects remote runtime URLs unless a caller explicitly allows them", () => {
++    expect(validateLocalRuntimeBaseUrl("https://api.openai.com/v1")).toMatchObject({
++      ok: false,
++      issue: "remote-host-not-allowed",
++    });
++
++    expect(
++      validateLocalRuntimeBaseUrl("https://gateway.example.com/v1", { allowRemote: true }),
++    ).toMatchObject({
++      ok: true,
++      baseUrl: "https://gateway.example.com/v1",
++      isLocal: false,
++    });
++
++    expect(() =>
++      parseLocalRuntimeDescriptor({
++        kind: "openai-compatible",
++        baseUrl: "https://gateway.example.com/v1",
++      }),
++    ).toThrow(/localhost or explicitly allowed/i);
++
++    expect(
++      parseLocalRuntimeDescriptor(
++        {
++          kind: "openai-compatible",
++          baseUrl: "https://gateway.example.com/v1",
++        },
++        { allowRemoteBaseUrls: true },
++      ),
++    ).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "https://gateway.example.com/v1",
++      baseUrlSource: "configured",
++    });
++  });
++
++  it("validates loopback hosts and rejects unsafe base URL shapes", () => {
++    expect(isLocalRuntimeHostname("localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("models.localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("127.12.0.1")).toBe(true);
++    expect(isLocalRuntimeHostname("[::1]")).toBe(true);
++    expect(isLocalRuntimeHostname("192.168.1.10")).toBe(false);
++    expect(
++      isLocalRuntimeHostname("host.docker.internal", { allowedHosts: ["host.docker.internal"] }),
++    ).toBe(true);
++
++    expect(validateLocalRuntimeBaseUrl("ftp://127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "unsupported-protocol",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://user:pass@127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "credentials-not-allowed",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://127.0.0.1:8080/v1?token=secret")).toMatchObject({
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++    });
++  });
++});
+diff --git a/vitest.config.ts b/vitest.config.ts
+index 9027fb04afacf9733ba8c53ee3994a4090585d0b..e61b0a4e74216a7a98ecbf0ea8090b95a6d7af4b
+--- a/vitest.config.ts
++++ b/vitest.config.ts
+@@ -39,6 +39,10 @@
+         replacement: resolve(rootDir, "packages/core/src/language.ts"),
+       },
+       {
++        find: /^@steipete\/summarize-core\/local-runtime$/,
++        replacement: resolve(rootDir, "packages/core/src/local-runtime.ts"),
++      },
++      {
+         find: /^@steipete\/summarize-core$/,
+         replacement: resolve(rootDir, "packages/core/src/index.ts"),
+       },
+
+exec
+/bin/zsh -lc 'git show -s --format="%h %s" HEAD && git status --porcelain=v1' in /Users/shh/proj/summarize succeeded in 0ms:
+2f65dc8d feat: add local runtime registry types
+ M .ralph/runs/run-20260422-085058-72504-iter-3.log
+file update:
+diff --git a/.oxfmtrc.jsonc b/.oxfmtrc.jsonc
+index 2e300b5877be8cd7cea3dd7a050bba84a77f8040..071c5a5e44e139e30ddf1a4be1e150cfac0b71f8
+--- a/.oxfmtrc.jsonc
++++ b/.oxfmtrc.jsonc
+@@ -7,6 +7,8 @@
+     "sortScripts": true,
+   },
+   "ignorePatterns": [
++    ".agents/",
++    ".ralph/",
+     "apps/chrome-extension/dist/",
+     "coverage/",
+     "dist/",
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c90683c148f1c
+--- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -35,4 +35,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/packages/core/package.json b/packages/core/package.json
+index a5feac1a3260d7047a868853b35b85994ab68a64..db1c6641dc76f11b122ccbae79a711da9a8ccbb6
+--- a/packages/core/package.json
++++ b/packages/core/package.json
+@@ -38,6 +38,10 @@
+     "./language": {
+       "types": "./dist/types/language.d.ts",
+       "import": "./dist/esm/language.js"
++    },
++    "./local-runtime": {
++      "types": "./dist/types/local-runtime.d.ts",
++      "import": "./dist/esm/local-runtime.js"
+     }
+   },
+   "scripts": {
+diff --git a/packages/core/src/index.ts b/packages/core/src/index.ts
+index 2da968023562582a7bcfd6e9bd3ac7fae34b8f89..208e92f2adc36f1210d84e60d812ec89ae45d9b7
+--- a/packages/core/src/index.ts
++++ b/packages/core/src/index.ts
+@@ -5,6 +5,7 @@
+   resolveConfiguredBaseUrl,
+   resolveOpenAiWhisperBaseUrl,
+ } from "./openai/base-url.js";
++export * from "./local-runtime.js";
+ export * from "./prompts/index.js";
+ export type { SummaryLength } from "./shared/contracts.js";
+ export { SUMMARY_LENGTHS } from "./shared/contracts.js";
+diff --git a/packages/core/src/local-runtime.ts b/packages/core/src/local-runtime.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2d9d47b8fa34f2d0d42561945e9145282bdc025f
+--- /dev/null
++++ b/packages/core/src/local-runtime.ts
+@@ -0,0 +1,358 @@
++export type LocalRuntimeKind = "openai-compatible" | "llama-cpp" | "ollama";
++export type LocalRuntimeProtocol = "openai-compatible" | "ollama";
++export type LocalRuntimeBaseUrlSource = "default" | "configured";
++
++export type LocalRuntimeBaseUrlValidationIssue =
++  | "missing"
++  | "invalid-url"
++  | "unsupported-protocol"
++  | "credentials-not-allowed"
++  | "query-or-hash-not-allowed"
++  | "remote-host-not-allowed";
++
++export type LocalRuntimeBaseUrlValidationOptions = {
++  /**
++   * Accept non-local hosts. Keep this false for built-in local defaults and
++   * enable it only when a caller is intentionally handling an explicit remote endpoint.
++   */
++  allowRemote?: boolean;
++  /**
++   * Additional hostnames that a caller treats as local in its own environment.
++   */
++  allowedHosts?: readonly string[];
++};
++
++export type LocalRuntimeBaseUrlValidationResult =
++  | {
++      ok: true;
++      baseUrl: string;
++      host: string;
++      hostname: string;
++      isLocal: boolean;
++    }
++  | {
++      ok: false;
++      issue: LocalRuntimeBaseUrlValidationIssue;
++      message: string;
++      value: string;
++    };
++
++type LocalRuntimeDescriptorBase = {
++  kind: LocalRuntimeKind;
++  label: string;
++  protocol: LocalRuntimeProtocol;
++  baseUrl: string;
++  baseUrlSource: LocalRuntimeBaseUrlSource;
++  modelsPath: string;
++  openAiCompatibleBaseUrl: string;
++};
++
++export type OpenAiCompatibleLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "openai-compatible";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type LlamaCppLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "llama-cpp";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type OllamaLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "ollama";
++  protocol: "ollama";
++  modelsPath: "/api/tags";
++};
++
++export type LocalRuntimeDescriptor =
++  | OpenAiCompatibleLocalRuntimeDescriptor
++  | LlamaCppLocalRuntimeDescriptor
++  | OllamaLocalRuntimeDescriptor;
++
++type LocalRuntimeRegistryEntry = Omit<
++  LocalRuntimeDescriptorBase,
++  "baseUrl" | "baseUrlSource" | "openAiCompatibleBaseUrl"
++> & {
++  defaultBaseUrl: string;
++  defaultOpenAiCompatibleBaseUrl?: string;
++};
++
++export const LOCAL_RUNTIME_REGISTRY = {
++  "openai-compatible": {
++    kind: "openai-compatible",
++    label: "OpenAI-compatible local endpoint",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  "llama-cpp": {
++    kind: "llama-cpp",
++    label: "llama.cpp server",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  ollama: {
++    kind: "ollama",
++    label: "Ollama",
++    protocol: "ollama",
++    defaultBaseUrl: "http://127.0.0.1:11434",
++    defaultOpenAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    modelsPath: "/api/tags",
++  },
++} as const satisfies Record<LocalRuntimeKind, LocalRuntimeRegistryEntry>;
++
++export const LOCAL_RUNTIME_KINDS = Object.keys(LOCAL_RUNTIME_REGISTRY) as LocalRuntimeKind[];
++
++export type LocalRuntimeDescriptorInput =
++  | LocalRuntimeKind
++  | {
++      kind?: unknown;
++      type?: unknown;
++      runtime?: unknown;
++      baseUrl?: unknown;
++      openAiCompatibleBaseUrl?: unknown;
++    };
++
++export type ParseLocalRuntimeDescriptorOptions = {
++  allowRemoteBaseUrls?: boolean;
++  allowedHosts?: readonly string[];
++};
++
++function normalizeHostname(hostname: string): string {
++  return hostname
++    .trim()
++    .toLowerCase()
++    .replace(/^\[(.*)]$/, "$1")
++    .replace(/\.$/, "");
++}
++
++function normalizeAllowedHosts(hosts: readonly string[] | undefined): Set<string> {
++  const normalized = new Set<string>();
++  for (const host of hosts ?? []) {
++    const value = normalizeHostname(host);
++    if (value.length > 0) normalized.add(value);
++  }
++  return normalized;
++}
++
++function isLoopbackIpv4(hostname: string): boolean {
++  const parts = hostname.split(".");
++  if (parts.length !== 4) return false;
++  const octets = parts.map((part) => {
++    if (!/^\d{1,3}$/.test(part)) return null;
++    const value = Number(part);
++    return Number.isInteger(value) && value >= 0 && value <= 255 ? value : null;
++  });
++  return octets.every((part): part is number => typeof part === "number") && octets[0] === 127;
++}
++
++export function isLocalRuntimeHostname(
++  hostname: string,
++  options: Pick<LocalRuntimeBaseUrlValidationOptions, "allowedHosts"> = {},
++): boolean {
++  const normalized = normalizeHostname(hostname);
++  if (!normalized) return false;
++  if (normalizeAllowedHosts(options.allowedHosts).has(normalized)) return true;
++  if (normalized === "localhost" || normalized.endsWith(".localhost")) return true;
++  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") return true;
++  return isLoopbackIpv4(normalized);
++}
++
++function normalizeUrl(url: URL): string {
++  return url.toString().replace(/\/+$/, "");
++}
++
++export function validateLocalRuntimeBaseUrl(
++  raw: unknown,
++  options: LocalRuntimeBaseUrlValidationOptions = {},
++): LocalRuntimeBaseUrlValidationResult {
++  const value = typeof raw === "string" ? raw.trim() : "";
++  if (!value) {
++    return {
++      ok: false,
++      issue: "missing",
++      message: "Local runtime base URL is required.",
++      value,
++    };
++  }
++
++  let url: URL;
++  try {
++    url = new URL(value);
++  } catch {
++    return {
++      ok: false,
++      issue: "invalid-url",
++      message: `Invalid local runtime base URL: ${value}`,
++      value,
++    };
++  }
++
++  if (url.protocol !== "http:" && url.protocol !== "https:") {
++    return {
++      ok: false,
++      issue: "unsupported-protocol",
++      message: `Local runtime base URL must use http or https: ${value}`,
++      value,
++    };
++  }
++
++  if (url.username || url.password) {
++    return {
++      ok: false,
++      issue: "credentials-not-allowed",
++      message: "Local runtime base URL must not include credentials.",
++      value,
++    };
++  }
++
++  if (url.search || url.hash) {
++    return {
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++      message: "Local runtime base URL must not include query strings or fragments.",
++      value,
++    };
++  }
++
++  const isLocal = isLocalRuntimeHostname(url.hostname, { allowedHosts: options.allowedHosts });
++  if (!isLocal && !options.allowRemote) {
++    return {
++      ok: false,
++      issue: "remote-host-not-allowed",
++      message: `Local runtime base URL host must be localhost or explicitly allowed: ${url.host}`,
++      value,
++    };
++  }
++
++  return {
++    ok: true,
++    baseUrl: normalizeUrl(url),
++    host: url.host,
++    hostname: url.hostname,
++    isLocal,
++  };
++}
++
++export function normalizeLocalRuntimeKind(raw: unknown): LocalRuntimeKind | null {
++  if (typeof raw !== "string") return null;
++  const normalized = raw.trim().toLowerCase().replaceAll("_", "-").replace(/\s+/g, "-");
++  if (normalized === "openai" || normalized === "openai-compatible") {
++    return "openai-compatible";
++  }
++  if (
++    normalized === "llama" ||
++    normalized === "llama-cpp" ||
++    normalized === "llama.cpp" ||
++    normalized === "llamacpp"
++  ) {
++    return "llama-cpp";
++  }
++  if (normalized === "ollama") return "ollama";
++  return null;
++}
++
++function assertValidBaseUrl(raw: unknown, options: LocalRuntimeBaseUrlValidationOptions): string {
++  const result = validateLocalRuntimeBaseUrl(raw, options);
++  if (!result.ok) {
++    throw new Error(result.message);
++  }
++  return result.baseUrl;
++}
++
++function appendPath(baseUrl: string, path: string): string {
++  const url = new URL(baseUrl);
++  const currentPath = url.pathname.replace(/\/+$/, "");
++  url.pathname = `${currentPath}/${path.replace(/^\/+/, "")}`;
++  return normalizeUrl(url);
++}
++
++function removeTrailingPathSegment(baseUrl: string, segment: string): string | null {
++  const url = new URL(baseUrl);
++  const suffix = `/${segment.replace(/^\/+/, "")}`;
++  const path = url.pathname.replace(/\/+$/, "");
++  if (path !== suffix && !path.endsWith(suffix)) return null;
++  url.pathname = path.slice(0, -suffix.length) || "/";
++  return normalizeUrl(url);
++}
++
++function resolveOllamaBaseUrls({
++  baseUrl,
++  openAiCompatibleBaseUrl,
++}: {
++  baseUrl: string;
++  openAiCompatibleBaseUrl?: string;
++}): { baseUrl: string; openAiCompatibleBaseUrl: string } {
++  const rootBaseUrl = removeTrailingPathSegment(baseUrl, "v1") ?? baseUrl;
++  return {
++    baseUrl: rootBaseUrl,
++    openAiCompatibleBaseUrl: openAiCompatibleBaseUrl ?? appendPath(rootBaseUrl, "v1"),
++  };
++}
++
++export function getDefaultLocalRuntimeDescriptor(kind: LocalRuntimeKind): LocalRuntimeDescriptor {
++  return parseLocalRuntimeDescriptor(kind);
++}
++
++export function parseLocalRuntimeDescriptor(
++  input: unknown,
++  options: ParseLocalRuntimeDescriptorOptions = {},
++): LocalRuntimeDescriptor {
++  const inputRecord =
++    typeof input === "object" && input !== null && !Array.isArray(input)
++      ? (input as Record<string, unknown>)
++      : null;
++  const kind = normalizeLocalRuntimeKind(
++    typeof input === "string"
++      ? input
++      : (inputRecord?.kind ?? inputRecord?.type ?? inputRecord?.runtime),
++  );
++  if (!kind) {
++    throw new Error(`Unknown local runtime kind: ${String(input)}`);
++  }
++
++  const registryEntry = LOCAL_RUNTIME_REGISTRY[kind];
++  const validationOptions = {
++    allowRemote: options.allowRemoteBaseUrls,
++    allowedHosts: options.allowedHosts,
++  };
++  const rawBaseUrl = inputRecord?.baseUrl;
++  const hasConfiguredBaseUrl = typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0;
++  const baseUrl = assertValidBaseUrl(
++    hasConfiguredBaseUrl ? rawBaseUrl : registryEntry.defaultBaseUrl,
++    validationOptions,
++  );
++
++  const rawOpenAiCompatibleBaseUrl = inputRecord?.openAiCompatibleBaseUrl;
++  const configuredOpenAiCompatibleBaseUrl =
++    typeof rawOpenAiCompatibleBaseUrl === "string" && rawOpenAiCompatibleBaseUrl.trim().length > 0
++      ? assertValidBaseUrl(rawOpenAiCompatibleBaseUrl, validationOptions)
++      : undefined;
++
++  const common = {
++    ...registryEntry,
++    baseUrl,
++    baseUrlSource: hasConfiguredBaseUrl ? "configured" : "default",
++    openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl ?? baseUrl,
++  };
++
++  if (kind === "ollama") {
++    const resolved = resolveOllamaBaseUrls({
++      baseUrl,
++      openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl,
++    });
++    return {
++      ...common,
++      baseUrl: resolved.baseUrl,
++      openAiCompatibleBaseUrl: resolved.openAiCompatibleBaseUrl,
++    } as OllamaLocalRuntimeDescriptor;
++  }
++
++  return common as LocalRuntimeDescriptor;
++}
++
++export const DEFAULT_LOCAL_RUNTIME_DESCRIPTORS = Object.fromEntries(
++  LOCAL_RUNTIME_KINDS.map((kind) => [kind, getDefaultLocalRuntimeDescriptor(kind)]),
++) as Readonly<Record<LocalRuntimeKind, LocalRuntimeDescriptor>>;
+diff --git a/tests/local-runtime.test.ts b/tests/local-runtime.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2b87ba118f69d9fad7dfe3e58dff4fbb32f946db
+--- /dev/null
++++ b/tests/local-runtime.test.ts
+@@ -0,0 +1,135 @@
++import {
++  DEFAULT_LOCAL_RUNTIME_DESCRIPTORS,
++  LOCAL_RUNTIME_KINDS,
++  isLocalRuntimeHostname,
++  parseLocalRuntimeDescriptor,
++  validateLocalRuntimeBaseUrl,
++} from "@steipete/summarize-core/local-runtime";
++import { describe, expect, it } from "vitest";
++
++describe("local runtime registry", () => {
++  it("ships localhost-first defaults for each supported runtime", () => {
++    expect(LOCAL_RUNTIME_KINDS).toEqual(["openai-compatible", "llama-cpp", "ollama"]);
++
++    for (const descriptor of Object.values(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS)) {
++      expect(descriptor.baseUrlSource).toBe("default");
++      expect(descriptor.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:/);
++
++      const validation = validateLocalRuntimeBaseUrl(descriptor.baseUrl);
++      expect(validation).toMatchObject({ ok: true, isLocal: true });
++    }
++
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["openai-compatible"]).toMatchObject({
++      kind: "openai-compatible",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["llama-cpp"]).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS.ollama).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("parses string aliases and configured descriptor objects", () => {
++    expect(parseLocalRuntimeDescriptor("openai")).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      baseUrlSource: "default",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        kind: "llama.cpp",
++        baseUrl: " http://localhost:8080/v1/ ",
++      }),
++    ).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://localhost:8080/v1",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://localhost:8080/v1",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        type: "ollama",
++        baseUrl: "http://127.0.0.1:11434/v1",
++      }),
++    ).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("rejects remote runtime URLs unless a caller explicitly allows them", () => {
++    expect(validateLocalRuntimeBaseUrl("https://api.openai.com/v1")).toMatchObject({
++      ok: false,
++      issue: "remote-host-not-allowed",
++    });
++
++    expect(
++      validateLocalRuntimeBaseUrl("https://gateway.example.com/v1", { allowRemote: true }),
++    ).toMatchObject({
++      ok: true,
++      baseUrl: "https://gateway.example.com/v1",
++      isLocal: false,
++    });
++
++    expect(() =>
++      parseLocalRuntimeDescriptor({
++        kind: "openai-compatible",
++        baseUrl: "https://gateway.example.com/v1",
++      }),
++    ).toThrow(/localhost or explicitly allowed/i);
++
++    expect(
++      parseLocalRuntimeDescriptor(
++        {
++          kind: "openai-compatible",
++          baseUrl: "https://gateway.example.com/v1",
++        },
++        { allowRemoteBaseUrls: true },
++      ),
++    ).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "https://gateway.example.com/v1",
++      baseUrlSource: "configured",
++    });
++  });
++
++  it("validates loopback hosts and rejects unsafe base URL shapes", () => {
++    expect(isLocalRuntimeHostname("localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("models.localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("127.12.0.1")).toBe(true);
++    expect(isLocalRuntimeHostname("[::1]")).toBe(true);
++    expect(isLocalRuntimeHostname("192.168.1.10")).toBe(false);
++    expect(
++      isLocalRuntimeHostname("host.docker.internal", { allowedHosts: ["host.docker.internal"] }),
++    ).toBe(true);
++
++    expect(validateLocalRuntimeBaseUrl("ftp://127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "unsupported-protocol",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://user:pass@127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "credentials-not-allowed",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://127.0.0.1:8080/v1?token=secret")).toMatchObject({
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++    });
++  });
++});
+diff --git a/vitest.config.ts b/vitest.config.ts
+index 9027fb04afacf9733ba8c53ee3994a4090585d0b..e61b0a4e74216a7a98ecbf0ea8090b95a6d7af4b
+--- a/vitest.config.ts
++++ b/vitest.config.ts
+@@ -39,6 +39,10 @@
+         replacement: resolve(rootDir, "packages/core/src/language.ts"),
+       },
+       {
++        find: /^@steipete\/summarize-core\/local-runtime$/,
++        replacement: resolve(rootDir, "packages/core/src/local-runtime.ts"),
++      },
++      {
+         find: /^@steipete\/summarize-core$/,
+         replacement: resolve(rootDir, "packages/core/src/index.ts"),
+       },
+
+exec
+/bin/zsh -lc "date '+%Y-%m-%d %H:%M:%S %Z'" in /Users/shh/proj/summarize succeeded in 0ms:
+2026-04-22 09:13:31 PDT
+file update:
+diff --git a/.oxfmtrc.jsonc b/.oxfmtrc.jsonc
+index 2e300b5877be8cd7cea3dd7a050bba84a77f8040..071c5a5e44e139e30ddf1a4be1e150cfac0b71f8
+--- a/.oxfmtrc.jsonc
++++ b/.oxfmtrc.jsonc
+@@ -7,6 +7,8 @@
+     "sortScripts": true,
+   },
+   "ignorePatterns": [
++    ".agents/",
++    ".ralph/",
+     "apps/chrome-extension/dist/",
+     "coverage/",
+     "dist/",
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c90683c148f1c
+--- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -35,4 +35,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/packages/core/package.json b/packages/core/package.json
+index a5feac1a3260d7047a868853b35b85994ab68a64..db1c6641dc76f11b122ccbae79a711da9a8ccbb6
+--- a/packages/core/package.json
++++ b/packages/core/package.json
+@@ -38,6 +38,10 @@
+     "./language": {
+       "types": "./dist/types/language.d.ts",
+       "import": "./dist/esm/language.js"
++    },
++    "./local-runtime": {
++      "types": "./dist/types/local-runtime.d.ts",
++      "import": "./dist/esm/local-runtime.js"
+     }
+   },
+   "scripts": {
+diff --git a/packages/core/src/index.ts b/packages/core/src/index.ts
+index 2da968023562582a7bcfd6e9bd3ac7fae34b8f89..208e92f2adc36f1210d84e60d812ec89ae45d9b7
+--- a/packages/core/src/index.ts
++++ b/packages/core/src/index.ts
+@@ -5,6 +5,7 @@
+   resolveConfiguredBaseUrl,
+   resolveOpenAiWhisperBaseUrl,
+ } from "./openai/base-url.js";
++export * from "./local-runtime.js";
+ export * from "./prompts/index.js";
+ export type { SummaryLength } from "./shared/contracts.js";
+ export { SUMMARY_LENGTHS } from "./shared/contracts.js";
+diff --git a/packages/core/src/local-runtime.ts b/packages/core/src/local-runtime.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2d9d47b8fa34f2d0d42561945e9145282bdc025f
+--- /dev/null
++++ b/packages/core/src/local-runtime.ts
+@@ -0,0 +1,358 @@
++export type LocalRuntimeKind = "openai-compatible" | "llama-cpp" | "ollama";
++export type LocalRuntimeProtocol = "openai-compatible" | "ollama";
++export type LocalRuntimeBaseUrlSource = "default" | "configured";
++
++export type LocalRuntimeBaseUrlValidationIssue =
++  | "missing"
++  | "invalid-url"
++  | "unsupported-protocol"
++  | "credentials-not-allowed"
++  | "query-or-hash-not-allowed"
++  | "remote-host-not-allowed";
++
++export type LocalRuntimeBaseUrlValidationOptions = {
++  /**
++   * Accept non-local hosts. Keep this false for built-in local defaults and
++   * enable it only when a caller is intentionally handling an explicit remote endpoint.
++   */
++  allowRemote?: boolean;
++  /**
++   * Additional hostnames that a caller treats as local in its own environment.
++   */
++  allowedHosts?: readonly string[];
++};
++
++export type LocalRuntimeBaseUrlValidationResult =
++  | {
++      ok: true;
++      baseUrl: string;
++      host: string;
++      hostname: string;
++      isLocal: boolean;
++    }
++  | {
++      ok: false;
++      issue: LocalRuntimeBaseUrlValidationIssue;
++      message: string;
++      value: string;
++    };
++
++type LocalRuntimeDescriptorBase = {
++  kind: LocalRuntimeKind;
++  label: string;
++  protocol: LocalRuntimeProtocol;
++  baseUrl: string;
++  baseUrlSource: LocalRuntimeBaseUrlSource;
++  modelsPath: string;
++  openAiCompatibleBaseUrl: string;
++};
++
++export type OpenAiCompatibleLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "openai-compatible";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type LlamaCppLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "llama-cpp";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type OllamaLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "ollama";
++  protocol: "ollama";
++  modelsPath: "/api/tags";
++};
++
++export type LocalRuntimeDescriptor =
++  | OpenAiCompatibleLocalRuntimeDescriptor
++  | LlamaCppLocalRuntimeDescriptor
++  | OllamaLocalRuntimeDescriptor;
++
++type LocalRuntimeRegistryEntry = Omit<
++  LocalRuntimeDescriptorBase,
++  "baseUrl" | "baseUrlSource" | "openAiCompatibleBaseUrl"
++> & {
++  defaultBaseUrl: string;
++  defaultOpenAiCompatibleBaseUrl?: string;
++};
++
++export const LOCAL_RUNTIME_REGISTRY = {
++  "openai-compatible": {
++    kind: "openai-compatible",
++    label: "OpenAI-compatible local endpoint",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  "llama-cpp": {
++    kind: "llama-cpp",
++    label: "llama.cpp server",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  ollama: {
++    kind: "ollama",
++    label: "Ollama",
++    protocol: "ollama",
++    defaultBaseUrl: "http://127.0.0.1:11434",
++    defaultOpenAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    modelsPath: "/api/tags",
++  },
++} as const satisfies Record<LocalRuntimeKind, LocalRuntimeRegistryEntry>;
++
++export const LOCAL_RUNTIME_KINDS = Object.keys(LOCAL_RUNTIME_REGISTRY) as LocalRuntimeKind[];
++
++export type LocalRuntimeDescriptorInput =
++  | LocalRuntimeKind
++  | {
++      kind?: unknown;
++      type?: unknown;
++      runtime?: unknown;
++      baseUrl?: unknown;
++      openAiCompatibleBaseUrl?: unknown;
++    };
++
++export type ParseLocalRuntimeDescriptorOptions = {
++  allowRemoteBaseUrls?: boolean;
++  allowedHosts?: readonly string[];
++};
++
++function normalizeHostname(hostname: string): string {
++  return hostname
++    .trim()
++    .toLowerCase()
++    .replace(/^\[(.*)]$/, "$1")
++    .replace(/\.$/, "");
++}
++
++function normalizeAllowedHosts(hosts: readonly string[] | undefined): Set<string> {
++  const normalized = new Set<string>();
++  for (const host of hosts ?? []) {
++    const value = normalizeHostname(host);
++    if (value.length > 0) normalized.add(value);
++  }
++  return normalized;
++}
++
++function isLoopbackIpv4(hostname: string): boolean {
++  const parts = hostname.split(".");
++  if (parts.length !== 4) return false;
++  const octets = parts.map((part) => {
++    if (!/^\d{1,3}$/.test(part)) return null;
++    const value = Number(part);
++    return Number.isInteger(value) && value >= 0 && value <= 255 ? value : null;
++  });
++  return octets.every((part): part is number => typeof part === "number") && octets[0] === 127;
++}
++
++export function isLocalRuntimeHostname(
++  hostname: string,
++  options: Pick<LocalRuntimeBaseUrlValidationOptions, "allowedHosts"> = {},
++): boolean {
++  const normalized = normalizeHostname(hostname);
++  if (!normalized) return false;
++  if (normalizeAllowedHosts(options.allowedHosts).has(normalized)) return true;
++  if (normalized === "localhost" || normalized.endsWith(".localhost")) return true;
++  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") return true;
++  return isLoopbackIpv4(normalized);
++}
++
++function normalizeUrl(url: URL): string {
++  return url.toString().replace(/\/+$/, "");
++}
++
++export function validateLocalRuntimeBaseUrl(
++  raw: unknown,
++  options: LocalRuntimeBaseUrlValidationOptions = {},
++): LocalRuntimeBaseUrlValidationResult {
++  const value = typeof raw === "string" ? raw.trim() : "";
++  if (!value) {
++    return {
++      ok: false,
++      issue: "missing",
++      message: "Local runtime base URL is required.",
++      value,
++    };
++  }
++
++  let url: URL;
++  try {
++    url = new URL(value);
++  } catch {
++    return {
++      ok: false,
++      issue: "invalid-url",
++      message: `Invalid local runtime base URL: ${value}`,
++      value,
++    };
++  }
++
++  if (url.protocol !== "http:" && url.protocol !== "https:") {
++    return {
++      ok: false,
++      issue: "unsupported-protocol",
++      message: `Local runtime base URL must use http or https: ${value}`,
++      value,
++    };
++  }
++
++  if (url.username || url.password) {
++    return {
++      ok: false,
++      issue: "credentials-not-allowed",
++      message: "Local runtime base URL must not include credentials.",
++      value,
++    };
++  }
++
++  if (url.search || url.hash) {
++    return {
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++      message: "Local runtime base URL must not include query strings or fragments.",
++      value,
++    };
++  }
++
++  const isLocal = isLocalRuntimeHostname(url.hostname, { allowedHosts: options.allowedHosts });
++  if (!isLocal && !options.allowRemote) {
++    return {
++      ok: false,
++      issue: "remote-host-not-allowed",
++      message: `Local runtime base URL host must be localhost or explicitly allowed: ${url.host}`,
++      value,
++    };
++  }
++
++  return {
++    ok: true,
++    baseUrl: normalizeUrl(url),
++    host: url.host,
++    hostname: url.hostname,
++    isLocal,
++  };
++}
++
++export function normalizeLocalRuntimeKind(raw: unknown): LocalRuntimeKind | null {
++  if (typeof raw !== "string") return null;
++  const normalized = raw.trim().toLowerCase().replaceAll("_", "-").replace(/\s+/g, "-");
++  if (normalized === "openai" || normalized === "openai-compatible") {
++    return "openai-compatible";
++  }
++  if (
++    normalized === "llama" ||
++    normalized === "llama-cpp" ||
++    normalized === "llama.cpp" ||
++    normalized === "llamacpp"
++  ) {
++    return "llama-cpp";
++  }
++  if (normalized === "ollama") return "ollama";
++  return null;
++}
++
++function assertValidBaseUrl(raw: unknown, options: LocalRuntimeBaseUrlValidationOptions): string {
++  const result = validateLocalRuntimeBaseUrl(raw, options);
++  if (!result.ok) {
++    throw new Error(result.message);
++  }
++  return result.baseUrl;
++}
++
++function appendPath(baseUrl: string, path: string): string {
++  const url = new URL(baseUrl);
++  const currentPath = url.pathname.replace(/\/+$/, "");
++  url.pathname = `${currentPath}/${path.replace(/^\/+/, "")}`;
++  return normalizeUrl(url);
++}
++
++function removeTrailingPathSegment(baseUrl: string, segment: string): string | null {
++  const url = new URL(baseUrl);
++  const suffix = `/${segment.replace(/^\/+/, "")}`;
++  const path = url.pathname.replace(/\/+$/, "");
++  if (path !== suffix && !path.endsWith(suffix)) return null;
++  url.pathname = path.slice(0, -suffix.length) || "/";
++  return normalizeUrl(url);
++}
++
++function resolveOllamaBaseUrls({
++  baseUrl,
++  openAiCompatibleBaseUrl,
++}: {
++  baseUrl: string;
++  openAiCompatibleBaseUrl?: string;
++}): { baseUrl: string; openAiCompatibleBaseUrl: string } {
++  const rootBaseUrl = removeTrailingPathSegment(baseUrl, "v1") ?? baseUrl;
++  return {
++    baseUrl: rootBaseUrl,
++    openAiCompatibleBaseUrl: openAiCompatibleBaseUrl ?? appendPath(rootBaseUrl, "v1"),
++  };
++}
++
++export function getDefaultLocalRuntimeDescriptor(kind: LocalRuntimeKind): LocalRuntimeDescriptor {
++  return parseLocalRuntimeDescriptor(kind);
++}
++
++export function parseLocalRuntimeDescriptor(
++  input: unknown,
++  options: ParseLocalRuntimeDescriptorOptions = {},
++): LocalRuntimeDescriptor {
++  const inputRecord =
++    typeof input === "object" && input !== null && !Array.isArray(input)
++      ? (input as Record<string, unknown>)
++      : null;
++  const kind = normalizeLocalRuntimeKind(
++    typeof input === "string"
++      ? input
++      : (inputRecord?.kind ?? inputRecord?.type ?? inputRecord?.runtime),
++  );
++  if (!kind) {
++    throw new Error(`Unknown local runtime kind: ${String(input)}`);
++  }
++
++  const registryEntry = LOCAL_RUNTIME_REGISTRY[kind];
++  const validationOptions = {
++    allowRemote: options.allowRemoteBaseUrls,
++    allowedHosts: options.allowedHosts,
++  };
++  const rawBaseUrl = inputRecord?.baseUrl;
++  const hasConfiguredBaseUrl = typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0;
++  const baseUrl = assertValidBaseUrl(
++    hasConfiguredBaseUrl ? rawBaseUrl : registryEntry.defaultBaseUrl,
++    validationOptions,
++  );
++
++  const rawOpenAiCompatibleBaseUrl = inputRecord?.openAiCompatibleBaseUrl;
++  const configuredOpenAiCompatibleBaseUrl =
++    typeof rawOpenAiCompatibleBaseUrl === "string" && rawOpenAiCompatibleBaseUrl.trim().length > 0
++      ? assertValidBaseUrl(rawOpenAiCompatibleBaseUrl, validationOptions)
++      : undefined;
++
++  const common = {
++    ...registryEntry,
++    baseUrl,
++    baseUrlSource: hasConfiguredBaseUrl ? "configured" : "default",
++    openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl ?? baseUrl,
++  };
++
++  if (kind === "ollama") {
++    const resolved = resolveOllamaBaseUrls({
++      baseUrl,
++      openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl,
++    });
++    return {
++      ...common,
++      baseUrl: resolved.baseUrl,
++      openAiCompatibleBaseUrl: resolved.openAiCompatibleBaseUrl,
++    } as OllamaLocalRuntimeDescriptor;
++  }
++
++  return common as LocalRuntimeDescriptor;
++}
++
++export const DEFAULT_LOCAL_RUNTIME_DESCRIPTORS = Object.fromEntries(
++  LOCAL_RUNTIME_KINDS.map((kind) => [kind, getDefaultLocalRuntimeDescriptor(kind)]),
++) as Readonly<Record<LocalRuntimeKind, LocalRuntimeDescriptor>>;
+diff --git a/tests/local-runtime.test.ts b/tests/local-runtime.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2b87ba118f69d9fad7dfe3e58dff4fbb32f946db
+--- /dev/null
++++ b/tests/local-runtime.test.ts
+@@ -0,0 +1,135 @@
++import {
++  DEFAULT_LOCAL_RUNTIME_DESCRIPTORS,
++  LOCAL_RUNTIME_KINDS,
++  isLocalRuntimeHostname,
++  parseLocalRuntimeDescriptor,
++  validateLocalRuntimeBaseUrl,
++} from "@steipete/summarize-core/local-runtime";
++import { describe, expect, it } from "vitest";
++
++describe("local runtime registry", () => {
++  it("ships localhost-first defaults for each supported runtime", () => {
++    expect(LOCAL_RUNTIME_KINDS).toEqual(["openai-compatible", "llama-cpp", "ollama"]);
++
++    for (const descriptor of Object.values(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS)) {
++      expect(descriptor.baseUrlSource).toBe("default");
++      expect(descriptor.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:/);
++
++      const validation = validateLocalRuntimeBaseUrl(descriptor.baseUrl);
++      expect(validation).toMatchObject({ ok: true, isLocal: true });
++    }
++
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["openai-compatible"]).toMatchObject({
++      kind: "openai-compatible",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["llama-cpp"]).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS.ollama).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("parses string aliases and configured descriptor objects", () => {
++    expect(parseLocalRuntimeDescriptor("openai")).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      baseUrlSource: "default",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        kind: "llama.cpp",
++        baseUrl: " http://localhost:8080/v1/ ",
++      }),
++    ).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://localhost:8080/v1",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://localhost:8080/v1",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        type: "ollama",
++        baseUrl: "http://127.0.0.1:11434/v1",
++      }),
++    ).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("rejects remote runtime URLs unless a caller explicitly allows them", () => {
++    expect(validateLocalRuntimeBaseUrl("https://api.openai.com/v1")).toMatchObject({
++      ok: false,
++      issue: "remote-host-not-allowed",
++    });
++
++    expect(
++      validateLocalRuntimeBaseUrl("https://gateway.example.com/v1", { allowRemote: true }),
++    ).toMatchObject({
++      ok: true,
++      baseUrl: "https://gateway.example.com/v1",
++      isLocal: false,
++    });
++
++    expect(() =>
++      parseLocalRuntimeDescriptor({
++        kind: "openai-compatible",
++        baseUrl: "https://gateway.example.com/v1",
++      }),
++    ).toThrow(/localhost or explicitly allowed/i);
++
++    expect(
++      parseLocalRuntimeDescriptor(
++        {
++          kind: "openai-compatible",
++          baseUrl: "https://gateway.example.com/v1",
++        },
++        { allowRemoteBaseUrls: true },
++      ),
++    ).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "https://gateway.example.com/v1",
++      baseUrlSource: "configured",
++    });
++  });
++
++  it("validates loopback hosts and rejects unsafe base URL shapes", () => {
++    expect(isLocalRuntimeHostname("localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("models.localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("127.12.0.1")).toBe(true);
++    expect(isLocalRuntimeHostname("[::1]")).toBe(true);
++    expect(isLocalRuntimeHostname("192.168.1.10")).toBe(false);
++    expect(
++      isLocalRuntimeHostname("host.docker.internal", { allowedHosts: ["host.docker.internal"] }),
++    ).toBe(true);
++
++    expect(validateLocalRuntimeBaseUrl("ftp://127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "unsupported-protocol",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://user:pass@127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "credentials-not-allowed",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://127.0.0.1:8080/v1?token=secret")).toMatchObject({
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++    });
++  });
++});
+diff --git a/vitest.config.ts b/vitest.config.ts
+index 9027fb04afacf9733ba8c53ee3994a4090585d0b..e61b0a4e74216a7a98ecbf0ea8090b95a6d7af4b
+--- a/vitest.config.ts
++++ b/vitest.config.ts
+@@ -39,6 +39,10 @@
+         replacement: resolve(rootDir, "packages/core/src/language.ts"),
+       },
+       {
++        find: /^@steipete\/summarize-core\/local-runtime$/,
++        replacement: resolve(rootDir, "packages/core/src/local-runtime.ts"),
++      },
++      {
+         find: /^@steipete\/summarize-core$/,
+         replacement: resolve(rootDir, "packages/core/src/index.ts"),
+       },
+
+exec
+/bin/zsh -lc 'tail -n 20 .ralph/progress.md' in /Users/shh/proj/summarize succeeded in 0ms:
+  - .ralph/errors.log
+  - .ralph/.tmp/prompt-20260422-085058-72504-2.md
+  - .ralph/.tmp/story-20260422-085058-72504-2.json
+  - .ralph/.tmp/story-20260422-085058-72504-2.md
+- What was implemented
+  Added a source-grounded audit documenting current OpenAI-compatible/local provider paths, CLI-local transports,
+  config/env files, daemon `/v1/summarize` and `/v1/agent` flow, extension settings and request flow, local-only safety
+  check locations, and language-aware routing extension points. Linked the audit from the docs indexes. No runtime
+  behavior was changed.
+- **Learnings for future iterations:**
+  - Patterns discovered: concrete summary runs converge on `ModelAttempt` and `createSummaryEngine`, while daemon chat
+    uses a separate `resolveAgentModel` path.
+  - Gotchas encountered: local OpenAI-compatible HTTP servers currently use `openai/...` plus `OPENAI_BASE_URL` or
+    `openai.baseUrl`; `OPENAI_API_KEY` is still required before transport setup, even for localhost endpoints.
+  - Useful context: installed daemons use a saved env snapshot, so local endpoint, key, PATH, or CLI binary changes need
+    restart/reinstall with updated env. The extension always sends `model`, defaulting to `auto`, so future routing must
+    treat `auto` as routeable instead of an explicit fixed model.
+  - Operational caveats: there is no dedicated Ollama or llama.cpp runtime registry yet; `/v1/agent` must be covered
+    separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
+---
+file update:
+diff --git a/.oxfmtrc.jsonc b/.oxfmtrc.jsonc
+index 2e300b5877be8cd7cea3dd7a050bba84a77f8040..071c5a5e44e139e30ddf1a4be1e150cfac0b71f8
+--- a/.oxfmtrc.jsonc
++++ b/.oxfmtrc.jsonc
+@@ -7,6 +7,8 @@
+     "sortScripts": true,
+   },
+   "ignorePatterns": [
++    ".agents/",
++    ".ralph/",
+     "apps/chrome-extension/dist/",
+     "coverage/",
+     "dist/",
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c90683c148f1c
+--- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -35,4 +35,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/packages/core/package.json b/packages/core/package.json
+index a5feac1a3260d7047a868853b35b85994ab68a64..db1c6641dc76f11b122ccbae79a711da9a8ccbb6
+--- a/packages/core/package.json
++++ b/packages/core/package.json
+@@ -38,6 +38,10 @@
+     "./language": {
+       "types": "./dist/types/language.d.ts",
+       "import": "./dist/esm/language.js"
++    },
++    "./local-runtime": {
++      "types": "./dist/types/local-runtime.d.ts",
++      "import": "./dist/esm/local-runtime.js"
+     }
+   },
+   "scripts": {
+diff --git a/packages/core/src/index.ts b/packages/core/src/index.ts
+index 2da968023562582a7bcfd6e9bd3ac7fae34b8f89..208e92f2adc36f1210d84e60d812ec89ae45d9b7
+--- a/packages/core/src/index.ts
++++ b/packages/core/src/index.ts
+@@ -5,6 +5,7 @@
+   resolveConfiguredBaseUrl,
+   resolveOpenAiWhisperBaseUrl,
+ } from "./openai/base-url.js";
++export * from "./local-runtime.js";
+ export * from "./prompts/index.js";
+ export type { SummaryLength } from "./shared/contracts.js";
+ export { SUMMARY_LENGTHS } from "./shared/contracts.js";
+diff --git a/packages/core/src/local-runtime.ts b/packages/core/src/local-runtime.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2d9d47b8fa34f2d0d42561945e9145282bdc025f
+--- /dev/null
++++ b/packages/core/src/local-runtime.ts
+@@ -0,0 +1,358 @@
++export type LocalRuntimeKind = "openai-compatible" | "llama-cpp" | "ollama";
++export type LocalRuntimeProtocol = "openai-compatible" | "ollama";
++export type LocalRuntimeBaseUrlSource = "default" | "configured";
++
++export type LocalRuntimeBaseUrlValidationIssue =
++  | "missing"
++  | "invalid-url"
++  | "unsupported-protocol"
++  | "credentials-not-allowed"
++  | "query-or-hash-not-allowed"
++  | "remote-host-not-allowed";
++
++export type LocalRuntimeBaseUrlValidationOptions = {
++  /**
++   * Accept non-local hosts. Keep this false for built-in local defaults and
++   * enable it only when a caller is intentionally handling an explicit remote endpoint.
++   */
++  allowRemote?: boolean;
++  /**
++   * Additional hostnames that a caller treats as local in its own environment.
++   */
++  allowedHosts?: readonly string[];
++};
++
++export type LocalRuntimeBaseUrlValidationResult =
++  | {
++      ok: true;
++      baseUrl: string;
++      host: string;
++      hostname: string;
++      isLocal: boolean;
++    }
++  | {
++      ok: false;
++      issue: LocalRuntimeBaseUrlValidationIssue;
++      message: string;
++      value: string;
++    };
++
++type LocalRuntimeDescriptorBase = {
++  kind: LocalRuntimeKind;
++  label: string;
++  protocol: LocalRuntimeProtocol;
++  baseUrl: string;
++  baseUrlSource: LocalRuntimeBaseUrlSource;
++  modelsPath: string;
++  openAiCompatibleBaseUrl: string;
++};
++
++export type OpenAiCompatibleLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "openai-compatible";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type LlamaCppLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "llama-cpp";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type OllamaLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "ollama";
++  protocol: "ollama";
++  modelsPath: "/api/tags";
++};
++
++export type LocalRuntimeDescriptor =
++  | OpenAiCompatibleLocalRuntimeDescriptor
++  | LlamaCppLocalRuntimeDescriptor
++  | OllamaLocalRuntimeDescriptor;
++
++type LocalRuntimeRegistryEntry = Omit<
++  LocalRuntimeDescriptorBase,
++  "baseUrl" | "baseUrlSource" | "openAiCompatibleBaseUrl"
++> & {
++  defaultBaseUrl: string;
++  defaultOpenAiCompatibleBaseUrl?: string;
++};
++
++export const LOCAL_RUNTIME_REGISTRY = {
++  "openai-compatible": {
++    kind: "openai-compatible",
++    label: "OpenAI-compatible local endpoint",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  "llama-cpp": {
++    kind: "llama-cpp",
++    label: "llama.cpp server",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  ollama: {
++    kind: "ollama",
++    label: "Ollama",
++    protocol: "ollama",
++    defaultBaseUrl: "http://127.0.0.1:11434",
++    defaultOpenAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    modelsPath: "/api/tags",
++  },
++} as const satisfies Record<LocalRuntimeKind, LocalRuntimeRegistryEntry>;
++
++export const LOCAL_RUNTIME_KINDS = Object.keys(LOCAL_RUNTIME_REGISTRY) as LocalRuntimeKind[];
++
++export type LocalRuntimeDescriptorInput =
++  | LocalRuntimeKind
++  | {
++      kind?: unknown;
++      type?: unknown;
++      runtime?: unknown;
++      baseUrl?: unknown;
++      openAiCompatibleBaseUrl?: unknown;
++    };
++
++export type ParseLocalRuntimeDescriptorOptions = {
++  allowRemoteBaseUrls?: boolean;
++  allowedHosts?: readonly string[];
++};
++
++function normalizeHostname(hostname: string): string {
++  return hostname
++    .trim()
++    .toLowerCase()
++    .replace(/^\[(.*)]$/, "$1")
++    .replace(/\.$/, "");
++}
++
++function normalizeAllowedHosts(hosts: readonly string[] | undefined): Set<string> {
++  const normalized = new Set<string>();
++  for (const host of hosts ?? []) {
++    const value = normalizeHostname(host);
++    if (value.length > 0) normalized.add(value);
++  }
++  return normalized;
++}
++
++function isLoopbackIpv4(hostname: string): boolean {
++  const parts = hostname.split(".");
++  if (parts.length !== 4) return false;
++  const octets = parts.map((part) => {
++    if (!/^\d{1,3}$/.test(part)) return null;
++    const value = Number(part);
++    return Number.isInteger(value) && value >= 0 && value <= 255 ? value : null;
++  });
++  return octets.every((part): part is number => typeof part === "number") && octets[0] === 127;
++}
++
++export function isLocalRuntimeHostname(
++  hostname: string,
++  options: Pick<LocalRuntimeBaseUrlValidationOptions, "allowedHosts"> = {},
++): boolean {
++  const normalized = normalizeHostname(hostname);
++  if (!normalized) return false;
++  if (normalizeAllowedHosts(options.allowedHosts).has(normalized)) return true;
++  if (normalized === "localhost" || normalized.endsWith(".localhost")) return true;
++  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") return true;
++  return isLoopbackIpv4(normalized);
++}
++
++function normalizeUrl(url: URL): string {
++  return url.toString().replace(/\/+$/, "");
++}
++
++export function validateLocalRuntimeBaseUrl(
++  raw: unknown,
++  options: LocalRuntimeBaseUrlValidationOptions = {},
++): LocalRuntimeBaseUrlValidationResult {
++  const value = typeof raw === "string" ? raw.trim() : "";
++  if (!value) {
++    return {
++      ok: false,
++      issue: "missing",
++      message: "Local runtime base URL is required.",
++      value,
++    };
++  }
++
++  let url: URL;
++  try {
++    url = new URL(value);
++  } catch {
++    return {
++      ok: false,
++      issue: "invalid-url",
++      message: `Invalid local runtime base URL: ${value}`,
++      value,
++    };
++  }
++
++  if (url.protocol !== "http:" && url.protocol !== "https:") {
++    return {
++      ok: false,
++      issue: "unsupported-protocol",
++      message: `Local runtime base URL must use http or https: ${value}`,
++      value,
++    };
++  }
++
++  if (url.username || url.password) {
++    return {
++      ok: false,
++      issue: "credentials-not-allowed",
++      message: "Local runtime base URL must not include credentials.",
++      value,
++    };
++  }
++
++  if (url.search || url.hash) {
++    return {
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++      message: "Local runtime base URL must not include query strings or fragments.",
++      value,
++    };
++  }
++
++  const isLocal = isLocalRuntimeHostname(url.hostname, { allowedHosts: options.allowedHosts });
++  if (!isLocal && !options.allowRemote) {
++    return {
++      ok: false,
++      issue: "remote-host-not-allowed",
++      message: `Local runtime base URL host must be localhost or explicitly allowed: ${url.host}`,
++      value,
++    };
++  }
++
++  return {
++    ok: true,
++    baseUrl: normalizeUrl(url),
++    host: url.host,
++    hostname: url.hostname,
++    isLocal,
++  };
++}
++
++export function normalizeLocalRuntimeKind(raw: unknown): LocalRuntimeKind | null {
++  if (typeof raw !== "string") return null;
++  const normalized = raw.trim().toLowerCase().replaceAll("_", "-").replace(/\s+/g, "-");
++  if (normalized === "openai" || normalized === "openai-compatible") {
++    return "openai-compatible";
++  }
++  if (
++    normalized === "llama" ||
++    normalized === "llama-cpp" ||
++    normalized === "llama.cpp" ||
++    normalized === "llamacpp"
++  ) {
++    return "llama-cpp";
++  }
++  if (normalized === "ollama") return "ollama";
++  return null;
++}
++
++function assertValidBaseUrl(raw: unknown, options: LocalRuntimeBaseUrlValidationOptions): string {
++  const result = validateLocalRuntimeBaseUrl(raw, options);
++  if (!result.ok) {
++    throw new Error(result.message);
++  }
++  return result.baseUrl;
++}
++
++function appendPath(baseUrl: string, path: string): string {
++  const url = new URL(baseUrl);
++  const currentPath = url.pathname.replace(/\/+$/, "");
++  url.pathname = `${currentPath}/${path.replace(/^\/+/, "")}`;
++  return normalizeUrl(url);
++}
++
++function removeTrailingPathSegment(baseUrl: string, segment: string): string | null {
++  const url = new URL(baseUrl);
++  const suffix = `/${segment.replace(/^\/+/, "")}`;
++  const path = url.pathname.replace(/\/+$/, "");
++  if (path !== suffix && !path.endsWith(suffix)) return null;
++  url.pathname = path.slice(0, -suffix.length) || "/";
++  return normalizeUrl(url);
++}
++
++function resolveOllamaBaseUrls({
++  baseUrl,
++  openAiCompatibleBaseUrl,
++}: {
++  baseUrl: string;
++  openAiCompatibleBaseUrl?: string;
++}): { baseUrl: string; openAiCompatibleBaseUrl: string } {
++  const rootBaseUrl = removeTrailingPathSegment(baseUrl, "v1") ?? baseUrl;
++  return {
++    baseUrl: rootBaseUrl,
++    openAiCompatibleBaseUrl: openAiCompatibleBaseUrl ?? appendPath(rootBaseUrl, "v1"),
++  };
++}
++
++export function getDefaultLocalRuntimeDescriptor(kind: LocalRuntimeKind): LocalRuntimeDescriptor {
++  return parseLocalRuntimeDescriptor(kind);
++}
++
++export function parseLocalRuntimeDescriptor(
++  input: unknown,
++  options: ParseLocalRuntimeDescriptorOptions = {},
++): LocalRuntimeDescriptor {
++  const inputRecord =
++    typeof input === "object" && input !== null && !Array.isArray(input)
++      ? (input as Record<string, unknown>)
++      : null;
++  const kind = normalizeLocalRuntimeKind(
++    typeof input === "string"
++      ? input
++      : (inputRecord?.kind ?? inputRecord?.type ?? inputRecord?.runtime),
++  );
++  if (!kind) {
++    throw new Error(`Unknown local runtime kind: ${String(input)}`);
++  }
++
++  const registryEntry = LOCAL_RUNTIME_REGISTRY[kind];
++  const validationOptions = {
++    allowRemote: options.allowRemoteBaseUrls,
++    allowedHosts: options.allowedHosts,
++  };
++  const rawBaseUrl = inputRecord?.baseUrl;
++  const hasConfiguredBaseUrl = typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0;
++  const baseUrl = assertValidBaseUrl(
++    hasConfiguredBaseUrl ? rawBaseUrl : registryEntry.defaultBaseUrl,
++    validationOptions,
++  );
++
++  const rawOpenAiCompatibleBaseUrl = inputRecord?.openAiCompatibleBaseUrl;
++  const configuredOpenAiCompatibleBaseUrl =
++    typeof rawOpenAiCompatibleBaseUrl === "string" && rawOpenAiCompatibleBaseUrl.trim().length > 0
++      ? assertValidBaseUrl(rawOpenAiCompatibleBaseUrl, validationOptions)
++      : undefined;
++
++  const common = {
++    ...registryEntry,
++    baseUrl,
++    baseUrlSource: hasConfiguredBaseUrl ? "configured" : "default",
++    openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl ?? baseUrl,
++  };
++
++  if (kind === "ollama") {
++    const resolved = resolveOllamaBaseUrls({
++      baseUrl,
++      openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl,
++    });
++    return {
++      ...common,
++      baseUrl: resolved.baseUrl,
++      openAiCompatibleBaseUrl: resolved.openAiCompatibleBaseUrl,
++    } as OllamaLocalRuntimeDescriptor;
++  }
++
++  return common as LocalRuntimeDescriptor;
++}
++
++export const DEFAULT_LOCAL_RUNTIME_DESCRIPTORS = Object.fromEntries(
++  LOCAL_RUNTIME_KINDS.map((kind) => [kind, getDefaultLocalRuntimeDescriptor(kind)]),
++) as Readonly<Record<LocalRuntimeKind, LocalRuntimeDescriptor>>;
+diff --git a/tests/local-runtime.test.ts b/tests/local-runtime.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2b87ba118f69d9fad7dfe3e58dff4fbb32f946db
+--- /dev/null
++++ b/tests/local-runtime.test.ts
+@@ -0,0 +1,135 @@
++import {
++  DEFAULT_LOCAL_RUNTIME_DESCRIPTORS,
++  LOCAL_RUNTIME_KINDS,
++  isLocalRuntimeHostname,
++  parseLocalRuntimeDescriptor,
++  validateLocalRuntimeBaseUrl,
++} from "@steipete/summarize-core/local-runtime";
++import { describe, expect, it } from "vitest";
++
++describe("local runtime registry", () => {
++  it("ships localhost-first defaults for each supported runtime", () => {
++    expect(LOCAL_RUNTIME_KINDS).toEqual(["openai-compatible", "llama-cpp", "ollama"]);
++
++    for (const descriptor of Object.values(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS)) {
++      expect(descriptor.baseUrlSource).toBe("default");
++      expect(descriptor.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:/);
++
++      const validation = validateLocalRuntimeBaseUrl(descriptor.baseUrl);
++      expect(validation).toMatchObject({ ok: true, isLocal: true });
++    }
++
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["openai-compatible"]).toMatchObject({
++      kind: "openai-compatible",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["llama-cpp"]).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS.ollama).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("parses string aliases and configured descriptor objects", () => {
++    expect(parseLocalRuntimeDescriptor("openai")).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      baseUrlSource: "default",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        kind: "llama.cpp",
++        baseUrl: " http://localhost:8080/v1/ ",
++      }),
++    ).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://localhost:8080/v1",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://localhost:8080/v1",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        type: "ollama",
++        baseUrl: "http://127.0.0.1:11434/v1",
++      }),
++    ).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("rejects remote runtime URLs unless a caller explicitly allows them", () => {
++    expect(validateLocalRuntimeBaseUrl("https://api.openai.com/v1")).toMatchObject({
++      ok: false,
++      issue: "remote-host-not-allowed",
++    });
++
++    expect(
++      validateLocalRuntimeBaseUrl("https://gateway.example.com/v1", { allowRemote: true }),
++    ).toMatchObject({
++      ok: true,
++      baseUrl: "https://gateway.example.com/v1",
++      isLocal: false,
++    });
++
++    expect(() =>
++      parseLocalRuntimeDescriptor({
++        kind: "openai-compatible",
++        baseUrl: "https://gateway.example.com/v1",
++      }),
++    ).toThrow(/localhost or explicitly allowed/i);
++
++    expect(
++      parseLocalRuntimeDescriptor(
++        {
++          kind: "openai-compatible",
++          baseUrl: "https://gateway.example.com/v1",
++        },
++        { allowRemoteBaseUrls: true },
++      ),
++    ).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "https://gateway.example.com/v1",
++      baseUrlSource: "configured",
++    });
++  });
++
++  it("validates loopback hosts and rejects unsafe base URL shapes", () => {
++    expect(isLocalRuntimeHostname("localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("models.localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("127.12.0.1")).toBe(true);
++    expect(isLocalRuntimeHostname("[::1]")).toBe(true);
++    expect(isLocalRuntimeHostname("192.168.1.10")).toBe(false);
++    expect(
++      isLocalRuntimeHostname("host.docker.internal", { allowedHosts: ["host.docker.internal"] }),
++    ).toBe(true);
++
++    expect(validateLocalRuntimeBaseUrl("ftp://127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "unsupported-protocol",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://user:pass@127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "credentials-not-allowed",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://127.0.0.1:8080/v1?token=secret")).toMatchObject({
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++    });
++  });
++});
+diff --git a/vitest.config.ts b/vitest.config.ts
+index 9027fb04afacf9733ba8c53ee3994a4090585d0b..e61b0a4e74216a7a98ecbf0ea8090b95a6d7af4b
+--- a/vitest.config.ts
++++ b/vitest.config.ts
+@@ -39,6 +39,10 @@
+         replacement: resolve(rootDir, "packages/core/src/language.ts"),
+       },
+       {
++        find: /^@steipete\/summarize-core\/local-runtime$/,
++        replacement: resolve(rootDir, "packages/core/src/local-runtime.ts"),
++      },
++      {
+         find: /^@steipete\/summarize-core$/,
+         replacement: resolve(rootDir, "packages/core/src/index.ts"),
+       },
+
+exec
+/bin/zsh -lc 'ls -l .ralph/runs/run-20260422-085058-72504-iter-3.md .ralph/runs/run-20260422-085058-72504-iter-3.log 2>/dev/null || true' in /Users/shh/proj/summarize succeeded in 0ms:
+-rw-r--r--@ 1 shh  staff  719352 Apr 22 09:13 .ralph/runs/run-20260422-085058-72504-iter-3.log
+file update:
+diff --git a/.oxfmtrc.jsonc b/.oxfmtrc.jsonc
+index 2e300b5877be8cd7cea3dd7a050bba84a77f8040..071c5a5e44e139e30ddf1a4be1e150cfac0b71f8
+--- a/.oxfmtrc.jsonc
++++ b/.oxfmtrc.jsonc
+@@ -7,6 +7,8 @@
+     "sortScripts": true,
+   },
+   "ignorePatterns": [
++    ".agents/",
++    ".ralph/",
+     "apps/chrome-extension/dist/",
+     "coverage/",
+     "dist/",
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c90683c148f1c
+--- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -35,4 +35,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/packages/core/package.json b/packages/core/package.json
+index a5feac1a3260d7047a868853b35b85994ab68a64..db1c6641dc76f11b122ccbae79a711da9a8ccbb6
+--- a/packages/core/package.json
++++ b/packages/core/package.json
+@@ -38,6 +38,10 @@
+     "./language": {
+       "types": "./dist/types/language.d.ts",
+       "import": "./dist/esm/language.js"
++    },
++    "./local-runtime": {
++      "types": "./dist/types/local-runtime.d.ts",
++      "import": "./dist/esm/local-runtime.js"
+     }
+   },
+   "scripts": {
+diff --git a/packages/core/src/index.ts b/packages/core/src/index.ts
+index 2da968023562582a7bcfd6e9bd3ac7fae34b8f89..208e92f2adc36f1210d84e60d812ec89ae45d9b7
+--- a/packages/core/src/index.ts
++++ b/packages/core/src/index.ts
+@@ -5,6 +5,7 @@
+   resolveConfiguredBaseUrl,
+   resolveOpenAiWhisperBaseUrl,
+ } from "./openai/base-url.js";
++export * from "./local-runtime.js";
+ export * from "./prompts/index.js";
+ export type { SummaryLength } from "./shared/contracts.js";
+ export { SUMMARY_LENGTHS } from "./shared/contracts.js";
+diff --git a/packages/core/src/local-runtime.ts b/packages/core/src/local-runtime.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2d9d47b8fa34f2d0d42561945e9145282bdc025f
+--- /dev/null
++++ b/packages/core/src/local-runtime.ts
+@@ -0,0 +1,358 @@
++export type LocalRuntimeKind = "openai-compatible" | "llama-cpp" | "ollama";
++export type LocalRuntimeProtocol = "openai-compatible" | "ollama";
++export type LocalRuntimeBaseUrlSource = "default" | "configured";
++
++export type LocalRuntimeBaseUrlValidationIssue =
++  | "missing"
++  | "invalid-url"
++  | "unsupported-protocol"
++  | "credentials-not-allowed"
++  | "query-or-hash-not-allowed"
++  | "remote-host-not-allowed";
++
++export type LocalRuntimeBaseUrlValidationOptions = {
++  /**
++   * Accept non-local hosts. Keep this false for built-in local defaults and
++   * enable it only when a caller is intentionally handling an explicit remote endpoint.
++   */
++  allowRemote?: boolean;
++  /**
++   * Additional hostnames that a caller treats as local in its own environment.
++   */
++  allowedHosts?: readonly string[];
++};
++
++export type LocalRuntimeBaseUrlValidationResult =
++  | {
++      ok: true;
++      baseUrl: string;
++      host: string;
++      hostname: string;
++      isLocal: boolean;
++    }
++  | {
++      ok: false;
++      issue: LocalRuntimeBaseUrlValidationIssue;
++      message: string;
++      value: string;
++    };
++
++type LocalRuntimeDescriptorBase = {
++  kind: LocalRuntimeKind;
++  label: string;
++  protocol: LocalRuntimeProtocol;
++  baseUrl: string;
++  baseUrlSource: LocalRuntimeBaseUrlSource;
++  modelsPath: string;
++  openAiCompatibleBaseUrl: string;
++};
++
++export type OpenAiCompatibleLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "openai-compatible";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type LlamaCppLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "llama-cpp";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type OllamaLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "ollama";
++  protocol: "ollama";
++  modelsPath: "/api/tags";
++};
++
++export type LocalRuntimeDescriptor =
++  | OpenAiCompatibleLocalRuntimeDescriptor
++  | LlamaCppLocalRuntimeDescriptor
++  | OllamaLocalRuntimeDescriptor;
++
++type LocalRuntimeRegistryEntry = Omit<
++  LocalRuntimeDescriptorBase,
++  "baseUrl" | "baseUrlSource" | "openAiCompatibleBaseUrl"
++> & {
++  defaultBaseUrl: string;
++  defaultOpenAiCompatibleBaseUrl?: string;
++};
++
++export const LOCAL_RUNTIME_REGISTRY = {
++  "openai-compatible": {
++    kind: "openai-compatible",
++    label: "OpenAI-compatible local endpoint",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  "llama-cpp": {
++    kind: "llama-cpp",
++    label: "llama.cpp server",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  ollama: {
++    kind: "ollama",
++    label: "Ollama",
++    protocol: "ollama",
++    defaultBaseUrl: "http://127.0.0.1:11434",
++    defaultOpenAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    modelsPath: "/api/tags",
++  },
++} as const satisfies Record<LocalRuntimeKind, LocalRuntimeRegistryEntry>;
++
++export const LOCAL_RUNTIME_KINDS = Object.keys(LOCAL_RUNTIME_REGISTRY) as LocalRuntimeKind[];
++
++export type LocalRuntimeDescriptorInput =
++  | LocalRuntimeKind
++  | {
++      kind?: unknown;
++      type?: unknown;
++      runtime?: unknown;
++      baseUrl?: unknown;
++      openAiCompatibleBaseUrl?: unknown;
++    };
++
++export type ParseLocalRuntimeDescriptorOptions = {
++  allowRemoteBaseUrls?: boolean;
++  allowedHosts?: readonly string[];
++};
++
++function normalizeHostname(hostname: string): string {
++  return hostname
++    .trim()
++    .toLowerCase()
++    .replace(/^\[(.*)]$/, "$1")
++    .replace(/\.$/, "");
++}
++
++function normalizeAllowedHosts(hosts: readonly string[] | undefined): Set<string> {
++  const normalized = new Set<string>();
++  for (const host of hosts ?? []) {
++    const value = normalizeHostname(host);
++    if (value.length > 0) normalized.add(value);
++  }
++  return normalized;
++}
++
++function isLoopbackIpv4(hostname: string): boolean {
++  const parts = hostname.split(".");
++  if (parts.length !== 4) return false;
++  const octets = parts.map((part) => {
++    if (!/^\d{1,3}$/.test(part)) return null;
++    const value = Number(part);
++    return Number.isInteger(value) && value >= 0 && value <= 255 ? value : null;
++  });
++  return octets.every((part): part is number => typeof part === "number") && octets[0] === 127;
++}
++
++export function isLocalRuntimeHostname(
++  hostname: string,
++  options: Pick<LocalRuntimeBaseUrlValidationOptions, "allowedHosts"> = {},
++): boolean {
++  const normalized = normalizeHostname(hostname);
++  if (!normalized) return false;
++  if (normalizeAllowedHosts(options.allowedHosts).has(normalized)) return true;
++  if (normalized === "localhost" || normalized.endsWith(".localhost")) return true;
++  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") return true;
++  return isLoopbackIpv4(normalized);
++}
++
++function normalizeUrl(url: URL): string {
++  return url.toString().replace(/\/+$/, "");
++}
++
++export function validateLocalRuntimeBaseUrl(
++  raw: unknown,
++  options: LocalRuntimeBaseUrlValidationOptions = {},
++): LocalRuntimeBaseUrlValidationResult {
++  const value = typeof raw === "string" ? raw.trim() : "";
++  if (!value) {
++    return {
++      ok: false,
++      issue: "missing",
++      message: "Local runtime base URL is required.",
++      value,
++    };
++  }
++
++  let url: URL;
++  try {
++    url = new URL(value);
++  } catch {
++    return {
++      ok: false,
++      issue: "invalid-url",
++      message: `Invalid local runtime base URL: ${value}`,
++      value,
++    };
++  }
++
++  if (url.protocol !== "http:" && url.protocol !== "https:") {
++    return {
++      ok: false,
++      issue: "unsupported-protocol",
++      message: `Local runtime base URL must use http or https: ${value}`,
++      value,
++    };
++  }
++
++  if (url.username || url.password) {
++    return {
++      ok: false,
++      issue: "credentials-not-allowed",
++      message: "Local runtime base URL must not include credentials.",
++      value,
++    };
++  }
++
++  if (url.search || url.hash) {
++    return {
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++      message: "Local runtime base URL must not include query strings or fragments.",
++      value,
++    };
++  }
++
++  const isLocal = isLocalRuntimeHostname(url.hostname, { allowedHosts: options.allowedHosts });
++  if (!isLocal && !options.allowRemote) {
++    return {
++      ok: false,
++      issue: "remote-host-not-allowed",
++      message: `Local runtime base URL host must be localhost or explicitly allowed: ${url.host}`,
++      value,
++    };
++  }
++
++  return {
++    ok: true,
++    baseUrl: normalizeUrl(url),
++    host: url.host,
++    hostname: url.hostname,
++    isLocal,
++  };
++}
++
++export function normalizeLocalRuntimeKind(raw: unknown): LocalRuntimeKind | null {
++  if (typeof raw !== "string") return null;
++  const normalized = raw.trim().toLowerCase().replaceAll("_", "-").replace(/\s+/g, "-");
++  if (normalized === "openai" || normalized === "openai-compatible") {
++    return "openai-compatible";
++  }
++  if (
++    normalized === "llama" ||
++    normalized === "llama-cpp" ||
++    normalized === "llama.cpp" ||
++    normalized === "llamacpp"
++  ) {
++    return "llama-cpp";
++  }
++  if (normalized === "ollama") return "ollama";
++  return null;
++}
++
++function assertValidBaseUrl(raw: unknown, options: LocalRuntimeBaseUrlValidationOptions): string {
++  const result = validateLocalRuntimeBaseUrl(raw, options);
++  if (!result.ok) {
++    throw new Error(result.message);
++  }
++  return result.baseUrl;
++}
++
++function appendPath(baseUrl: string, path: string): string {
++  const url = new URL(baseUrl);
++  const currentPath = url.pathname.replace(/\/+$/, "");
++  url.pathname = `${currentPath}/${path.replace(/^\/+/, "")}`;
++  return normalizeUrl(url);
++}
++
++function removeTrailingPathSegment(baseUrl: string, segment: string): string | null {
++  const url = new URL(baseUrl);
++  const suffix = `/${segment.replace(/^\/+/, "")}`;
++  const path = url.pathname.replace(/\/+$/, "");
++  if (path !== suffix && !path.endsWith(suffix)) return null;
++  url.pathname = path.slice(0, -suffix.length) || "/";
++  return normalizeUrl(url);
++}
++
++function resolveOllamaBaseUrls({
++  baseUrl,
++  openAiCompatibleBaseUrl,
++}: {
++  baseUrl: string;
++  openAiCompatibleBaseUrl?: string;
++}): { baseUrl: string; openAiCompatibleBaseUrl: string } {
++  const rootBaseUrl = removeTrailingPathSegment(baseUrl, "v1") ?? baseUrl;
++  return {
++    baseUrl: rootBaseUrl,
++    openAiCompatibleBaseUrl: openAiCompatibleBaseUrl ?? appendPath(rootBaseUrl, "v1"),
++  };
++}
++
++export function getDefaultLocalRuntimeDescriptor(kind: LocalRuntimeKind): LocalRuntimeDescriptor {
++  return parseLocalRuntimeDescriptor(kind);
++}
++
++export function parseLocalRuntimeDescriptor(
++  input: unknown,
++  options: ParseLocalRuntimeDescriptorOptions = {},
++): LocalRuntimeDescriptor {
++  const inputRecord =
++    typeof input === "object" && input !== null && !Array.isArray(input)
++      ? (input as Record<string, unknown>)
++      : null;
++  const kind = normalizeLocalRuntimeKind(
++    typeof input === "string"
++      ? input
++      : (inputRecord?.kind ?? inputRecord?.type ?? inputRecord?.runtime),
++  );
++  if (!kind) {
++    throw new Error(`Unknown local runtime kind: ${String(input)}`);
++  }
++
++  const registryEntry = LOCAL_RUNTIME_REGISTRY[kind];
++  const validationOptions = {
++    allowRemote: options.allowRemoteBaseUrls,
++    allowedHosts: options.allowedHosts,
++  };
++  const rawBaseUrl = inputRecord?.baseUrl;
++  const hasConfiguredBaseUrl = typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0;
++  const baseUrl = assertValidBaseUrl(
++    hasConfiguredBaseUrl ? rawBaseUrl : registryEntry.defaultBaseUrl,
++    validationOptions,
++  );
++
++  const rawOpenAiCompatibleBaseUrl = inputRecord?.openAiCompatibleBaseUrl;
++  const configuredOpenAiCompatibleBaseUrl =
++    typeof rawOpenAiCompatibleBaseUrl === "string" && rawOpenAiCompatibleBaseUrl.trim().length > 0
++      ? assertValidBaseUrl(rawOpenAiCompatibleBaseUrl, validationOptions)
++      : undefined;
++
++  const common = {
++    ...registryEntry,
++    baseUrl,
++    baseUrlSource: hasConfiguredBaseUrl ? "configured" : "default",
++    openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl ?? baseUrl,
++  };
++
++  if (kind === "ollama") {
++    const resolved = resolveOllamaBaseUrls({
++      baseUrl,
++      openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl,
++    });
++    return {
++      ...common,
++      baseUrl: resolved.baseUrl,
++      openAiCompatibleBaseUrl: resolved.openAiCompatibleBaseUrl,
++    } as OllamaLocalRuntimeDescriptor;
++  }
++
++  return common as LocalRuntimeDescriptor;
++}
++
++export const DEFAULT_LOCAL_RUNTIME_DESCRIPTORS = Object.fromEntries(
++  LOCAL_RUNTIME_KINDS.map((kind) => [kind, getDefaultLocalRuntimeDescriptor(kind)]),
++) as Readonly<Record<LocalRuntimeKind, LocalRuntimeDescriptor>>;
+diff --git a/tests/local-runtime.test.ts b/tests/local-runtime.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2b87ba118f69d9fad7dfe3e58dff4fbb32f946db
+--- /dev/null
++++ b/tests/local-runtime.test.ts
+@@ -0,0 +1,135 @@
++import {
++  DEFAULT_LOCAL_RUNTIME_DESCRIPTORS,
++  LOCAL_RUNTIME_KINDS,
++  isLocalRuntimeHostname,
++  parseLocalRuntimeDescriptor,
++  validateLocalRuntimeBaseUrl,
++} from "@steipete/summarize-core/local-runtime";
++import { describe, expect, it } from "vitest";
++
++describe("local runtime registry", () => {
++  it("ships localhost-first defaults for each supported runtime", () => {
++    expect(LOCAL_RUNTIME_KINDS).toEqual(["openai-compatible", "llama-cpp", "ollama"]);
++
++    for (const descriptor of Object.values(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS)) {
++      expect(descriptor.baseUrlSource).toBe("default");
++      expect(descriptor.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:/);
++
++      const validation = validateLocalRuntimeBaseUrl(descriptor.baseUrl);
++      expect(validation).toMatchObject({ ok: true, isLocal: true });
++    }
++
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["openai-compatible"]).toMatchObject({
++      kind: "openai-compatible",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["llama-cpp"]).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS.ollama).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("parses string aliases and configured descriptor objects", () => {
++    expect(parseLocalRuntimeDescriptor("openai")).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      baseUrlSource: "default",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        kind: "llama.cpp",
++        baseUrl: " http://localhost:8080/v1/ ",
++      }),
++    ).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://localhost:8080/v1",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://localhost:8080/v1",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        type: "ollama",
++        baseUrl: "http://127.0.0.1:11434/v1",
++      }),
++    ).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("rejects remote runtime URLs unless a caller explicitly allows them", () => {
++    expect(validateLocalRuntimeBaseUrl("https://api.openai.com/v1")).toMatchObject({
++      ok: false,
++      issue: "remote-host-not-allowed",
++    });
++
++    expect(
++      validateLocalRuntimeBaseUrl("https://gateway.example.com/v1", { allowRemote: true }),
++    ).toMatchObject({
++      ok: true,
++      baseUrl: "https://gateway.example.com/v1",
++      isLocal: false,
++    });
++
++    expect(() =>
++      parseLocalRuntimeDescriptor({
++        kind: "openai-compatible",
++        baseUrl: "https://gateway.example.com/v1",
++      }),
++    ).toThrow(/localhost or explicitly allowed/i);
++
++    expect(
++      parseLocalRuntimeDescriptor(
++        {
++          kind: "openai-compatible",
++          baseUrl: "https://gateway.example.com/v1",
++        },
++        { allowRemoteBaseUrls: true },
++      ),
++    ).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "https://gateway.example.com/v1",
++      baseUrlSource: "configured",
++    });
++  });
++
++  it("validates loopback hosts and rejects unsafe base URL shapes", () => {
++    expect(isLocalRuntimeHostname("localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("models.localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("127.12.0.1")).toBe(true);
++    expect(isLocalRuntimeHostname("[::1]")).toBe(true);
++    expect(isLocalRuntimeHostname("192.168.1.10")).toBe(false);
++    expect(
++      isLocalRuntimeHostname("host.docker.internal", { allowedHosts: ["host.docker.internal"] }),
++    ).toBe(true);
++
++    expect(validateLocalRuntimeBaseUrl("ftp://127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "unsupported-protocol",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://user:pass@127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "credentials-not-allowed",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://127.0.0.1:8080/v1?token=secret")).toMatchObject({
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++    });
++  });
++});
+diff --git a/vitest.config.ts b/vitest.config.ts
+index 9027fb04afacf9733ba8c53ee3994a4090585d0b..e61b0a4e74216a7a98ecbf0ea8090b95a6d7af4b
+--- a/vitest.config.ts
++++ b/vitest.config.ts
+@@ -39,6 +39,10 @@
+         replacement: resolve(rootDir, "packages/core/src/language.ts"),
+       },
+       {
++        find: /^@steipete\/summarize-core\/local-runtime$/,
++        replacement: resolve(rootDir, "packages/core/src/local-runtime.ts"),
++      },
++      {
+         find: /^@steipete\/summarize-core$/,
+         replacement: resolve(rootDir, "packages/core/src/index.ts"),
+       },
+
+codex
+I’m recording the LLR-003 outcome now: implementation commit, verification commands, changed files, and the operational gotcha around formatter scope. After that I’ll make the final progress/log commit.
+file update
+M /Users/shh/proj/summarize/.ralph/progress.md
+@@ -86 +86,49 @@
+ ---
++
++## 2026-04-22 09:13:31 PDT - LLR-003: Add Local Runtime Registry Types
++Thread:
++Run: 20260422-085058-72504 (iteration 3)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 2f65dc8d feat: add local runtime registry types
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s test -- tests/local-runtime.test.ts` -> PASS
++  - Command: `pnpm exec vitest run tests/local-runtime.test.ts` -> PASS
++  - Command: `pnpm -C packages/core -s typecheck` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - .oxfmtrc.jsonc
++  - packages/core/package.json
++  - packages/core/src/index.ts
++  - packages/core/src/local-runtime.ts
++  - tests/local-runtime.test.ts
++  - vitest.config.ts
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-3.md
++  - .ralph/.tmp/story-20260422-085058-72504-3.json
++  - .ralph/.tmp/story-20260422-085058-72504-3.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.md
++  - .ralph/runs/run-20260422-085058-72504-iter-3.log
++  - .ralph/runs/run-20260422-085058-72504-iter-3.md
++- What was implemented
++  Added `@steipete/summarize-core/local-runtime` with typed descriptors for generic OpenAI-compatible local endpoints,
++  llama.cpp OpenAI-compatible servers, and Ollama. Added localhost-first defaults, loopback/allowed-host URL validation,
++  descriptor parsing with aliases, Ollama OpenAI-compatible `/v1` derivation, and package/vitest exports. No CLI,
++  daemon, or extension runtime behavior was wired or changed.
++- **Learnings for future iterations:**
++  - Patterns discovered: shared local runtime primitives belong in `packages/core` and can be exported as a dedicated
++    package subpath for CLI, daemon, and extension consumers.
++  - Gotchas encountered: `pnpm -s check` formats generated `.agents` and `.ralph` orchestration files by default,
++    including the PRD JSON this loop must not edit; `.oxfmtrc.jsonc` now excludes those directories.
++  - Useful context: remote local-runtime base URLs are rejected by default and require explicit `allowRemoteBaseUrls`;
++    callers can also pass `allowedHosts` for environment-specific local aliases such as Docker hostnames.
++---
+A /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.md
+# Ralph Run Summary
+
+- Run ID: 20260422-085058-72504
+- Iteration: 3
+- Mode: build
+- Story: LLR-003: Add Local Runtime Registry Types
+- Started: 2026-04-22 09:06:18
+- Ended: 2026-04-22 09:13:31
+- Status: success
+- Log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.log
+
+## Git
+
+### Commits
+- 2f65dc8d feat: add local runtime registry types
+
+### Changed Files
+- .agents/tasks/prd.json
+- .oxfmtrc.jsonc
+- .ralph/.tmp/prompt-20260422-085058-72504-3.md
+- .ralph/.tmp/story-20260422-085058-72504-3.json
+- .ralph/.tmp/story-20260422-085058-72504-3.md
+- .ralph/activity.log
+- .ralph/errors.log
+- .ralph/progress.md
+- .ralph/runs/run-20260422-085058-72504-iter-2.md
+- .ralph/runs/run-20260422-085058-72504-iter-3.log
+- .ralph/runs/run-20260422-085058-72504-iter-3.md
+- packages/core/package.json
+- packages/core/src/index.ts
+- packages/core/src/local-runtime.ts
+- tests/local-runtime.test.ts
+- vitest.config.ts
+
+## Verification
+- `pnpm -s test -- tests/local-runtime.test.ts` -> PASS
+- `pnpm exec vitest run tests/local-runtime.test.ts` -> PASS
+- `pnpm -C packages/core -s typecheck` -> PASS
+- `pnpm -s typecheck` -> PASS
+- `pnpm -s build` -> PASS
+- `pnpm -s check` -> PASS
+- `git diff --check` -> PASS
+
+## Outcome
+- Added shared typed local runtime descriptors for OpenAI-compatible, llama.cpp, and Ollama runtimes.
+- Added localhost-first defaults and validation helpers that reject remote hosts unless explicitly allowed.
+- Added unit coverage for descriptor parsing, alias handling, Ollama base URL normalization, and URL validation.
+- Exported the registry from `@steipete/summarize-core` and the `@steipete/summarize-core/local-runtime` subpath.
+- Preserved existing runtime behavior; no CLI, daemon, or extension call sites were wired to the new registry.
+apply_patch(auto_approved=true) exited 0 in 106ms:
+Success. Updated the following files:
+A /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.md
+M /Users/shh/proj/summarize/.ralph/progress.md
+file update:
+diff --git a/.oxfmtrc.jsonc b/.oxfmtrc.jsonc
+index 2e300b5877be8cd7cea3dd7a050bba84a77f8040..071c5a5e44e139e30ddf1a4be1e150cfac0b71f8
+--- a/.oxfmtrc.jsonc
++++ b/.oxfmtrc.jsonc
+@@ -7,6 +7,8 @@
+     "sortScripts": true,
+   },
+   "ignorePatterns": [
++    ".agents/",
++    ".ralph/",
+     "apps/chrome-extension/dist/",
+     "coverage/",
+     "dist/",
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 5497969406551dde714a89e2f68bc20839d0beb4..bd0418f4253972975b5fd47a4014e4c21023e2df
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -84,3 +84,51 @@
+   - Operational caveats: there is no dedicated Ollama or llama.cpp runtime registry yet; `/v1/agent` must be covered
+     separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
+ ---
++
++## 2026-04-22 09:13:31 PDT - LLR-003: Add Local Runtime Registry Types
++Thread:
++Run: 20260422-085058-72504 (iteration 3)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 2f65dc8d feat: add local runtime registry types
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s test -- tests/local-runtime.test.ts` -> PASS
++  - Command: `pnpm exec vitest run tests/local-runtime.test.ts` -> PASS
++  - Command: `pnpm -C packages/core -s typecheck` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - .oxfmtrc.jsonc
++  - packages/core/package.json
++  - packages/core/src/index.ts
++  - packages/core/src/local-runtime.ts
++  - tests/local-runtime.test.ts
++  - vitest.config.ts
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-3.md
++  - .ralph/.tmp/story-20260422-085058-72504-3.json
++  - .ralph/.tmp/story-20260422-085058-72504-3.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.md
++  - .ralph/runs/run-20260422-085058-72504-iter-3.log
++  - .ralph/runs/run-20260422-085058-72504-iter-3.md
++- What was implemented
++  Added `@steipete/summarize-core/local-runtime` with typed descriptors for generic OpenAI-compatible local endpoints,
++  llama.cpp OpenAI-compatible servers, and Ollama. Added localhost-first defaults, loopback/allowed-host URL validation,
++  descriptor parsing with aliases, Ollama OpenAI-compatible `/v1` derivation, and package/vitest exports. No CLI,
++  daemon, or extension runtime behavior was wired or changed.
++- **Learnings for future iterations:**
++  - Patterns discovered: shared local runtime primitives belong in `packages/core` and can be exported as a dedicated
++    package subpath for CLI, daemon, and extension consumers.
++  - Gotchas encountered: `pnpm -s check` formats generated `.agents` and `.ralph` orchestration files by default,
++    including the PRD JSON this loop must not edit; `.oxfmtrc.jsonc` now excludes those directories.
++  - Useful context: remote local-runtime base URLs are rejected by default and require explicit `allowRemoteBaseUrls`;
++    callers can also pass `allowedHosts` for environment-specific local aliases such as Docker hostnames.
++---
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c90683c148f1c
+--- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -35,4 +35,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-3.md b/.ralph/runs/run-20260422-085058-72504-iter-3.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..86e66bef78327e4f05ddd2972d98e76738762041
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-3.md
+@@ -0,0 +1,49 @@
++# Ralph Run Summary
++
++- Run ID: 20260422-085058-72504
++- Iteration: 3
++- Mode: build
++- Story: LLR-003: Add Local Runtime Registry Types
++- Started: 2026-04-22 09:06:18
++- Ended: 2026-04-22 09:13:31
++- Status: success
++- Log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.log
++
++## Git
++
++### Commits
++- 2f65dc8d feat: add local runtime registry types
++
++### Changed Files
++- .agents/tasks/prd.json
++- .oxfmtrc.jsonc
++- .ralph/.tmp/prompt-20260422-085058-72504-3.md
++- .ralph/.tmp/story-20260422-085058-72504-3.json
++- .ralph/.tmp/story-20260422-085058-72504-3.md
++- .ralph/activity.log
++- .ralph/errors.log
++- .ralph/progress.md
++- .ralph/runs/run-20260422-085058-72504-iter-2.md
++- .ralph/runs/run-20260422-085058-72504-iter-3.log
++- .ralph/runs/run-20260422-085058-72504-iter-3.md
++- packages/core/package.json
++- packages/core/src/index.ts
++- packages/core/src/local-runtime.ts
++- tests/local-runtime.test.ts
++- vitest.config.ts
++
++## Verification
++- `pnpm -s test -- tests/local-runtime.test.ts` -> PASS
++- `pnpm exec vitest run tests/local-runtime.test.ts` -> PASS
++- `pnpm -C packages/core -s typecheck` -> PASS
++- `pnpm -s typecheck` -> PASS
++- `pnpm -s build` -> PASS
++- `pnpm -s check` -> PASS
++- `git diff --check` -> PASS
++
++## Outcome
++- Added shared typed local runtime descriptors for OpenAI-compatible, llama.cpp, and Ollama runtimes.
++- Added localhost-first defaults and validation helpers that reject remote hosts unless explicitly allowed.
++- Added unit coverage for descriptor parsing, alias handling, Ollama base URL normalization, and URL validation.
++- Exported the registry from `@steipete/summarize-core` and the `@steipete/summarize-core/local-runtime` subpath.
++- Preserved existing runtime behavior; no CLI, daemon, or extension call sites were wired to the new registry.
+diff --git a/packages/core/package.json b/packages/core/package.json
+index a5feac1a3260d7047a868853b35b85994ab68a64..db1c6641dc76f11b122ccbae79a711da9a8ccbb6
+--- a/packages/core/package.json
++++ b/packages/core/package.json
+@@ -38,6 +38,10 @@
+     "./language": {
+       "types": "./dist/types/language.d.ts",
+       "import": "./dist/esm/language.js"
++    },
++    "./local-runtime": {
++      "types": "./dist/types/local-runtime.d.ts",
++      "import": "./dist/esm/local-runtime.js"
+     }
+   },
+   "scripts": {
+diff --git a/packages/core/src/index.ts b/packages/core/src/index.ts
+index 2da968023562582a7bcfd6e9bd3ac7fae34b8f89..208e92f2adc36f1210d84e60d812ec89ae45d9b7
+--- a/packages/core/src/index.ts
++++ b/packages/core/src/index.ts
+@@ -5,6 +5,7 @@
+   resolveConfiguredBaseUrl,
+   resolveOpenAiWhisperBaseUrl,
+ } from "./openai/base-url.js";
++export * from "./local-runtime.js";
+ export * from "./prompts/index.js";
+ export type { SummaryLength } from "./shared/contracts.js";
+ export { SUMMARY_LENGTHS } from "./shared/contracts.js";
+diff --git a/packages/core/src/local-runtime.ts b/packages/core/src/local-runtime.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2d9d47b8fa34f2d0d42561945e9145282bdc025f
+--- /dev/null
++++ b/packages/core/src/local-runtime.ts
+@@ -0,0 +1,358 @@
++export type LocalRuntimeKind = "openai-compatible" | "llama-cpp" | "ollama";
++export type LocalRuntimeProtocol = "openai-compatible" | "ollama";
++export type LocalRuntimeBaseUrlSource = "default" | "configured";
++
++export type LocalRuntimeBaseUrlValidationIssue =
++  | "missing"
++  | "invalid-url"
++  | "unsupported-protocol"
++  | "credentials-not-allowed"
++  | "query-or-hash-not-allowed"
++  | "remote-host-not-allowed";
++
++export type LocalRuntimeBaseUrlValidationOptions = {
++  /**
++   * Accept non-local hosts. Keep this false for built-in local defaults and
++   * enable it only when a caller is intentionally handling an explicit remote endpoint.
++   */
++  allowRemote?: boolean;
++  /**
++   * Additional hostnames that a caller treats as local in its own environment.
++   */
++  allowedHosts?: readonly string[];
++};
++
++export type LocalRuntimeBaseUrlValidationResult =
++  | {
++      ok: true;
++      baseUrl: string;
++      host: string;
++      hostname: string;
++      isLocal: boolean;
++    }
++  | {
++      ok: false;
++      issue: LocalRuntimeBaseUrlValidationIssue;
++      message: string;
++      value: string;
++    };
++
++type LocalRuntimeDescriptorBase = {
++  kind: LocalRuntimeKind;
++  label: string;
++  protocol: LocalRuntimeProtocol;
++  baseUrl: string;
++  baseUrlSource: LocalRuntimeBaseUrlSource;
++  modelsPath: string;
++  openAiCompatibleBaseUrl: string;
++};
++
++export type OpenAiCompatibleLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "openai-compatible";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type LlamaCppLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "llama-cpp";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type OllamaLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "ollama";
++  protocol: "ollama";
++  modelsPath: "/api/tags";
++};
++
++export type LocalRuntimeDescriptor =
++  | OpenAiCompatibleLocalRuntimeDescriptor
++  | LlamaCppLocalRuntimeDescriptor
++  | OllamaLocalRuntimeDescriptor;
++
++type LocalRuntimeRegistryEntry = Omit<
++  LocalRuntimeDescriptorBase,
++  "baseUrl" | "baseUrlSource" | "openAiCompatibleBaseUrl"
++> & {
++  defaultBaseUrl: string;
++  defaultOpenAiCompatibleBaseUrl?: string;
++};
++
++export const LOCAL_RUNTIME_REGISTRY = {
++  "openai-compatible": {
++    kind: "openai-compatible",
++    label: "OpenAI-compatible local endpoint",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  "llama-cpp": {
++    kind: "llama-cpp",
++    label: "llama.cpp server",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  ollama: {
++    kind: "ollama",
++    label: "Ollama",
++    protocol: "ollama",
++    defaultBaseUrl: "http://127.0.0.1:11434",
++    defaultOpenAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    modelsPath: "/api/tags",
++  },
++} as const satisfies Record<LocalRuntimeKind, LocalRuntimeRegistryEntry>;
++
++export const LOCAL_RUNTIME_KINDS = Object.keys(LOCAL_RUNTIME_REGISTRY) as LocalRuntimeKind[];
++
++export type LocalRuntimeDescriptorInput =
++  | LocalRuntimeKind
++  | {
++      kind?: unknown;
++      type?: unknown;
++      runtime?: unknown;
++      baseUrl?: unknown;
++      openAiCompatibleBaseUrl?: unknown;
++    };
++
++export type ParseLocalRuntimeDescriptorOptions = {
++  allowRemoteBaseUrls?: boolean;
++  allowedHosts?: readonly string[];
++};
++
++function normalizeHostname(hostname: string): string {
++  return hostname
++    .trim()
++    .toLowerCase()
++    .replace(/^\[(.*)]$/, "$1")
++    .replace(/\.$/, "");
++}
++
++function normalizeAllowedHosts(hosts: readonly string[] | undefined): Set<string> {
++  const normalized = new Set<string>();
++  for (const host of hosts ?? []) {
++    const value = normalizeHostname(host);
++    if (value.length > 0) normalized.add(value);
++  }
++  return normalized;
++}
++
++function isLoopbackIpv4(hostname: string): boolean {
++  const parts = hostname.split(".");
++  if (parts.length !== 4) return false;
++  const octets = parts.map((part) => {
++    if (!/^\d{1,3}$/.test(part)) return null;
++    const value = Number(part);
++    return Number.isInteger(value) && value >= 0 && value <= 255 ? value : null;
++  });
++  return octets.every((part): part is number => typeof part === "number") && octets[0] === 127;
++}
++
++export function isLocalRuntimeHostname(
++  hostname: string,
++  options: Pick<LocalRuntimeBaseUrlValidationOptions, "allowedHosts"> = {},
++): boolean {
++  const normalized = normalizeHostname(hostname);
++  if (!normalized) return false;
++  if (normalizeAllowedHosts(options.allowedHosts).has(normalized)) return true;
++  if (normalized === "localhost" || normalized.endsWith(".localhost")) return true;
++  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") return true;
++  return isLoopbackIpv4(normalized);
++}
++
++function normalizeUrl(url: URL): string {
++  return url.toString().replace(/\/+$/, "");
++}
++
++export function validateLocalRuntimeBaseUrl(
++  raw: unknown,
++  options: LocalRuntimeBaseUrlValidationOptions = {},
++): LocalRuntimeBaseUrlValidationResult {
++  const value = typeof raw === "string" ? raw.trim() : "";
++  if (!value) {
++    return {
++      ok: false,
++      issue: "missing",
++      message: "Local runtime base URL is required.",
++      value,
++    };
++  }
++
++  let url: URL;
++  try {
++    url = new URL(value);
++  } catch {
++    return {
++      ok: false,
++      issue: "invalid-url",
++      message: `Invalid local runtime base URL: ${value}`,
++      value,
++    };
++  }
++
++  if (url.protocol !== "http:" && url.protocol !== "https:") {
++    return {
++      ok: false,
++      issue: "unsupported-protocol",
++      message: `Local runtime base URL must use http or https: ${value}`,
++      value,
++    };
++  }
++
++  if (url.username || url.password) {
++    return {
++      ok: false,
++      issue: "credentials-not-allowed",
++      message: "Local runtime base URL must not include credentials.",
++      value,
++    };
++  }
++
++  if (url.search || url.hash) {
++    return {
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++      message: "Local runtime base URL must not include query strings or fragments.",
++      value,
++    };
++  }
++
++  const isLocal = isLocalRuntimeHostname(url.hostname, { allowedHosts: options.allowedHosts });
++  if (!isLocal && !options.allowRemote) {
++    return {
++      ok: false,
++      issue: "remote-host-not-allowed",
++      message: `Local runtime base URL host must be localhost or explicitly allowed: ${url.host}`,
++      value,
++    };
++  }
++
++  return {
++    ok: true,
++    baseUrl: normalizeUrl(url),
++    host: url.host,
++    hostname: url.hostname,
++    isLocal,
++  };
++}
++
++export function normalizeLocalRuntimeKind(raw: unknown): LocalRuntimeKind | null {
++  if (typeof raw !== "string") return null;
++  const normalized = raw.trim().toLowerCase().replaceAll("_", "-").replace(/\s+/g, "-");
++  if (normalized === "openai" || normalized === "openai-compatible") {
++    return "openai-compatible";
++  }
++  if (
++    normalized === "llama" ||
++    normalized === "llama-cpp" ||
++    normalized === "llama.cpp" ||
++    normalized === "llamacpp"
++  ) {
++    return "llama-cpp";
++  }
++  if (normalized === "ollama") return "ollama";
++  return null;
++}
++
++function assertValidBaseUrl(raw: unknown, options: LocalRuntimeBaseUrlValidationOptions): string {
++  const result = validateLocalRuntimeBaseUrl(raw, options);
++  if (!result.ok) {
++    throw new Error(result.message);
++  }
++  return result.baseUrl;
++}
++
++function appendPath(baseUrl: string, path: string): string {
++  const url = new URL(baseUrl);
++  const currentPath = url.pathname.replace(/\/+$/, "");
++  url.pathname = `${currentPath}/${path.replace(/^\/+/, "")}`;
++  return normalizeUrl(url);
++}
++
++function removeTrailingPathSegment(baseUrl: string, segment: string): string | null {
++  const url = new URL(baseUrl);
++  const suffix = `/${segment.replace(/^\/+/, "")}`;
++  const path = url.pathname.replace(/\/+$/, "");
++  if (path !== suffix && !path.endsWith(suffix)) return null;
++  url.pathname = path.slice(0, -suffix.length) || "/";
++  return normalizeUrl(url);
++}
++
++function resolveOllamaBaseUrls({
++  baseUrl,
++  openAiCompatibleBaseUrl,
++}: {
++  baseUrl: string;
++  openAiCompatibleBaseUrl?: string;
++}): { baseUrl: string; openAiCompatibleBaseUrl: string } {
++  const rootBaseUrl = removeTrailingPathSegment(baseUrl, "v1") ?? baseUrl;
++  return {
++    baseUrl: rootBaseUrl,
++    openAiCompatibleBaseUrl: openAiCompatibleBaseUrl ?? appendPath(rootBaseUrl, "v1"),
++  };
++}
++
++export function getDefaultLocalRuntimeDescriptor(kind: LocalRuntimeKind): LocalRuntimeDescriptor {
++  return parseLocalRuntimeDescriptor(kind);
++}
++
++export function parseLocalRuntimeDescriptor(
++  input: unknown,
++  options: ParseLocalRuntimeDescriptorOptions = {},
++): LocalRuntimeDescriptor {
++  const inputRecord =
++    typeof input === "object" && input !== null && !Array.isArray(input)
++      ? (input as Record<string, unknown>)
++      : null;
++  const kind = normalizeLocalRuntimeKind(
++    typeof input === "string"
++      ? input
++      : (inputRecord?.kind ?? inputRecord?.type ?? inputRecord?.runtime),
++  );
++  if (!kind) {
++    throw new Error(`Unknown local runtime kind: ${String(input)}`);
++  }
++
++  const registryEntry = LOCAL_RUNTIME_REGISTRY[kind];
++  const validationOptions = {
++    allowRemote: options.allowRemoteBaseUrls,
++    allowedHosts: options.allowedHosts,
++  };
++  const rawBaseUrl = inputRecord?.baseUrl;
++  const hasConfiguredBaseUrl = typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0;
++  const baseUrl = assertValidBaseUrl(
++    hasConfiguredBaseUrl ? rawBaseUrl : registryEntry.defaultBaseUrl,
++    validationOptions,
++  );
++
++  const rawOpenAiCompatibleBaseUrl = inputRecord?.openAiCompatibleBaseUrl;
++  const configuredOpenAiCompatibleBaseUrl =
++    typeof rawOpenAiCompatibleBaseUrl === "string" && rawOpenAiCompatibleBaseUrl.trim().length > 0
++      ? assertValidBaseUrl(rawOpenAiCompatibleBaseUrl, validationOptions)
++      : undefined;
++
++  const common = {
++    ...registryEntry,
++    baseUrl,
++    baseUrlSource: hasConfiguredBaseUrl ? "configured" : "default",
++    openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl ?? baseUrl,
++  };
++
++  if (kind === "ollama") {
++    const resolved = resolveOllamaBaseUrls({
++      baseUrl,
++      openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl,
++    });
++    return {
++      ...common,
++      baseUrl: resolved.baseUrl,
++      openAiCompatibleBaseUrl: resolved.openAiCompatibleBaseUrl,
++    } as OllamaLocalRuntimeDescriptor;
++  }
++
++  return common as LocalRuntimeDescriptor;
++}
++
++export const DEFAULT_LOCAL_RUNTIME_DESCRIPTORS = Object.fromEntries(
++  LOCAL_RUNTIME_KINDS.map((kind) => [kind, getDefaultLocalRuntimeDescriptor(kind)]),
++) as Readonly<Record<LocalRuntimeKind, LocalRuntimeDescriptor>>;
+diff --git a/tests/local-runtime.test.ts b/tests/local-runtime.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2b87ba118f69d9fad7dfe3e58dff4fbb32f946db
+--- /dev/null
++++ b/tests/local-runtime.test.ts
+@@ -0,0 +1,135 @@
++import {
++  DEFAULT_LOCAL_RUNTIME_DESCRIPTORS,
++  LOCAL_RUNTIME_KINDS,
++  isLocalRuntimeHostname,
++  parseLocalRuntimeDescriptor,
++  validateLocalRuntimeBaseUrl,
++} from "@steipete/summarize-core/local-runtime";
++import { describe, expect, it } from "vitest";
++
++describe("local runtime registry", () => {
++  it("ships localhost-first defaults for each supported runtime", () => {
++    expect(LOCAL_RUNTIME_KINDS).toEqual(["openai-compatible", "llama-cpp", "ollama"]);
++
++    for (const descriptor of Object.values(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS)) {
++      expect(descriptor.baseUrlSource).toBe("default");
++      expect(descriptor.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:/);
++
++      const validation = validateLocalRuntimeBaseUrl(descriptor.baseUrl);
++      expect(validation).toMatchObject({ ok: true, isLocal: true });
++    }
++
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["openai-compatible"]).toMatchObject({
++      kind: "openai-compatible",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["llama-cpp"]).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS.ollama).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("parses string aliases and configured descriptor objects", () => {
++    expect(parseLocalRuntimeDescriptor("openai")).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      baseUrlSource: "default",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        kind: "llama.cpp",
++        baseUrl: " http://localhost:8080/v1/ ",
++      }),
++    ).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://localhost:8080/v1",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://localhost:8080/v1",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        type: "ollama",
++        baseUrl: "http://127.0.0.1:11434/v1",
++      }),
++    ).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("rejects remote runtime URLs unless a caller explicitly allows them", () => {
++    expect(validateLocalRuntimeBaseUrl("https://api.openai.com/v1")).toMatchObject({
++      ok: false,
++      issue: "remote-host-not-allowed",
++    });
++
++    expect(
++      validateLocalRuntimeBaseUrl("https://gateway.example.com/v1", { allowRemote: true }),
++    ).toMatchObject({
++      ok: true,
++      baseUrl: "https://gateway.example.com/v1",
++      isLocal: false,
++    });
++
++    expect(() =>
++      parseLocalRuntimeDescriptor({
++        kind: "openai-compatible",
++        baseUrl: "https://gateway.example.com/v1",
++      }),
++    ).toThrow(/localhost or explicitly allowed/i);
++
++    expect(
++      parseLocalRuntimeDescriptor(
++        {
++          kind: "openai-compatible",
++          baseUrl: "https://gateway.example.com/v1",
++        },
++        { allowRemoteBaseUrls: true },
++      ),
++    ).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "https://gateway.example.com/v1",
++      baseUrlSource: "configured",
++    });
++  });
++
++  it("validates loopback hosts and rejects unsafe base URL shapes", () => {
++    expect(isLocalRuntimeHostname("localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("models.localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("127.12.0.1")).toBe(true);
++    expect(isLocalRuntimeHostname("[::1]")).toBe(true);
++    expect(isLocalRuntimeHostname("192.168.1.10")).toBe(false);
++    expect(
++      isLocalRuntimeHostname("host.docker.internal", { allowedHosts: ["host.docker.internal"] }),
++    ).toBe(true);
++
++    expect(validateLocalRuntimeBaseUrl("ftp://127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "unsupported-protocol",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://user:pass@127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "credentials-not-allowed",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://127.0.0.1:8080/v1?token=secret")).toMatchObject({
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++    });
++  });
++});
+diff --git a/vitest.config.ts b/vitest.config.ts
+index 9027fb04afacf9733ba8c53ee3994a4090585d0b..e61b0a4e74216a7a98ecbf0ea8090b95a6d7af4b
+--- a/vitest.config.ts
++++ b/vitest.config.ts
+@@ -39,6 +39,10 @@
+         replacement: resolve(rootDir, "packages/core/src/language.ts"),
+       },
+       {
++        find: /^@steipete\/summarize-core\/local-runtime$/,
++        replacement: resolve(rootDir, "packages/core/src/local-runtime.ts"),
++      },
++      {
+         find: /^@steipete\/summarize-core$/,
+         replacement: resolve(rootDir, "packages/core/src/index.ts"),
+       },
+
+file update:
+diff --git a/.oxfmtrc.jsonc b/.oxfmtrc.jsonc
+index 2e300b5877be8cd7cea3dd7a050bba84a77f8040..071c5a5e44e139e30ddf1a4be1e150cfac0b71f8
+--- a/.oxfmtrc.jsonc
++++ b/.oxfmtrc.jsonc
+@@ -7,6 +7,8 @@
+     "sortScripts": true,
+   },
+   "ignorePatterns": [
++    ".agents/",
++    ".ralph/",
+     "apps/chrome-extension/dist/",
+     "coverage/",
+     "dist/",
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 5497969406551dde714a89e2f68bc20839d0beb4..bd0418f4253972975b5fd47a4014e4c21023e2df
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -84,3 +84,51 @@
+   - Operational caveats: there is no dedicated Ollama or llama.cpp runtime registry yet; `/v1/agent` must be covered
+     separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
+ ---
++
++## 2026-04-22 09:13:31 PDT - LLR-003: Add Local Runtime Registry Types
++Thread:
++Run: 20260422-085058-72504 (iteration 3)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 2f65dc8d feat: add local runtime registry types
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s test -- tests/local-runtime.test.ts` -> PASS
++  - Command: `pnpm exec vitest run tests/local-runtime.test.ts` -> PASS
++  - Command: `pnpm -C packages/core -s typecheck` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - .oxfmtrc.jsonc
++  - packages/core/package.json
++  - packages/core/src/index.ts
++  - packages/core/src/local-runtime.ts
++  - tests/local-runtime.test.ts
++  - vitest.config.ts
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-3.md
++  - .ralph/.tmp/story-20260422-085058-72504-3.json
++  - .ralph/.tmp/story-20260422-085058-72504-3.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.md
++  - .ralph/runs/run-20260422-085058-72504-iter-3.log
++  - .ralph/runs/run-20260422-085058-72504-iter-3.md
++- What was implemented
++  Added `@steipete/summarize-core/local-runtime` with typed descriptors for generic OpenAI-compatible local endpoints,
++  llama.cpp OpenAI-compatible servers, and Ollama. Added localhost-first defaults, loopback/allowed-host URL validation,
++  descriptor parsing with aliases, Ollama OpenAI-compatible `/v1` derivation, and package/vitest exports. No CLI,
++  daemon, or extension runtime behavior was wired or changed.
++- **Learnings for future iterations:**
++  - Patterns discovered: shared local runtime primitives belong in `packages/core` and can be exported as a dedicated
++    package subpath for CLI, daemon, and extension consumers.
++  - Gotchas encountered: `pnpm -s check` formats generated `.agents` and `.ralph` orchestration files by default,
++    including the PRD JSON this loop must not edit; `.oxfmtrc.jsonc` now excludes those directories.
++  - Useful context: remote local-runtime base URLs are rejected by default and require explicit `allowRemoteBaseUrls`;
++    callers can also pass `allowedHosts` for environment-specific local aliases such as Docker hostnames.
++---
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c90683c148f1c
+--- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -35,4 +35,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-3.md b/.ralph/runs/run-20260422-085058-72504-iter-3.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..86e66bef78327e4f05ddd2972d98e76738762041
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-3.md
+@@ -0,0 +1,49 @@
++# Ralph Run Summary
++
++- Run ID: 20260422-085058-72504
++- Iteration: 3
++- Mode: build
++- Story: LLR-003: Add Local Runtime Registry Types
++- Started: 2026-04-22 09:06:18
++- Ended: 2026-04-22 09:13:31
++- Status: success
++- Log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.log
++
++## Git
++
++### Commits
++- 2f65dc8d feat: add local runtime registry types
++
++### Changed Files
++- .agents/tasks/prd.json
++- .oxfmtrc.jsonc
++- .ralph/.tmp/prompt-20260422-085058-72504-3.md
++- .ralph/.tmp/story-20260422-085058-72504-3.json
++- .ralph/.tmp/story-20260422-085058-72504-3.md
++- .ralph/activity.log
++- .ralph/errors.log
++- .ralph/progress.md
++- .ralph/runs/run-20260422-085058-72504-iter-2.md
++- .ralph/runs/run-20260422-085058-72504-iter-3.log
++- .ralph/runs/run-20260422-085058-72504-iter-3.md
++- packages/core/package.json
++- packages/core/src/index.ts
++- packages/core/src/local-runtime.ts
++- tests/local-runtime.test.ts
++- vitest.config.ts
++
++## Verification
++- `pnpm -s test -- tests/local-runtime.test.ts` -> PASS
++- `pnpm exec vitest run tests/local-runtime.test.ts` -> PASS
++- `pnpm -C packages/core -s typecheck` -> PASS
++- `pnpm -s typecheck` -> PASS
++- `pnpm -s build` -> PASS
++- `pnpm -s check` -> PASS
++- `git diff --check` -> PASS
++
++## Outcome
++- Added shared typed local runtime descriptors for OpenAI-compatible, llama.cpp, and Ollama runtimes.
++- Added localhost-first defaults and validation helpers that reject remote hosts unless explicitly allowed.
++- Added unit coverage for descriptor parsing, alias handling, Ollama base URL normalization, and URL validation.
++- Exported the registry from `@steipete/summarize-core` and the `@steipete/summarize-core/local-runtime` subpath.
++- Preserved existing runtime behavior; no CLI, daemon, or extension call sites were wired to the new registry.
+diff --git a/packages/core/package.json b/packages/core/package.json
+index a5feac1a3260d7047a868853b35b85994ab68a64..db1c6641dc76f11b122ccbae79a711da9a8ccbb6
+--- a/packages/core/package.json
++++ b/packages/core/package.json
+@@ -38,6 +38,10 @@
+     "./language": {
+       "types": "./dist/types/language.d.ts",
+       "import": "./dist/esm/language.js"
++    },
++    "./local-runtime": {
++      "types": "./dist/types/local-runtime.d.ts",
++      "import": "./dist/esm/local-runtime.js"
+     }
+   },
+   "scripts": {
+diff --git a/packages/core/src/index.ts b/packages/core/src/index.ts
+index 2da968023562582a7bcfd6e9bd3ac7fae34b8f89..208e92f2adc36f1210d84e60d812ec89ae45d9b7
+--- a/packages/core/src/index.ts
++++ b/packages/core/src/index.ts
+@@ -5,6 +5,7 @@
+   resolveConfiguredBaseUrl,
+   resolveOpenAiWhisperBaseUrl,
+ } from "./openai/base-url.js";
++export * from "./local-runtime.js";
+ export * from "./prompts/index.js";
+ export type { SummaryLength } from "./shared/contracts.js";
+ export { SUMMARY_LENGTHS } from "./shared/contracts.js";
+diff --git a/packages/core/src/local-runtime.ts b/packages/core/src/local-runtime.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2d9d47b8fa34f2d0d42561945e9145282bdc025f
+--- /dev/null
++++ b/packages/core/src/local-runtime.ts
+@@ -0,0 +1,358 @@
++export type LocalRuntimeKind = "openai-compatible" | "llama-cpp" | "ollama";
++export type LocalRuntimeProtocol = "openai-compatible" | "ollama";
++export type LocalRuntimeBaseUrlSource = "default" | "configured";
++
++export type LocalRuntimeBaseUrlValidationIssue =
++  | "missing"
++  | "invalid-url"
++  | "unsupported-protocol"
++  | "credentials-not-allowed"
++  | "query-or-hash-not-allowed"
++  | "remote-host-not-allowed";
++
++export type LocalRuntimeBaseUrlValidationOptions = {
++  /**
++   * Accept non-local hosts. Keep this false for built-in local defaults and
++   * enable it only when a caller is intentionally handling an explicit remote endpoint.
++   */
++  allowRemote?: boolean;
++  /**
++   * Additional hostnames that a caller treats as local in its own environment.
++   */
++  allowedHosts?: readonly string[];
++};
++
++export type LocalRuntimeBaseUrlValidationResult =
++  | {
++      ok: true;
++      baseUrl: string;
++      host: string;
++      hostname: string;
++      isLocal: boolean;
++    }
++  | {
++      ok: false;
++      issue: LocalRuntimeBaseUrlValidationIssue;
++      message: string;
++      value: string;
++    };
++
++type LocalRuntimeDescriptorBase = {
++  kind: LocalRuntimeKind;
++  label: string;
++  protocol: LocalRuntimeProtocol;
++  baseUrl: string;
++  baseUrlSource: LocalRuntimeBaseUrlSource;
++  modelsPath: string;
++  openAiCompatibleBaseUrl: string;
++};
++
++export type OpenAiCompatibleLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "openai-compatible";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type LlamaCppLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "llama-cpp";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type OllamaLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "ollama";
++  protocol: "ollama";
++  modelsPath: "/api/tags";
++};
++
++export type LocalRuntimeDescriptor =
++  | OpenAiCompatibleLocalRuntimeDescriptor
++  | LlamaCppLocalRuntimeDescriptor
++  | OllamaLocalRuntimeDescriptor;
++
++type LocalRuntimeRegistryEntry = Omit<
++  LocalRuntimeDescriptorBase,
++  "baseUrl" | "baseUrlSource" | "openAiCompatibleBaseUrl"
++> & {
++  defaultBaseUrl: string;
++  defaultOpenAiCompatibleBaseUrl?: string;
++};
++
++export const LOCAL_RUNTIME_REGISTRY = {
++  "openai-compatible": {
++    kind: "openai-compatible",
++    label: "OpenAI-compatible local endpoint",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  "llama-cpp": {
++    kind: "llama-cpp",
++    label: "llama.cpp server",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  ollama: {
++    kind: "ollama",
++    label: "Ollama",
++    protocol: "ollama",
++    defaultBaseUrl: "http://127.0.0.1:11434",
++    defaultOpenAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    modelsPath: "/api/tags",
++  },
++} as const satisfies Record<LocalRuntimeKind, LocalRuntimeRegistryEntry>;
++
++export const LOCAL_RUNTIME_KINDS = Object.keys(LOCAL_RUNTIME_REGISTRY) as LocalRuntimeKind[];
++
++export type LocalRuntimeDescriptorInput =
++  | LocalRuntimeKind
++  | {
++      kind?: unknown;
++      type?: unknown;
++      runtime?: unknown;
++      baseUrl?: unknown;
++      openAiCompatibleBaseUrl?: unknown;
++    };
++
++export type ParseLocalRuntimeDescriptorOptions = {
++  allowRemoteBaseUrls?: boolean;
++  allowedHosts?: readonly string[];
++};
++
++function normalizeHostname(hostname: string): string {
++  return hostname
++    .trim()
++    .toLowerCase()
++    .replace(/^\[(.*)]$/, "$1")
++    .replace(/\.$/, "");
++}
++
++function normalizeAllowedHosts(hosts: readonly string[] | undefined): Set<string> {
++  const normalized = new Set<string>();
++  for (const host of hosts ?? []) {
++    const value = normalizeHostname(host);
++    if (value.length > 0) normalized.add(value);
++  }
++  return normalized;
++}
++
++function isLoopbackIpv4(hostname: string): boolean {
++  const parts = hostname.split(".");
++  if (parts.length !== 4) return false;
++  const octets = parts.map((part) => {
++    if (!/^\d{1,3}$/.test(part)) return null;
++    const value = Number(part);
++    return Number.isInteger(value) && value >= 0 && value <= 255 ? value : null;
++  });
++  return octets.every((part): part is number => typeof part === "number") && octets[0] === 127;
++}
++
++export function isLocalRuntimeHostname(
++  hostname: string,
++  options: Pick<LocalRuntimeBaseUrlValidationOptions, "allowedHosts"> = {},
++): boolean {
++  const normalized = normalizeHostname(hostname);
++  if (!normalized) return false;
++  if (normalizeAllowedHosts(options.allowedHosts).has(normalized)) return true;
++  if (normalized === "localhost" || normalized.endsWith(".localhost")) return true;
++  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") return true;
++  return isLoopbackIpv4(normalized);
++}
++
++function normalizeUrl(url: URL): string {
++  return url.toString().replace(/\/+$/, "");
++}
++
++export function validateLocalRuntimeBaseUrl(
++  raw: unknown,
++  options: LocalRuntimeBaseUrlValidationOptions = {},
++): LocalRuntimeBaseUrlValidationResult {
++  const value = typeof raw === "string" ? raw.trim() : "";
++  if (!value) {
++    return {
++      ok: false,
++      issue: "missing",
++      message: "Local runtime base URL is required.",
++      value,
++    };
++  }
++
++  let url: URL;
++  try {
++    url = new URL(value);
++  } catch {
++    return {
++      ok: false,
++      issue: "invalid-url",
++      message: `Invalid local runtime base URL: ${value}`,
++      value,
++    };
++  }
++
++  if (url.protocol !== "http:" && url.protocol !== "https:") {
++    return {
++      ok: false,
++      issue: "unsupported-protocol",
++      message: `Local runtime base URL must use http or https: ${value}`,
++      value,
++    };
++  }
++
++  if (url.username || url.password) {
++    return {
++      ok: false,
++      issue: "credentials-not-allowed",
++      message: "Local runtime base URL must not include credentials.",
++      value,
++    };
++  }
++
++  if (url.search || url.hash) {
++    return {
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++      message: "Local runtime base URL must not include query strings or fragments.",
++      value,
++    };
++  }
++
++  const isLocal = isLocalRuntimeHostname(url.hostname, { allowedHosts: options.allowedHosts });
++  if (!isLocal && !options.allowRemote) {
++    return {
++      ok: false,
++      issue: "remote-host-not-allowed",
++      message: `Local runtime base URL host must be localhost or explicitly allowed: ${url.host}`,
++      value,
++    };
++  }
++
++  return {
++    ok: true,
++    baseUrl: normalizeUrl(url),
++    host: url.host,
++    hostname: url.hostname,
++    isLocal,
++  };
++}
++
++export function normalizeLocalRuntimeKind(raw: unknown): LocalRuntimeKind | null {
++  if (typeof raw !== "string") return null;
++  const normalized = raw.trim().toLowerCase().replaceAll("_", "-").replace(/\s+/g, "-");
++  if (normalized === "openai" || normalized === "openai-compatible") {
++    return "openai-compatible";
++  }
++  if (
++    normalized === "llama" ||
++    normalized === "llama-cpp" ||
++    normalized === "llama.cpp" ||
++    normalized === "llamacpp"
++  ) {
++    return "llama-cpp";
++  }
++  if (normalized === "ollama") return "ollama";
++  return null;
++}
++
++function assertValidBaseUrl(raw: unknown, options: LocalRuntimeBaseUrlValidationOptions): string {
++  const result = validateLocalRuntimeBaseUrl(raw, options);
++  if (!result.ok) {
++    throw new Error(result.message);
++  }
++  return result.baseUrl;
++}
++
++function appendPath(baseUrl: string, path: string): string {
++  const url = new URL(baseUrl);
++  const currentPath = url.pathname.replace(/\/+$/, "");
++  url.pathname = `${currentPath}/${path.replace(/^\/+/, "")}`;
++  return normalizeUrl(url);
++}
++
++function removeTrailingPathSegment(baseUrl: string, segment: string): string | null {
++  const url = new URL(baseUrl);
++  const suffix = `/${segment.replace(/^\/+/, "")}`;
++  const path = url.pathname.replace(/\/+$/, "");
++  if (path !== suffix && !path.endsWith(suffix)) return null;
++  url.pathname = path.slice(0, -suffix.length) || "/";
++  return normalizeUrl(url);
++}
++
++function resolveOllamaBaseUrls({
++  baseUrl,
++  openAiCompatibleBaseUrl,
++}: {
++  baseUrl: string;
++  openAiCompatibleBaseUrl?: string;
++}): { baseUrl: string; openAiCompatibleBaseUrl: string } {
++  const rootBaseUrl = removeTrailingPathSegment(baseUrl, "v1") ?? baseUrl;
++  return {
++    baseUrl: rootBaseUrl,
++    openAiCompatibleBaseUrl: openAiCompatibleBaseUrl ?? appendPath(rootBaseUrl, "v1"),
++  };
++}
++
++export function getDefaultLocalRuntimeDescriptor(kind: LocalRuntimeKind): LocalRuntimeDescriptor {
++  return parseLocalRuntimeDescriptor(kind);
++}
++
++export function parseLocalRuntimeDescriptor(
++  input: unknown,
++  options: ParseLocalRuntimeDescriptorOptions = {},
++): LocalRuntimeDescriptor {
++  const inputRecord =
++    typeof input === "object" && input !== null && !Array.isArray(input)
++      ? (input as Record<string, unknown>)
++      : null;
++  const kind = normalizeLocalRuntimeKind(
++    typeof input === "string"
++      ? input
++      : (inputRecord?.kind ?? inputRecord?.type ?? inputRecord?.runtime),
++  );
++  if (!kind) {
++    throw new Error(`Unknown local runtime kind: ${String(input)}`);
++  }
++
++  const registryEntry = LOCAL_RUNTIME_REGISTRY[kind];
++  const validationOptions = {
++    allowRemote: options.allowRemoteBaseUrls,
++    allowedHosts: options.allowedHosts,
++  };
++  const rawBaseUrl = inputRecord?.baseUrl;
++  const hasConfiguredBaseUrl = typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0;
++  const baseUrl = assertValidBaseUrl(
++    hasConfiguredBaseUrl ? rawBaseUrl : registryEntry.defaultBaseUrl,
++    validationOptions,
++  );
++
++  const rawOpenAiCompatibleBaseUrl = inputRecord?.openAiCompatibleBaseUrl;
++  const configuredOpenAiCompatibleBaseUrl =
++    typeof rawOpenAiCompatibleBaseUrl === "string" && rawOpenAiCompatibleBaseUrl.trim().length > 0
++      ? assertValidBaseUrl(rawOpenAiCompatibleBaseUrl, validationOptions)
++      : undefined;
++
++  const common = {
++    ...registryEntry,
++    baseUrl,
++    baseUrlSource: hasConfiguredBaseUrl ? "configured" : "default",
++    openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl ?? baseUrl,
++  };
++
++  if (kind === "ollama") {
++    const resolved = resolveOllamaBaseUrls({
++      baseUrl,
++      openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl,
++    });
++    return {
++      ...common,
++      baseUrl: resolved.baseUrl,
++      openAiCompatibleBaseUrl: resolved.openAiCompatibleBaseUrl,
++    } as OllamaLocalRuntimeDescriptor;
++  }
++
++  return common as LocalRuntimeDescriptor;
++}
++
++export const DEFAULT_LOCAL_RUNTIME_DESCRIPTORS = Object.fromEntries(
++  LOCAL_RUNTIME_KINDS.map((kind) => [kind, getDefaultLocalRuntimeDescriptor(kind)]),
++) as Readonly<Record<LocalRuntimeKind, LocalRuntimeDescriptor>>;
+diff --git a/tests/local-runtime.test.ts b/tests/local-runtime.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2b87ba118f69d9fad7dfe3e58dff4fbb32f946db
+--- /dev/null
++++ b/tests/local-runtime.test.ts
+@@ -0,0 +1,135 @@
++import {
++  DEFAULT_LOCAL_RUNTIME_DESCRIPTORS,
++  LOCAL_RUNTIME_KINDS,
++  isLocalRuntimeHostname,
++  parseLocalRuntimeDescriptor,
++  validateLocalRuntimeBaseUrl,
++} from "@steipete/summarize-core/local-runtime";
++import { describe, expect, it } from "vitest";
++
++describe("local runtime registry", () => {
++  it("ships localhost-first defaults for each supported runtime", () => {
++    expect(LOCAL_RUNTIME_KINDS).toEqual(["openai-compatible", "llama-cpp", "ollama"]);
++
++    for (const descriptor of Object.values(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS)) {
++      expect(descriptor.baseUrlSource).toBe("default");
++      expect(descriptor.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:/);
++
++      const validation = validateLocalRuntimeBaseUrl(descriptor.baseUrl);
++      expect(validation).toMatchObject({ ok: true, isLocal: true });
++    }
++
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["openai-compatible"]).toMatchObject({
++      kind: "openai-compatible",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["llama-cpp"]).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS.ollama).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("parses string aliases and configured descriptor objects", () => {
++    expect(parseLocalRuntimeDescriptor("openai")).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      baseUrlSource: "default",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        kind: "llama.cpp",
++        baseUrl: " http://localhost:8080/v1/ ",
++      }),
++    ).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://localhost:8080/v1",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://localhost:8080/v1",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        type: "ollama",
++        baseUrl: "http://127.0.0.1:11434/v1",
++      }),
++    ).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("rejects remote runtime URLs unless a caller explicitly allows them", () => {
++    expect(validateLocalRuntimeBaseUrl("https://api.openai.com/v1")).toMatchObject({
++      ok: false,
++      issue: "remote-host-not-allowed",
++    });
++
++    expect(
++      validateLocalRuntimeBaseUrl("https://gateway.example.com/v1", { allowRemote: true }),
++    ).toMatchObject({
++      ok: true,
++      baseUrl: "https://gateway.example.com/v1",
++      isLocal: false,
++    });
++
++    expect(() =>
++      parseLocalRuntimeDescriptor({
++        kind: "openai-compatible",
++        baseUrl: "https://gateway.example.com/v1",
++      }),
++    ).toThrow(/localhost or explicitly allowed/i);
++
++    expect(
++      parseLocalRuntimeDescriptor(
++        {
++          kind: "openai-compatible",
++          baseUrl: "https://gateway.example.com/v1",
++        },
++        { allowRemoteBaseUrls: true },
++      ),
++    ).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "https://gateway.example.com/v1",
++      baseUrlSource: "configured",
++    });
++  });
++
++  it("validates loopback hosts and rejects unsafe base URL shapes", () => {
++    expect(isLocalRuntimeHostname("localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("models.localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("127.12.0.1")).toBe(true);
++    expect(isLocalRuntimeHostname("[::1]")).toBe(true);
++    expect(isLocalRuntimeHostname("192.168.1.10")).toBe(false);
++    expect(
++      isLocalRuntimeHostname("host.docker.internal", { allowedHosts: ["host.docker.internal"] }),
++    ).toBe(true);
++
++    expect(validateLocalRuntimeBaseUrl("ftp://127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "unsupported-protocol",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://user:pass@127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "credentials-not-allowed",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://127.0.0.1:8080/v1?token=secret")).toMatchObject({
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++    });
++  });
++});
+diff --git a/vitest.config.ts b/vitest.config.ts
+index 9027fb04afacf9733ba8c53ee3994a4090585d0b..e61b0a4e74216a7a98ecbf0ea8090b95a6d7af4b
+--- a/vitest.config.ts
++++ b/vitest.config.ts
+@@ -39,6 +39,10 @@
+         replacement: resolve(rootDir, "packages/core/src/language.ts"),
+       },
+       {
++        find: /^@steipete\/summarize-core\/local-runtime$/,
++        replacement: resolve(rootDir, "packages/core/src/local-runtime.ts"),
++      },
++      {
+         find: /^@steipete\/summarize-core$/,
+         replacement: resolve(rootDir, "packages/core/src/index.ts"),
+       },
+
+exec
+/bin/zsh -lc '.agents/ralph/log-activity.sh "Updated progress log for LLR-003"' in /Users/shh/proj/summarize succeeded in 0ms:
+
+exec
+/bin/zsh -lc 'git status --porcelain=v1' in /Users/shh/proj/summarize succeeded in 0ms:
+ M .ralph/activity.log
+ M .ralph/progress.md
+ M .ralph/runs/run-20260422-085058-72504-iter-3.log
+?? .ralph/runs/run-20260422-085058-72504-iter-3.md
+exec
+/bin/zsh -lc 'git diff --check' in /Users/shh/proj/summarize exited 2 in 0ms:
+.ralph/runs/run-20260422-085058-72504-iter-3.log:19448: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-3.log:20023: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-3.log:20597: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-3.log:21190: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-3.log:21764: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-3.log:22499: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-3.log:23181: trailing whitespace.
++
+.ralph/runs/run-20260422-085058-72504-iter-3.log:23787: new blank line at EOF.
+exec
+/bin/zsh -lc 'git diff --stat' in /Users/shh/proj/summarize succeeded in 0ms:
+ .ralph/activity.log                              |    1 +
+ .ralph/progress.md                               |   48 +
+ .ralph/runs/run-20260422-085058-72504-iter-3.log | 4381 ++++++++++++++++++++++
+ 3 files changed, 4430 insertions(+)
+file update:
+diff --git a/.oxfmtrc.jsonc b/.oxfmtrc.jsonc
+index 2e300b5877be8cd7cea3dd7a050bba84a77f8040..071c5a5e44e139e30ddf1a4be1e150cfac0b71f8
+--- a/.oxfmtrc.jsonc
++++ b/.oxfmtrc.jsonc
+@@ -7,6 +7,8 @@
+     "sortScripts": true,
+   },
+   "ignorePatterns": [
++    ".agents/",
++    ".ralph/",
+     "apps/chrome-extension/dist/",
+     "coverage/",
+     "dist/",
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 5497969406551dde714a89e2f68bc20839d0beb4..bd0418f4253972975b5fd47a4014e4c21023e2df
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -84,3 +84,51 @@
+   - Operational caveats: there is no dedicated Ollama or llama.cpp runtime registry yet; `/v1/agent` must be covered
+     separately by local-only and language routing because it does not use the summary `ModelAttempt` execution path.
+ ---
++
++## 2026-04-22 09:13:31 PDT - LLR-003: Add Local Runtime Registry Types
++Thread:
++Run: 20260422-085058-72504 (iteration 3)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 2f65dc8d feat: add local runtime registry types
++- Post-commit status: `clean`
++- Verification:
++  - Command: `pnpm -s test -- tests/local-runtime.test.ts` -> PASS
++  - Command: `pnpm exec vitest run tests/local-runtime.test.ts` -> PASS
++  - Command: `pnpm -C packages/core -s typecheck` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s build` -> PASS
++  - Command: `pnpm -s check` -> PASS
++  - Command: `git diff --check` -> PASS
++- Files changed:
++  - .oxfmtrc.jsonc
++  - packages/core/package.json
++  - packages/core/src/index.ts
++  - packages/core/src/local-runtime.ts
++  - tests/local-runtime.test.ts
++  - vitest.config.ts
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-3.md
++  - .ralph/.tmp/story-20260422-085058-72504-3.json
++  - .ralph/.tmp/story-20260422-085058-72504-3.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-2.md
++  - .ralph/runs/run-20260422-085058-72504-iter-3.log
++  - .ralph/runs/run-20260422-085058-72504-iter-3.md
++- What was implemented
++  Added `@steipete/summarize-core/local-runtime` with typed descriptors for generic OpenAI-compatible local endpoints,
++  llama.cpp OpenAI-compatible servers, and Ollama. Added localhost-first defaults, loopback/allowed-host URL validation,
++  descriptor parsing with aliases, Ollama OpenAI-compatible `/v1` derivation, and package/vitest exports. No CLI,
++  daemon, or extension runtime behavior was wired or changed.
++- **Learnings for future iterations:**
++  - Patterns discovered: shared local runtime primitives belong in `packages/core` and can be exported as a dedicated
++    package subpath for CLI, daemon, and extension consumers.
++  - Gotchas encountered: `pnpm -s check` formats generated `.agents` and `.ralph` orchestration files by default,
++    including the PRD JSON this loop must not edit; `.oxfmtrc.jsonc` now excludes those directories.
++  - Useful context: remote local-runtime base URLs are rejected by default and require explicit `allowRemoteBaseUrls`;
++    callers can also pass `allowedHosts` for environment-specific local aliases such as Docker hostnames.
++---
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-2.md b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+index adc74283d69dcf2ac8937d9211dd21c03a4e8846..c3384c766bb93ea6a0ff6854531c90683c148f1c
+--- a/.ralph/runs/run-20260422-085058-72504-iter-2.md
++++ b/.ralph/runs/run-20260422-085058-72504-iter-2.md
+@@ -35,4 +35,3 @@
+
+ ### Uncommitted Changes
+ - .ralph/activity.log
+-
+diff --git a/.ralph/runs/run-20260422-085058-72504-iter-3.md b/.ralph/runs/run-20260422-085058-72504-iter-3.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..86e66bef78327e4f05ddd2972d98e76738762041
+--- /dev/null
++++ b/.ralph/runs/run-20260422-085058-72504-iter-3.md
+@@ -0,0 +1,49 @@
++# Ralph Run Summary
++
++- Run ID: 20260422-085058-72504
++- Iteration: 3
++- Mode: build
++- Story: LLR-003: Add Local Runtime Registry Types
++- Started: 2026-04-22 09:06:18
++- Ended: 2026-04-22 09:13:31
++- Status: success
++- Log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-3.log
++
++## Git
++
++### Commits
++- 2f65dc8d feat: add local runtime registry types
++
++### Changed Files
++- .agents/tasks/prd.json
++- .oxfmtrc.jsonc
++- .ralph/.tmp/prompt-20260422-085058-72504-3.md
++- .ralph/.tmp/story-20260422-085058-72504-3.json
++- .ralph/.tmp/story-20260422-085058-72504-3.md
++- .ralph/activity.log
++- .ralph/errors.log
++- .ralph/progress.md
++- .ralph/runs/run-20260422-085058-72504-iter-2.md
++- .ralph/runs/run-20260422-085058-72504-iter-3.log
++- .ralph/runs/run-20260422-085058-72504-iter-3.md
++- packages/core/package.json
++- packages/core/src/index.ts
++- packages/core/src/local-runtime.ts
++- tests/local-runtime.test.ts
++- vitest.config.ts
++
++## Verification
++- `pnpm -s test -- tests/local-runtime.test.ts` -> PASS
++- `pnpm exec vitest run tests/local-runtime.test.ts` -> PASS
++- `pnpm -C packages/core -s typecheck` -> PASS
++- `pnpm -s typecheck` -> PASS
++- `pnpm -s build` -> PASS
++- `pnpm -s check` -> PASS
++- `git diff --check` -> PASS
++
++## Outcome
++- Added shared typed local runtime descriptors for OpenAI-compatible, llama.cpp, and Ollama runtimes.
++- Added localhost-first defaults and validation helpers that reject remote hosts unless explicitly allowed.
++- Added unit coverage for descriptor parsing, alias handling, Ollama base URL normalization, and URL validation.
++- Exported the registry from `@steipete/summarize-core` and the `@steipete/summarize-core/local-runtime` subpath.
++- Preserved existing runtime behavior; no CLI, daemon, or extension call sites were wired to the new registry.
+diff --git a/packages/core/package.json b/packages/core/package.json
+index a5feac1a3260d7047a868853b35b85994ab68a64..db1c6641dc76f11b122ccbae79a711da9a8ccbb6
+--- a/packages/core/package.json
++++ b/packages/core/package.json
+@@ -38,6 +38,10 @@
+     "./language": {
+       "types": "./dist/types/language.d.ts",
+       "import": "./dist/esm/language.js"
++    },
++    "./local-runtime": {
++      "types": "./dist/types/local-runtime.d.ts",
++      "import": "./dist/esm/local-runtime.js"
+     }
+   },
+   "scripts": {
+diff --git a/packages/core/src/index.ts b/packages/core/src/index.ts
+index 2da968023562582a7bcfd6e9bd3ac7fae34b8f89..208e92f2adc36f1210d84e60d812ec89ae45d9b7
+--- a/packages/core/src/index.ts
++++ b/packages/core/src/index.ts
+@@ -5,6 +5,7 @@
+   resolveConfiguredBaseUrl,
+   resolveOpenAiWhisperBaseUrl,
+ } from "./openai/base-url.js";
++export * from "./local-runtime.js";
+ export * from "./prompts/index.js";
+ export type { SummaryLength } from "./shared/contracts.js";
+ export { SUMMARY_LENGTHS } from "./shared/contracts.js";
+diff --git a/packages/core/src/local-runtime.ts b/packages/core/src/local-runtime.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2d9d47b8fa34f2d0d42561945e9145282bdc025f
+--- /dev/null
++++ b/packages/core/src/local-runtime.ts
+@@ -0,0 +1,358 @@
++export type LocalRuntimeKind = "openai-compatible" | "llama-cpp" | "ollama";
++export type LocalRuntimeProtocol = "openai-compatible" | "ollama";
++export type LocalRuntimeBaseUrlSource = "default" | "configured";
++
++export type LocalRuntimeBaseUrlValidationIssue =
++  | "missing"
++  | "invalid-url"
++  | "unsupported-protocol"
++  | "credentials-not-allowed"
++  | "query-or-hash-not-allowed"
++  | "remote-host-not-allowed";
++
++export type LocalRuntimeBaseUrlValidationOptions = {
++  /**
++   * Accept non-local hosts. Keep this false for built-in local defaults and
++   * enable it only when a caller is intentionally handling an explicit remote endpoint.
++   */
++  allowRemote?: boolean;
++  /**
++   * Additional hostnames that a caller treats as local in its own environment.
++   */
++  allowedHosts?: readonly string[];
++};
++
++export type LocalRuntimeBaseUrlValidationResult =
++  | {
++      ok: true;
++      baseUrl: string;
++      host: string;
++      hostname: string;
++      isLocal: boolean;
++    }
++  | {
++      ok: false;
++      issue: LocalRuntimeBaseUrlValidationIssue;
++      message: string;
++      value: string;
++    };
++
++type LocalRuntimeDescriptorBase = {
++  kind: LocalRuntimeKind;
++  label: string;
++  protocol: LocalRuntimeProtocol;
++  baseUrl: string;
++  baseUrlSource: LocalRuntimeBaseUrlSource;
++  modelsPath: string;
++  openAiCompatibleBaseUrl: string;
++};
++
++export type OpenAiCompatibleLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "openai-compatible";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type LlamaCppLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "llama-cpp";
++  protocol: "openai-compatible";
++  modelsPath: "/models";
++};
++
++export type OllamaLocalRuntimeDescriptor = LocalRuntimeDescriptorBase & {
++  kind: "ollama";
++  protocol: "ollama";
++  modelsPath: "/api/tags";
++};
++
++export type LocalRuntimeDescriptor =
++  | OpenAiCompatibleLocalRuntimeDescriptor
++  | LlamaCppLocalRuntimeDescriptor
++  | OllamaLocalRuntimeDescriptor;
++
++type LocalRuntimeRegistryEntry = Omit<
++  LocalRuntimeDescriptorBase,
++  "baseUrl" | "baseUrlSource" | "openAiCompatibleBaseUrl"
++> & {
++  defaultBaseUrl: string;
++  defaultOpenAiCompatibleBaseUrl?: string;
++};
++
++export const LOCAL_RUNTIME_REGISTRY = {
++  "openai-compatible": {
++    kind: "openai-compatible",
++    label: "OpenAI-compatible local endpoint",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  "llama-cpp": {
++    kind: "llama-cpp",
++    label: "llama.cpp server",
++    protocol: "openai-compatible",
++    defaultBaseUrl: "http://127.0.0.1:8080/v1",
++    modelsPath: "/models",
++  },
++  ollama: {
++    kind: "ollama",
++    label: "Ollama",
++    protocol: "ollama",
++    defaultBaseUrl: "http://127.0.0.1:11434",
++    defaultOpenAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    modelsPath: "/api/tags",
++  },
++} as const satisfies Record<LocalRuntimeKind, LocalRuntimeRegistryEntry>;
++
++export const LOCAL_RUNTIME_KINDS = Object.keys(LOCAL_RUNTIME_REGISTRY) as LocalRuntimeKind[];
++
++export type LocalRuntimeDescriptorInput =
++  | LocalRuntimeKind
++  | {
++      kind?: unknown;
++      type?: unknown;
++      runtime?: unknown;
++      baseUrl?: unknown;
++      openAiCompatibleBaseUrl?: unknown;
++    };
++
++export type ParseLocalRuntimeDescriptorOptions = {
++  allowRemoteBaseUrls?: boolean;
++  allowedHosts?: readonly string[];
++};
++
++function normalizeHostname(hostname: string): string {
++  return hostname
++    .trim()
++    .toLowerCase()
++    .replace(/^\[(.*)]$/, "$1")
++    .replace(/\.$/, "");
++}
++
++function normalizeAllowedHosts(hosts: readonly string[] | undefined): Set<string> {
++  const normalized = new Set<string>();
++  for (const host of hosts ?? []) {
++    const value = normalizeHostname(host);
++    if (value.length > 0) normalized.add(value);
++  }
++  return normalized;
++}
++
++function isLoopbackIpv4(hostname: string): boolean {
++  const parts = hostname.split(".");
++  if (parts.length !== 4) return false;
++  const octets = parts.map((part) => {
++    if (!/^\d{1,3}$/.test(part)) return null;
++    const value = Number(part);
++    return Number.isInteger(value) && value >= 0 && value <= 255 ? value : null;
++  });
++  return octets.every((part): part is number => typeof part === "number") && octets[0] === 127;
++}
++
++export function isLocalRuntimeHostname(
++  hostname: string,
++  options: Pick<LocalRuntimeBaseUrlValidationOptions, "allowedHosts"> = {},
++): boolean {
++  const normalized = normalizeHostname(hostname);
++  if (!normalized) return false;
++  if (normalizeAllowedHosts(options.allowedHosts).has(normalized)) return true;
++  if (normalized === "localhost" || normalized.endsWith(".localhost")) return true;
++  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") return true;
++  return isLoopbackIpv4(normalized);
++}
++
++function normalizeUrl(url: URL): string {
++  return url.toString().replace(/\/+$/, "");
++}
++
++export function validateLocalRuntimeBaseUrl(
++  raw: unknown,
++  options: LocalRuntimeBaseUrlValidationOptions = {},
++): LocalRuntimeBaseUrlValidationResult {
++  const value = typeof raw === "string" ? raw.trim() : "";
++  if (!value) {
++    return {
++      ok: false,
++      issue: "missing",
++      message: "Local runtime base URL is required.",
++      value,
++    };
++  }
++
++  let url: URL;
++  try {
++    url = new URL(value);
++  } catch {
++    return {
++      ok: false,
++      issue: "invalid-url",
++      message: `Invalid local runtime base URL: ${value}`,
++      value,
++    };
++  }
++
++  if (url.protocol !== "http:" && url.protocol !== "https:") {
++    return {
++      ok: false,
++      issue: "unsupported-protocol",
++      message: `Local runtime base URL must use http or https: ${value}`,
++      value,
++    };
++  }
++
++  if (url.username || url.password) {
++    return {
++      ok: false,
++      issue: "credentials-not-allowed",
++      message: "Local runtime base URL must not include credentials.",
++      value,
++    };
++  }
++
++  if (url.search || url.hash) {
++    return {
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++      message: "Local runtime base URL must not include query strings or fragments.",
++      value,
++    };
++  }
++
++  const isLocal = isLocalRuntimeHostname(url.hostname, { allowedHosts: options.allowedHosts });
++  if (!isLocal && !options.allowRemote) {
++    return {
++      ok: false,
++      issue: "remote-host-not-allowed",
++      message: `Local runtime base URL host must be localhost or explicitly allowed: ${url.host}`,
++      value,
++    };
++  }
++
++  return {
++    ok: true,
++    baseUrl: normalizeUrl(url),
++    host: url.host,
++    hostname: url.hostname,
++    isLocal,
++  };
++}
++
++export function normalizeLocalRuntimeKind(raw: unknown): LocalRuntimeKind | null {
++  if (typeof raw !== "string") return null;
++  const normalized = raw.trim().toLowerCase().replaceAll("_", "-").replace(/\s+/g, "-");
++  if (normalized === "openai" || normalized === "openai-compatible") {
++    return "openai-compatible";
++  }
++  if (
++    normalized === "llama" ||
++    normalized === "llama-cpp" ||
++    normalized === "llama.cpp" ||
++    normalized === "llamacpp"
++  ) {
++    return "llama-cpp";
++  }
++  if (normalized === "ollama") return "ollama";
++  return null;
++}
++
++function assertValidBaseUrl(raw: unknown, options: LocalRuntimeBaseUrlValidationOptions): string {
++  const result = validateLocalRuntimeBaseUrl(raw, options);
++  if (!result.ok) {
++    throw new Error(result.message);
++  }
++  return result.baseUrl;
++}
++
++function appendPath(baseUrl: string, path: string): string {
++  const url = new URL(baseUrl);
++  const currentPath = url.pathname.replace(/\/+$/, "");
++  url.pathname = `${currentPath}/${path.replace(/^\/+/, "")}`;
++  return normalizeUrl(url);
++}
++
++function removeTrailingPathSegment(baseUrl: string, segment: string): string | null {
++  const url = new URL(baseUrl);
++  const suffix = `/${segment.replace(/^\/+/, "")}`;
++  const path = url.pathname.replace(/\/+$/, "");
++  if (path !== suffix && !path.endsWith(suffix)) return null;
++  url.pathname = path.slice(0, -suffix.length) || "/";
++  return normalizeUrl(url);
++}
++
++function resolveOllamaBaseUrls({
++  baseUrl,
++  openAiCompatibleBaseUrl,
++}: {
++  baseUrl: string;
++  openAiCompatibleBaseUrl?: string;
++}): { baseUrl: string; openAiCompatibleBaseUrl: string } {
++  const rootBaseUrl = removeTrailingPathSegment(baseUrl, "v1") ?? baseUrl;
++  return {
++    baseUrl: rootBaseUrl,
++    openAiCompatibleBaseUrl: openAiCompatibleBaseUrl ?? appendPath(rootBaseUrl, "v1"),
++  };
++}
++
++export function getDefaultLocalRuntimeDescriptor(kind: LocalRuntimeKind): LocalRuntimeDescriptor {
++  return parseLocalRuntimeDescriptor(kind);
++}
++
++export function parseLocalRuntimeDescriptor(
++  input: unknown,
++  options: ParseLocalRuntimeDescriptorOptions = {},
++): LocalRuntimeDescriptor {
++  const inputRecord =
++    typeof input === "object" && input !== null && !Array.isArray(input)
++      ? (input as Record<string, unknown>)
++      : null;
++  const kind = normalizeLocalRuntimeKind(
++    typeof input === "string"
++      ? input
++      : (inputRecord?.kind ?? inputRecord?.type ?? inputRecord?.runtime),
++  );
++  if (!kind) {
++    throw new Error(`Unknown local runtime kind: ${String(input)}`);
++  }
++
++  const registryEntry = LOCAL_RUNTIME_REGISTRY[kind];
++  const validationOptions = {
++    allowRemote: options.allowRemoteBaseUrls,
++    allowedHosts: options.allowedHosts,
++  };
++  const rawBaseUrl = inputRecord?.baseUrl;
++  const hasConfiguredBaseUrl = typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0;
++  const baseUrl = assertValidBaseUrl(
++    hasConfiguredBaseUrl ? rawBaseUrl : registryEntry.defaultBaseUrl,
++    validationOptions,
++  );
++
++  const rawOpenAiCompatibleBaseUrl = inputRecord?.openAiCompatibleBaseUrl;
++  const configuredOpenAiCompatibleBaseUrl =
++    typeof rawOpenAiCompatibleBaseUrl === "string" && rawOpenAiCompatibleBaseUrl.trim().length > 0
++      ? assertValidBaseUrl(rawOpenAiCompatibleBaseUrl, validationOptions)
++      : undefined;
++
++  const common = {
++    ...registryEntry,
++    baseUrl,
++    baseUrlSource: hasConfiguredBaseUrl ? "configured" : "default",
++    openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl ?? baseUrl,
++  };
++
++  if (kind === "ollama") {
++    const resolved = resolveOllamaBaseUrls({
++      baseUrl,
++      openAiCompatibleBaseUrl: configuredOpenAiCompatibleBaseUrl,
++    });
++    return {
++      ...common,
++      baseUrl: resolved.baseUrl,
++      openAiCompatibleBaseUrl: resolved.openAiCompatibleBaseUrl,
++    } as OllamaLocalRuntimeDescriptor;
++  }
++
++  return common as LocalRuntimeDescriptor;
++}
++
++export const DEFAULT_LOCAL_RUNTIME_DESCRIPTORS = Object.fromEntries(
++  LOCAL_RUNTIME_KINDS.map((kind) => [kind, getDefaultLocalRuntimeDescriptor(kind)]),
++) as Readonly<Record<LocalRuntimeKind, LocalRuntimeDescriptor>>;
+diff --git a/tests/local-runtime.test.ts b/tests/local-runtime.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2b87ba118f69d9fad7dfe3e58dff4fbb32f946db
+--- /dev/null
++++ b/tests/local-runtime.test.ts
+@@ -0,0 +1,135 @@
++import {
++  DEFAULT_LOCAL_RUNTIME_DESCRIPTORS,
++  LOCAL_RUNTIME_KINDS,
++  isLocalRuntimeHostname,
++  parseLocalRuntimeDescriptor,
++  validateLocalRuntimeBaseUrl,
++} from "@steipete/summarize-core/local-runtime";
++import { describe, expect, it } from "vitest";
++
++describe("local runtime registry", () => {
++  it("ships localhost-first defaults for each supported runtime", () => {
++    expect(LOCAL_RUNTIME_KINDS).toEqual(["openai-compatible", "llama-cpp", "ollama"]);
++
++    for (const descriptor of Object.values(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS)) {
++      expect(descriptor.baseUrlSource).toBe("default");
++      expect(descriptor.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:/);
++
++      const validation = validateLocalRuntimeBaseUrl(descriptor.baseUrl);
++      expect(validation).toMatchObject({ ok: true, isLocal: true });
++    }
++
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["openai-compatible"]).toMatchObject({
++      kind: "openai-compatible",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS["llama-cpp"]).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:8080/v1",
++    });
++    expect(DEFAULT_LOCAL_RUNTIME_DESCRIPTORS.ollama).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("parses string aliases and configured descriptor objects", () => {
++    expect(parseLocalRuntimeDescriptor("openai")).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "http://127.0.0.1:8080/v1",
++      baseUrlSource: "default",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        kind: "llama.cpp",
++        baseUrl: " http://localhost:8080/v1/ ",
++      }),
++    ).toMatchObject({
++      kind: "llama-cpp",
++      protocol: "openai-compatible",
++      baseUrl: "http://localhost:8080/v1",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://localhost:8080/v1",
++    });
++
++    expect(
++      parseLocalRuntimeDescriptor({
++        type: "ollama",
++        baseUrl: "http://127.0.0.1:11434/v1",
++      }),
++    ).toMatchObject({
++      kind: "ollama",
++      protocol: "ollama",
++      baseUrl: "http://127.0.0.1:11434",
++      baseUrlSource: "configured",
++      openAiCompatibleBaseUrl: "http://127.0.0.1:11434/v1",
++    });
++  });
++
++  it("rejects remote runtime URLs unless a caller explicitly allows them", () => {
++    expect(validateLocalRuntimeBaseUrl("https://api.openai.com/v1")).toMatchObject({
++      ok: false,
++      issue: "remote-host-not-allowed",
++    });
++
++    expect(
++      validateLocalRuntimeBaseUrl("https://gateway.example.com/v1", { allowRemote: true }),
++    ).toMatchObject({
++      ok: true,
++      baseUrl: "https://gateway.example.com/v1",
++      isLocal: false,
++    });
++
++    expect(() =>
++      parseLocalRuntimeDescriptor({
++        kind: "openai-compatible",
++        baseUrl: "https://gateway.example.com/v1",
++      }),
++    ).toThrow(/localhost or explicitly allowed/i);
++
++    expect(
++      parseLocalRuntimeDescriptor(
++        {
++          kind: "openai-compatible",
++          baseUrl: "https://gateway.example.com/v1",
++        },
++        { allowRemoteBaseUrls: true },
++      ),
++    ).toMatchObject({
++      kind: "openai-compatible",
++      baseUrl: "https://gateway.example.com/v1",
++      baseUrlSource: "configured",
++    });
++  });
++
++  it("validates loopback hosts and rejects unsafe base URL shapes", () => {
++    expect(isLocalRuntimeHostname("localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("models.localhost")).toBe(true);
++    expect(isLocalRuntimeHostname("127.12.0.1")).toBe(true);
++    expect(isLocalRuntimeHostname("[::1]")).toBe(true);
++    expect(isLocalRuntimeHostname("192.168.1.10")).toBe(false);
++    expect(
++      isLocalRuntimeHostname("host.docker.internal", { allowedHosts: ["host.docker.internal"] }),
++    ).toBe(true);
++
++    expect(validateLocalRuntimeBaseUrl("ftp://127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "unsupported-protocol",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://user:pass@127.0.0.1:8080/v1")).toMatchObject({
++      ok: false,
++      issue: "credentials-not-allowed",
++    });
++    expect(validateLocalRuntimeBaseUrl("http://127.0.0.1:8080/v1?token=secret")).toMatchObject({
++      ok: false,
++      issue: "query-or-hash-not-allowed",
++    });
++  });
++});
+diff --git a/vitest.config.ts b/vitest.config.ts
+index 9027fb04afacf9733ba8c53ee3994a4090585d0b..e61b0a4e74216a7a98ecbf0ea8090b95a6d7af4b
+--- a/vitest.config.ts
++++ b/vitest.config.ts
+@@ -39,6 +39,10 @@
+         replacement: resolve(rootDir, "packages/core/src/language.ts"),
+       },
+       {
++        find: /^@steipete\/summarize-core\/local-runtime$/,
++        replacement: resolve(rootDir, "packages/core/src/local-runtime.ts"),
++      },
++      {
+         find: /^@steipete\/summarize-core$/,
+         replacement: resolve(rootDir, "packages/core/src/index.ts"),
+       },
+
+codex
+The run log itself picked up trailing whitespace from captured command output. I’m cleaning only that log artifact and rerunning `git diff --check` so the recorded verification remains true.
