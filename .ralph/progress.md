@@ -6,6 +6,51 @@ Started: Wed Apr 22 08:50:58 PDT 2026
 
 ---
 
+## 2026-04-22 10:02:04 PDT - LLR-008: Expose Local Runtime Status in Daemon API
+Thread: 019db61d-458c-7af1-a095-ae13770df211
+Run: 20260422-085058-72504 (iteration 8)
+Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-8.log
+Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-8.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 9348b37f feat: expose local runtime status endpoint
+- Post-commit status: clean after progress artifact commit
+- Verification:
+  - Command: `pnpm exec vitest run tests/daemon.local-runtime-status.test.ts` -> PASS
+  - Command: `pnpm -s test -- tests/daemon.local-runtime-status.test.ts` -> PASS
+  - Command: `pnpm -s typecheck` -> PASS
+  - Command: `pnpm -s build` -> PASS
+  - Command: `pnpm -s check` -> PASS
+  - Command: `git diff --check` -> PASS
+- Files changed:
+  - src/daemon/local-runtime-status.ts
+  - src/daemon/server-admin-routes.ts
+  - tests/daemon.local-runtime-status.test.ts
+  - .agents/tasks/prd.json
+  - .ralph/.tmp/prompt-20260422-085058-72504-8.md
+  - .ralph/.tmp/story-20260422-085058-72504-8.json
+  - .ralph/.tmp/story-20260422-085058-72504-8.md
+  - .ralph/activity.log
+  - .ralph/errors.log
+  - .ralph/progress.md
+  - .ralph/runs/run-20260422-085058-72504-iter-7.md
+  - .ralph/runs/run-20260422-085058-72504-iter-8.log
+- What was implemented
+  Added token-protected `GET /v1/local-runtime/status` through the daemon admin route path. The response reports
+  local-only state, configured OpenAI-compatible local runtime host/type, selected language-aware local routing hints,
+  bounded probe results, reachable model hints, and sanitized probe failures. The endpoint never returns API keys,
+  raw environment values, or full configured base URLs. Added mocked daemon tests for response shape, bearer auth,
+  probe fetches, and invalid-runtime sanitization.
+- **Learnings for future iterations:**
+  - Patterns discovered: daemon admin routes inherit `/v1/*` bearer-token enforcement in `runDaemonServer`, so small
+    diagnostic endpoints fit cleanly in `server-admin-routes.ts`.
+  - Gotchas encountered: `pnpm -s test -- tests/daemon.local-runtime-status.test.ts` currently executes the configured
+    repository test run rather than only that file; `pnpm exec vitest run tests/daemon.local-runtime-status.test.ts`
+    is the precise focused test.
+  - Useful context: status probes should keep `allowRemoteBaseUrls` false and expose only endpoint hosts plus model IDs;
+    invalid runtime errors from core can include raw input, so daemon-facing status must sanitize them before returning.
+---
+
 ## 2026-04-22 09:53:11 PDT - LLR-007: Add Local-Only Privacy Guard
 Thread:
 Run: 20260422-085058-72504 (iteration 7)
