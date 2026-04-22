@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { LINUX_HOMEBREW_MESSAGE, updateFormulaForMacArtifacts } from "../scripts/release-formula.js";
+import {
+  LINUX_HOMEBREW_MESSAGE,
+  updateFormulaForMacArtifacts,
+} from "../scripts/release-formula.js";
 
 const urls = {
   urlArm: "https://example.com/summarize-macos-arm64.tar.gz",
