@@ -13,7 +13,7 @@
     {
       "id": "LLR-001",
       "title": "Establish Local-First Fork Positioning",
-      "status": "in_progress",
+      "status": "done",
       "dependsOn": [],
       "description": "Make the fork's intended value proposition explicit without destabilizing package publishing or upstream compatibility. Document that this fork keeps upstream generic summarization but adds private local LLM setup, bilingual routing, and local research memory.",
       "acceptanceCriteria": [
@@ -24,13 +24,13 @@
         "Run pnpm -s typecheck or a narrower no-op-safe verification if only Markdown files changed."
       ],
       "startedAt": "2026-04-22T15:50:58.410446+00:00",
-      "completedAt": null,
-      "updatedAt": "2026-04-22T15:50:58.410571+00:00"
+      "completedAt": "2026-04-22T15:55:45.010814+00:00",
+      "updatedAt": "2026-04-22T15:55:45.010674+00:00"
     },
     {
       "id": "LLR-002",
       "title": "Audit Existing Local Model Capabilities",
-      "status": "open",
+      "status": "in_progress",
       "dependsOn": [
         "LLR-001"
       ],
@@ -41,7 +41,10 @@
         "Identify where language-aware routing should live and which existing config types can be extended.",
         "Add any discovered operational caveats to the Ralph progress log through the normal build loop.",
         "Do not change runtime behavior in this story."
-      ]
+      ],
+      "startedAt": "2026-04-22T15:55:47.097157+00:00",
+      "completedAt": null,
+      "updatedAt": "2026-04-22T15:55:47.097335+00:00"
     },
     {
       "id": "LLR-003",

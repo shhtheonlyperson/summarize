@@ -12,6 +12,7 @@ summary: "Docs index for summarize behaviors and modes."
 - [Firecrawl](firecrawl.md)
 - [Language](language.md)
 - [Local-first roadmap](local-first-roadmap.md)
+- [Local model capabilities audit](local-model-capabilities-audit.md)
 - [LLM](llm.md)
 - [Manual tests](manual-tests.md)
 - [Model auto](model-auto.md)

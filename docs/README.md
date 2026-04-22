@@ -12,6 +12,7 @@ summary: "Docs index for summarize behaviors and modes."
 - `docs/firecrawl.md` — Firecrawl mode + API key
 - `docs/language.md` — output language (`--language` / config `language`)
 - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
+- `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
 - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
 - `docs/manual-tests.md` — manual end-to-end test checklist
 - `docs/model-auto.md` — automatic model selection (`--model auto`)
