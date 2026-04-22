@@ -6,6 +6,56 @@ Started: Wed Apr 22 08:50:58 PDT 2026
 
 ---
 
+## 2026-04-22 09:31:37 PDT - LLR-005: Add CLI Local Runtime Probe Command
+Thread:
+Run: 20260422-085058-72504 (iteration 5)
+Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-5.log
+Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-5.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 330cde38 feat: add local runtime probe cli
+- Post-commit status: `clean`
+- Verification:
+  - Command: `pnpm -s test -- tests/cli.local-runtime-probe.test.ts` -> PASS
+  - Command: `pnpm -s typecheck` -> PASS
+  - Command: `pnpm -s build` -> PASS
+  - Command: `pnpm -s check` -> PASS
+  - Command: `git diff --check` -> PASS
+- Files changed:
+  - README.md
+  - docs/cli.md
+  - src/cli-main.ts
+  - src/run/cli-preflight.ts
+  - src/run/help.ts
+  - src/run/local-runtime-probe-cli.ts
+  - src/run/runner.ts
+  - tests/cli.local-runtime-probe.test.ts
+  - .agents/tasks/prd.json
+  - .ralph/.tmp/prompt-20260422-085058-72504-5.md
+  - .ralph/.tmp/story-20260422-085058-72504-5.json
+  - .ralph/.tmp/story-20260422-085058-72504-5.md
+  - .ralph/activity.log
+  - .ralph/errors.log
+  - .ralph/progress.md
+  - .ralph/runs/run-20260422-085058-72504-iter-4.md
+  - .ralph/runs/run-20260422-085058-72504-iter-5.log
+- What was implemented
+  Added `summarize local-runtime probe` as an immediate CLI command that resolves configured `OPENAI_BASE_URL` /
+  `openai.baseUrl`, falls back to default llama.cpp and Ollama localhost endpoints, prints `OK` / `WARN` / `FAIL`
+  diagnostics, supports `--json`, bounded `--timeout`, `--base-url`, and explicit `--allow-remote`, and sets a failing
+  exit code for failed probes through the real CLI entrypoint. Added mocked-fetch CLI tests covering success, warnings,
+  failures, JSON output, and remote-host blocking. Documented the command in README and CLI docs.
+- **Learnings for future iterations:**
+  - Patterns discovered: CLI utility subcommands that should run before normal summary parsing belong in
+    `src/run/cli-preflight.ts`; standalone help text lives in `src/run/help.ts`.
+  - Gotchas encountered: `/Users/shh/proj/summarize/ralph` is absent in this checkout; use
+    `.agents/ralph/log-activity.sh` for activity logging. The `committer` / `$commit` helper is also unavailable, so a
+    conventional `git commit` fallback was required.
+  - Useful context: `pnpm -s test -- tests/cli.local-runtime-probe.test.ts` currently runs the configured repository
+    test suite, not just that file. The probe sends only model-list requests and does not include API keys or source
+    content; non-local hosts stay blocked unless `--allow-remote` is explicit.
+---
+
 ## 2026-04-22 08:54:14 PDT - LLR-001: Establish Local-First Fork Positioning
 Thread: 019db5e3-33a6-7350-92dc-add32e3e321a
 Run: 20260422-085058-72504 (iteration 1)
