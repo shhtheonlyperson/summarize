@@ -245,7 +245,7 @@ export const defaultSettings: Settings = {
   transcriber: "",
   model: "auto",
   length: "xl",
-  language: "auto",
+  language: "zh-tw",
   promptOverride: "",
   maxChars: 120_000,
   requestMode: "",

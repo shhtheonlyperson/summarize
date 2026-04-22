@@ -75,10 +75,10 @@ describe("config loading", () => {
     const { root } = writeJsonConfig({
       localRouting: {
         enabled: true,
-        englishModel: " gemma-3-12b-it ",
-        traditionalChineseModel: "openai/qwen3-32b",
-        bilingualModel: "qwen3-bilingual",
-        fallbackModel: "llama-3.1-8b-instruct",
+        englishModel: " gemma4-31b ",
+        traditionalChineseModel: "openai/qwen3.6-35b-a3b",
+        bilingualModel: "qwen3.6-35b-a3b",
+        fallbackModel: "gemma4-31b",
       },
     });
 
@@ -86,10 +86,10 @@ describe("config loading", () => {
     expect(result.config).toEqual({
       localRouting: {
         enabled: true,
-        englishModel: "gemma-3-12b-it",
-        traditionalChineseModel: "openai/qwen3-32b",
-        bilingualModel: "qwen3-bilingual",
-        fallbackModel: "llama-3.1-8b-instruct",
+        englishModel: "gemma4-31b",
+        traditionalChineseModel: "openai/qwen3.6-35b-a3b",
+        bilingualModel: "qwen3.6-35b-a3b",
+        fallbackModel: "gemma4-31b",
       },
     });
   });

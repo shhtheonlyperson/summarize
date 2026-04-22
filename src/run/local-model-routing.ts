@@ -4,10 +4,10 @@ import type { OutputLanguage } from "../language.js";
 export type LocalModelRoutingBucket = "english" | "traditionalChinese" | "bilingual" | "fallback";
 
 export const DEFAULT_LOCAL_MODEL_ROUTING_MODELS = {
-  englishModel: "openai/gemma-3-12b-it",
-  traditionalChineseModel: "openai/qwen3-32b",
-  bilingualModel: "openai/qwen3-32b",
-  fallbackModel: "openai/llama-3.1-8b-instruct",
+  englishModel: "openai/gemma4-31b",
+  traditionalChineseModel: "openai/qwen3.6-35b-a3b",
+  bilingualModel: "openai/qwen3.6-35b-a3b",
+  fallbackModel: "openai/gemma4-31b",
 } as const satisfies Required<Omit<LocalModelRoutingConfig, "enabled">>;
 
 function normalizeForMatch(value: string): string {

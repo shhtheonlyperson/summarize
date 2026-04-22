@@ -60,7 +60,7 @@ describe("chrome/daemon-payload", () => {
       truncated: false,
       model: "auto",
       length: "xl",
-      language: "auto",
+      language: "zh-tw",
       mode: "url",
       firecrawl: "auto",
       markdownMode: "llm",
