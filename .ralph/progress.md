@@ -6,6 +6,57 @@ Started: Wed Apr 22 08:50:58 PDT 2026
 
 ---
 
+## 2026-04-22 10:32:38 PDT - LLR-010: Add Mac-First Local LLM Onboarding
+Thread:
+Run: 20260422-085058-72504 (iteration 10)
+Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-10.log
+Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-10.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: f044eb85 docs: add mac local llm onboarding
+- Post-commit status: clean after follow-up progress/log commit
+- Verification:
+  - Command: `pnpm -s docs:list` -> PASS
+  - Command: `git diff --check -- README.md apps/chrome-extension/README.md docs/README.md docs/chrome-extension.md docs/cli.md docs/config.md docs/index.md docs/local-llm-onboarding.md` -> PASS
+  - Command: `pnpm -s typecheck` -> PASS
+  - Command: `pnpm -s build` -> PASS
+  - Command: `pnpm -s check` -> PASS
+- Files changed:
+  - README.md
+  - apps/chrome-extension/README.md
+  - docs/README.md
+  - docs/chrome-extension.md
+  - docs/cli.md
+  - docs/config.md
+  - docs/index.md
+  - docs/local-llm-onboarding.md
+  - .agents/tasks/prd.json
+  - .ralph/.tmp/prompt-20260422-085058-72504-10.md
+  - .ralph/.tmp/story-20260422-085058-72504-10.json
+  - .ralph/.tmp/story-20260422-085058-72504-10.md
+  - .ralph/activity.log
+  - .ralph/errors.log
+  - .ralph/progress.md
+  - .ralph/runs/run-20260422-085058-72504-iter-9.log
+  - .ralph/runs/run-20260422-085058-72504-iter-9.md
+  - .ralph/runs/run-20260422-085058-72504-iter-10.log
+  - .ralph/runs/run-20260422-085058-72504-iter-10.md
+- What was implemented
+  Added a Mac-first onboarding doc for local LLM setup that covers llama.cpp OpenAI-compatible server startup on
+  macOS, Ollama setup through the supported runtime registry, exact config examples for English, Traditional Chinese,
+  bilingual, and fallback routing, local-only privacy mode, expected human and JSON probe output, CLI verification,
+  daemon restart requirements, and extension status expectations. Linked the guide from the root README, CLI/config
+  docs, docs indexes, and extension setup docs.
+- **Learnings for future iterations:**
+  - Patterns discovered: Summarize local HTTP LLMs are still routed through the `openai/...` provider path, so docs
+    must pair `openai.baseUrl` with a dummy `OPENAI_API_KEY` even for localhost runtimes.
+  - Gotchas encountered: direct `llama-server` normally exposes one loaded model; multi-model language routing is
+    cleaner through Ollama or an OpenAI-compatible router in front of multiple llama.cpp servers.
+  - Useful context: daemon config is loaded at startup, and installed daemon services also use an environment snapshot;
+    local model endpoint or key changes need `summarize daemon restart`, and environment changes may need rerunning the
+    extension setup install command.
+---
+
 ## 2026-04-22 10:22:08 PDT - LLR-009: Show Local-Only Status in Side Panel
 Thread:
 Run: 20260422-085058-72504 (iteration 9)
