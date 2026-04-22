@@ -21,6 +21,7 @@ import type {
   MediaCacheConfig,
   MediaCacheVerifyMode,
   OpenAiConfig,
+  PrivacyConfig,
   VideoMode,
 } from "./types.js";
 
@@ -489,6 +490,27 @@ export function parseLoggingConfig(
         ...(typeof maxFiles === "number" ? { maxFiles } : {}),
       }
     : undefined;
+}
+
+export function parsePrivacyConfig(
+  root: Record<string, unknown>,
+  path: string,
+): PrivacyConfig | undefined {
+  const value = root.privacy;
+  if (typeof value === "undefined") return undefined;
+  if (!isRecord(value)) {
+    throw new Error(`Invalid config file ${path}: "privacy" must be an object.`);
+  }
+  const localOnly =
+    typeof value.localOnly === "boolean"
+      ? value.localOnly
+      : typeof value.localOnly === "undefined"
+        ? undefined
+        : (() => {
+            throw new Error(`Invalid config file ${path}: "privacy.localOnly" must be a boolean.`);
+          })();
+
+  return typeof localOnly === "boolean" ? { localOnly } : undefined;
 }
 
 export function parseLocalModelRoutingConfig(

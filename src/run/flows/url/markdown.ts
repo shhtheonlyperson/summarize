@@ -8,6 +8,7 @@ import {
 } from "../../../llm/transcript-to-markdown.js";
 import { convertToMarkdownWithMarkitdown } from "../../../markitdown.js";
 import { hasUvxCli } from "../../env.js";
+import { assertLocalOnlyModelAllowed } from "../../local-only.js";
 import { createRetryLogger } from "../../logging.js";
 import type { ModelAttempt } from "../../types.js";
 import type { UrlFlowContext } from "./types.js";
@@ -190,6 +191,25 @@ export function createMarkdownConverters(
               : Boolean(ctx.model.apiStatus.apiKey);
   })();
 
+  const assertMarkdownModelAllowed = () => {
+    if (!markdownModel) return;
+    const userModelId = markdownModel.forceOpenRouter
+      ? `openrouter/${markdownModel.llmModelId.replace(/^openai\//i, "")}`
+      : markdownModel.llmModelId;
+    assertLocalOnlyModelAllowed({
+      policy: ctx.model.summaryEngine.localOnlyMode,
+      candidate: {
+        transport: markdownModel.forceOpenRouter ? "openrouter" : "native",
+        userModelId,
+        llmModelId: markdownModel.llmModelId,
+        forceOpenRouter: markdownModel.forceOpenRouter,
+        openaiBaseUrlOverride:
+          markdownModel.openaiBaseUrlOverride ?? ctx.model.apiStatus.providerBaseUrls.openai,
+      },
+      providerBaseUrls: ctx.model.apiStatus.providerBaseUrls,
+    });
+  };
+
   if (
     (markdownRequested || transcriptMarkdownRequested) &&
     effectiveMarkdownMode === "llm" &&
@@ -221,7 +241,7 @@ export function createMarkdownConverters(
     throw new Error(`--markdown-mode llm requires ${required}`);
   }
 
-  const llmHtmlToMarkdown =
+  const llmHtmlToMarkdownBase =
     markdownRequested &&
     markdownModel !== null &&
     (effectiveMarkdownMode === "llm" || markdownProvider !== "none")
@@ -260,6 +280,12 @@ export function createMarkdownConverters(
           },
         })
       : null;
+  const llmHtmlToMarkdown = llmHtmlToMarkdownBase
+    ? async (args: Parameters<typeof llmHtmlToMarkdownBase>[0]) => {
+        assertMarkdownModelAllowed();
+        return llmHtmlToMarkdownBase(args);
+      }
+    : null;
 
   const markitdownHtmlToMarkdown =
     markdownRequested && ctx.flags.preprocessMode !== "off" && hasUvxCli(ctx.io.env)
@@ -329,40 +355,45 @@ export function createMarkdownConverters(
   // Transcript→Markdown converter (only for YouTube with --markdown-mode llm)
   const convertTranscriptToMarkdown: ConvertTranscriptToMarkdown | null =
     transcriptMarkdownRequested && markdownModel !== null
-      ? createTranscriptToMarkdownConverter({
-          modelId: markdownModel.llmModelId,
-          forceOpenRouter: markdownModel.forceOpenRouter,
-          xaiApiKey: ctx.model.apiStatus.xaiApiKey,
-          googleApiKey: ctx.model.apiStatus.googleApiKey,
-          openaiApiKey: markdownModel.openaiApiKeyOverride ?? ctx.model.apiStatus.apiKey,
-          anthropicApiKey: ctx.model.apiStatus.anthropicApiKey,
-          openrouterApiKey: ctx.model.apiStatus.openrouterApiKey,
-          openaiBaseUrlOverride:
-            markdownModel.openaiBaseUrlOverride ?? ctx.model.apiStatus.providerBaseUrls.openai,
-          anthropicBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.anthropic,
-          googleBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.google,
-          xaiBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.xai,
-          forceChatCompletions:
-            markdownModel.forceChatCompletions ??
-            (ctx.model.openaiUseChatCompletions && markdownProvider === "openai"),
-          requestOptions: mergeModelRequestOptions(
-            ctx.model.openaiRequestOptions,
-            markdownModel.requestOptions,
-            ctx.model.openaiRequestOptionsOverride,
-          ),
-          fetchImpl: ctx.io.fetch,
-          retries: ctx.flags.retries,
-          onRetry: createRetryLogger({
-            stderr: ctx.io.stderr,
-            verbose: ctx.flags.verbose,
-            color: ctx.flags.verboseColor,
+      ? ((converter) => async (args) => {
+          assertMarkdownModelAllowed();
+          return converter(args);
+        })(
+          createTranscriptToMarkdownConverter({
             modelId: markdownModel.llmModelId,
-            env: ctx.io.envForRun,
+            forceOpenRouter: markdownModel.forceOpenRouter,
+            xaiApiKey: ctx.model.apiStatus.xaiApiKey,
+            googleApiKey: ctx.model.apiStatus.googleApiKey,
+            openaiApiKey: markdownModel.openaiApiKeyOverride ?? ctx.model.apiStatus.apiKey,
+            anthropicApiKey: ctx.model.apiStatus.anthropicApiKey,
+            openrouterApiKey: ctx.model.apiStatus.openrouterApiKey,
+            openaiBaseUrlOverride:
+              markdownModel.openaiBaseUrlOverride ?? ctx.model.apiStatus.providerBaseUrls.openai,
+            anthropicBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.anthropic,
+            googleBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.google,
+            xaiBaseUrlOverride: ctx.model.apiStatus.providerBaseUrls.xai,
+            forceChatCompletions:
+              markdownModel.forceChatCompletions ??
+              (ctx.model.openaiUseChatCompletions && markdownProvider === "openai"),
+            requestOptions: mergeModelRequestOptions(
+              ctx.model.openaiRequestOptions,
+              markdownModel.requestOptions,
+              ctx.model.openaiRequestOptionsOverride,
+            ),
+            fetchImpl: ctx.io.fetch,
+            retries: ctx.flags.retries,
+            onRetry: createRetryLogger({
+              stderr: ctx.io.stderr,
+              verbose: ctx.flags.verbose,
+              color: ctx.flags.verboseColor,
+              modelId: markdownModel.llmModelId,
+              env: ctx.io.envForRun,
+            }),
+            onUsage: ({ model: usedModel, provider, usage }) => {
+              ctx.model.llmCalls.push({ provider, model: usedModel, usage, purpose: "markdown" });
+            },
           }),
-          onUsage: ({ model: usedModel, provider, usage }) => {
-            ctx.model.llmCalls.push({ provider, model: usedModel, usage, purpose: "markdown" });
-          },
-        })
+        )
       : null;
 
   return {

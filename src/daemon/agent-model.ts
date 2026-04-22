@@ -4,6 +4,11 @@ import { isOpenRouterBaseUrl } from "@steipete/summarize-core";
 import { createSyntheticModel } from "../llm/providers/shared.js";
 import { buildAutoModelAttempts, envHasKey } from "../model-auto.js";
 import { parseCliUserModelId } from "../run/env.js";
+import {
+  assertLocalOnlyModelAllowed,
+  isLocalOnlyRemoteProviderError,
+  resolveLocalOnlyMode,
+} from "../run/local-only.js";
 import { resolveRunContextState } from "../run/run-context.js";
 import { resolveModelSelection } from "../run/run-models.js";
 import { resolveRunOverrides } from "../run/run-settings.js";
@@ -227,10 +232,12 @@ export async function resolveAgentModel({
   env,
   pageContent,
   modelOverride,
+  requestLocalOnly,
 }: {
   env: Record<string, string | undefined>;
   pageContent: string;
   modelOverride: string | null;
+  requestLocalOnly?: boolean | null;
 }) {
   const {
     config,
@@ -279,6 +286,7 @@ export async function resolveAgentModel({
     envForRun: env,
     explicitModelArg: modelOverride,
   });
+  const localOnlyMode = resolveLocalOnlyMode({ config, requestLocalOnly });
 
   const providerBaseUrlMap: Record<string, string | null> = {
     openai: providerBaseUrls.openai,
@@ -302,9 +310,40 @@ export async function resolveAgentModel({
       }),
     };
   };
+  const assertAgentModelAllowed = ({
+    transport,
+    userModelId,
+    llmModelId,
+    forceOpenRouter,
+    openaiBaseUrlOverride,
+  }: {
+    transport: "native" | "openrouter" | "cli";
+    userModelId: string;
+    llmModelId: string | null;
+    forceOpenRouter: boolean;
+    openaiBaseUrlOverride?: string | null;
+  }) => {
+    assertLocalOnlyModelAllowed({
+      policy: localOnlyMode,
+      candidate: {
+        transport,
+        userModelId,
+        llmModelId,
+        forceOpenRouter,
+        openaiBaseUrlOverride,
+      },
+      providerBaseUrls: { openai: providerBaseUrlMap.openai },
+    });
+  };
 
   if (requestedModel.kind === "fixed") {
     if (requestedModel.transport === "cli") {
+      assertAgentModelAllowed({
+        transport: "cli",
+        userModelId: requestedModel.userModelId,
+        llmModelId: null,
+        forceOpenRouter: false,
+      });
       return {
         provider: "cli",
         model: null,
@@ -318,11 +357,24 @@ export async function resolveAgentModel({
       };
     }
     if (requestedModel.transport === "openrouter") {
+      assertAgentModelAllowed({
+        transport: "openrouter",
+        userModelId: requestedModel.userModelId,
+        llmModelId: requestedModel.llmModelId,
+        forceOpenRouter: requestedModel.forceOpenRouter,
+      });
       const resolved = applyBaseUrlOverride("openrouter", requestedModel.openrouterModelId);
       return { ...resolved, maxOutputTokens, apiKeys };
     }
 
     const { provider, model } = parseProviderModelId(requestedModel.llmModelId);
+    assertAgentModelAllowed({
+      transport: "native",
+      userModelId: requestedModel.userModelId,
+      llmModelId: requestedModel.llmModelId,
+      forceOpenRouter: requestedModel.forceOpenRouter,
+      openaiBaseUrlOverride: providerBaseUrlMap[provider] ?? requestedModel.openaiBaseUrlOverride,
+    });
     const resolved = applyBaseUrlOverride(provider, model);
     return { ...resolved, maxOutputTokens, apiKeys };
   }
@@ -345,7 +397,22 @@ export async function resolveAgentModel({
   });
 
   let cliAttempt: (typeof attempts)[number] | null = null;
+  let localOnlyError: Error | null = null;
   for (const attempt of attempts) {
+    try {
+      assertAgentModelAllowed({
+        transport: attempt.transport,
+        userModelId: attempt.userModelId,
+        llmModelId: attempt.llmModelId,
+        forceOpenRouter: attempt.forceOpenRouter,
+      });
+    } catch (error) {
+      if (isLocalOnlyRemoteProviderError(error)) {
+        localOnlyError = localOnlyError ?? error;
+        continue;
+      }
+      throw error;
+    }
     if (attempt.transport === "cli") {
       if (!cliAttempt) cliAttempt = attempt;
       continue;
@@ -380,5 +447,6 @@ export async function resolveAgentModel({
     };
   }
 
+  if (localOnlyError) throw localOnlyError;
   throw buildNoAgentModelAvailableError({ attempts, envForAuto, cliAvailability });
 }

@@ -10,6 +10,7 @@ import {
   parseMediaConfig,
   parseOpenAiConfig,
   parseOutputConfig,
+  parsePrivacyConfig,
   parseProviderBaseUrlConfig,
   parseSlidesConfig,
   parseUiConfig,
@@ -37,6 +38,7 @@ export type {
   ModelConfig,
   NvidiaConfig,
   OpenAiConfig,
+  PrivacyConfig,
   SummarizeConfig,
   VideoMode,
   XaiConfig,
@@ -91,6 +93,7 @@ export function loadSummarizeConfig({ env }: { env: Record<string, string | unde
   const ui = parseUiConfig(parsed, path);
   const logging = parseLoggingConfig(parsed, path);
   const localRouting = parseLocalModelRoutingConfig(parsed, path);
+  const privacy = parsePrivacyConfig(parsed, path);
   const openai = parseOpenAiConfig(parsed, path);
 
   const nvidia = parseProviderBaseUrlConfig(
@@ -125,6 +128,7 @@ export function loadSummarizeConfig({ env }: { env: Record<string, string | unde
       ...(xai ? { xai } : {}),
       ...(zai ? { zai } : {}),
       ...(localRouting ? { localRouting } : {}),
+      ...(privacy ? { privacy } : {}),
       ...(logging ? { logging } : {}),
       ...(configEnv ? { env: configEnv } : {}),
       ...(apiKeys ? { apiKeys } : {}),

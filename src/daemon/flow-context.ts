@@ -15,6 +15,7 @@ import {
   summarizeAsset as summarizeAssetFlow,
 } from "../run/flows/asset/summary.js";
 import { createUrlFlowContext, type UrlFlowContext } from "../run/flows/url/types.js";
+import { resolveLocalOnlyMode } from "../run/local-only.js";
 import { resolveRunContextState } from "../run/run-context.js";
 import { createRunMetrics } from "../run/run-metrics.js";
 import { resolveModelSelection } from "../run/run-models.js";
@@ -75,6 +76,7 @@ export type DaemonUrlFlowContextArgs = {
   cache: CacheState;
   mediaCache?: MediaCache | null;
   modelOverride: string | null;
+  requestLocalOnly?: boolean | null;
   promptOverride: string | null;
   lengthRaw: unknown;
   languageRaw: unknown;
@@ -117,6 +119,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     cache,
     mediaCache = null,
     modelOverride,
+    requestLocalOnly = null,
     promptOverride,
     lengthRaw,
     languageRaw,
@@ -223,6 +226,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     explicitModelArg: modelOverride?.trim() ? modelOverride.trim() : null,
     outputLanguage,
   });
+  const localOnlyMode = resolveLocalOnlyMode({ config, requestLocalOnly });
 
   const fixedModelSpec: FixedModelSpec | null =
     requestedModel.kind === "fixed" ? requestedModel : null;
@@ -278,6 +282,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     zai: { apiKey: zaiApiKey, baseUrl: zaiBaseUrl },
     nvidia: { apiKey: nvidiaApiKey, baseUrl: nvidiaBaseUrl },
     providerBaseUrls,
+    localOnlyMode,
   });
 
   const lengthInstruction = promptOverride ? buildPromptLengthInstruction(lengthArg) : null;
