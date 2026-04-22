@@ -177,6 +177,9 @@ Resolution order:
 Human output uses `OK`, `WARN`, and `FAIL` lines. JSON output is intended for tests and scripts; CLI tests mock the
 probe response and do not require a live model server.
 
+For macOS llama.cpp/Ollama setup, exact local routing config, local-only mode, and extension verification, see
+[`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
+
 ## Generate free preset (OpenRouter)
 
 `summarize` ships with a built-in preset `free`, backed by OpenRouter `:free` models.

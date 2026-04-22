@@ -11,6 +11,7 @@ summary: "Docs index for summarize behaviors and modes."
 - [Extract](extract-only.md)
 - [Firecrawl](firecrawl.md)
 - [Language](language.md)
+- [Local LLM onboarding](local-llm-onboarding.md)
 - [Local-first roadmap](local-first-roadmap.md)
 - [Local model capabilities audit](local-model-capabilities-audit.md)
 - [LLM](llm.md)

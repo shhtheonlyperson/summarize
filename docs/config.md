@@ -400,6 +400,11 @@ Notes:
 - `openai.baseUrl` overrides the OpenAI-compatible API endpoint. Use this for proxies, gateways, or OpenAI-compatible APIs. Env `OPENAI_BASE_URL` takes precedence.
 - `openai.whisperUsdPerMinute` is only used to estimate transcription cost in the finish-line metrics when Whisper transcription runs via OpenAI.
 
+## Local routing and local-only mode
+
+Mac-first local LLM setup, exact `localRouting` examples for English, Traditional Chinese, and bilingual output, and
+`privacy.localOnly` examples live in [`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
+
 ## Provider base URLs
 
 Override API endpoints for any provider to use proxies, gateways, or compatible APIs:

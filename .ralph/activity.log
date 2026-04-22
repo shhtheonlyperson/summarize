@@ -1,6 +1,7 @@
 # Activity Log
 
 ## Run Summary
+- 2026-04-22 10:23:15 | run=20260422-085058-72504 | iter=9 | mode=build | story=LLR-009 | duration=1182s | status=success
 - 2026-04-22 10:03:30 | run=20260422-085058-72504 | iter=8 | mode=build | story=LLR-008 | duration=546s | status=success
 - 2026-04-22 09:54:22 | run=20260422-085058-72504 | iter=7 | mode=build | story=LLR-007 | duration=785s | status=success
 - 2026-04-22 09:41:15 | run=20260422-085058-72504 | iter=6 | mode=build | story=LLR-006 | duration=498s | status=success
@@ -75,3 +76,10 @@
 [2026-04-22 10:10:21] Implemented LLR-009 side panel local runtime status surface and tests
 [2026-04-22 10:21:34] Verified LLR-009 side panel status with build, root checks, targeted Playwright, and Chrome suite diagnostics
 [2026-04-22 10:22:30] Updated LLR-009 progress log with implementation commit and verification details
+[2026-04-22 10:23:15] ITERATION 9 end (duration=1182s)
+[2026-04-22 10:23:17] ITERATION 10 start (mode=build story=LLR-010)
+[2026-04-22 10:23:48] Start LLR-010 local LLM onboarding docs
+[2026-04-22 10:28:31] Added LLR-010 macOS local LLM onboarding docs and links
+[2026-04-22 10:30:10] Verified LLR-010 docs with docs:list, typecheck, build, and check
+[2026-04-22 10:31:06] Re-verified final LLR-010 docs after local-only example adjustment
+[2026-04-22 10:31:21] Completed final LLR-010 build verification

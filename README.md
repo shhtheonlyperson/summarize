@@ -7,6 +7,8 @@ Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side
 This fork preserves upstream Summarize's generic CLI, media, daemon, and side-panel behavior while documenting a
 local-first direction: private local LLM setup, bilingual model routing, and durable local research memory. See
 [`docs/local-first-roadmap.md`](docs/local-first-roadmap.md) for the fork thesis, non-goals, and staged architecture.
+For hands-on macOS setup with llama.cpp or Ollama, see
+[`docs/local-llm-onboarding.md`](docs/local-llm-onboarding.md).
 
 ## Highlights
 
@@ -372,6 +374,9 @@ summarize local-runtime probe --json
 The command checks configured `OPENAI_BASE_URL` / `openai.baseUrl` first, otherwise it probes the default llama.cpp and
 Ollama localhost endpoints. It prints `OK`, `WARN`, or `FAIL` lines and `--json` emits the same diagnostics for scripts
 and tests without requiring a live model server.
+
+Mac local LLM setup, language-aware routing examples, local-only mode, and extension verification are documented in
+[`docs/local-llm-onboarding.md`](docs/local-llm-onboarding.md).
 
 ### Coding CLIs (Codex, Claude, Gemini, Agent, OpenClaw, OpenCode)
 

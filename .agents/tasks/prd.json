@@ -168,7 +168,7 @@
     {
       "id": "LLR-009",
       "title": "Show Local-Only Status in Side Panel",
-      "status": "in_progress",
+      "status": "done",
       "dependsOn": [
         "LLR-008"
       ],
@@ -181,13 +181,13 @@
         "Run pnpm -C apps/chrome-extension build and supported extension tests when feasible."
       ],
       "startedAt": "2026-04-22T17:03:33.081795+00:00",
-      "completedAt": null,
-      "updatedAt": "2026-04-22T17:03:33.081921+00:00"
+      "completedAt": "2026-04-22T17:23:15.290068+00:00",
+      "updatedAt": "2026-04-22T17:23:15.289942+00:00"
     },
     {
       "id": "LLR-010",
       "title": "Add Mac-First Local LLM Onboarding",
-      "status": "open",
+      "status": "in_progress",
       "dependsOn": [
         "LLR-005",
         "LLR-009"
@@ -200,7 +200,10 @@
         "Include local-only mode examples and expected probe output.",
         "Link onboarding docs from README and extension docs.",
         "Run documentation-safe verification and typecheck if no runtime files changed."
-      ]
+      ],
+      "startedAt": "2026-04-22T17:23:17.357634+00:00",
+      "completedAt": null,
+      "updatedAt": "2026-04-22T17:23:17.357781+00:00"
     },
     {
       "id": "LLR-011",

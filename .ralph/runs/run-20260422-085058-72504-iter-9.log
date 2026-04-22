@@ -97008,4 +97008,3316 @@ git add -A
 if ! git diff --cached --quiet; then
   git commit -q -m "chore: finalize LLR-009 run log"
 fi
-test -z "$(git status --porcelain)"' in /Users/shh/proj/summarize
+test -z "$(git status --porcelain)"' in /Users/shh/proj/summarize succeeded in 1.06s:
+
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 7da9fae712e2e745233f3a801dc33ae878afb43d..d82822dfafaaabcc2933ed98b7600fb80ddfd25e
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,63 @@
+ 
+ ---
+ 
++## 2026-04-22 10:22:08 PDT - LLR-009: Show Local-Only Status in Side Panel
++Thread:
++Run: 20260422-085058-72504 (iteration 9)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-9.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-9.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 00cc6d14 feat: show local runtime status in side panel
++- Post-commit status: clean after follow-up progress/log commit
++- Verification:
++  - Command: `pnpm -C apps/chrome-extension exec tsc -p tsconfig.json --noEmit` -> FAIL (pre-existing extension tsconfig includes `wxt.config.ts` outside `rootDir: src`)
++  - Command: `pnpm -C apps/chrome-extension build` -> PASS
++  - Command: `env -u NO_COLOR pnpm -C apps/chrome-extension exec playwright test -c playwright.config.ts --project=chromium tests/sidepanel.local-runtime-status.spec.ts` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s check` -> PASS
++  - Command: `pnpm -C apps/chrome-extension test:chrome` -> FAIL (unrelated local-video test waits for slides tools; this environment has ffmpeg but no `yt-dlp`)
++  - Command: `env -u NO_COLOR pnpm -C apps/chrome-extension exec playwright test -c playwright.config.ts --project=chromium --grep-invert "local video"` -> PASS
++  - Command: `git diff --check -- apps/chrome-extension/src apps/chrome-extension/tests` -> PASS
++- Files changed:
++  - apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
++  - apps/chrome-extension/src/entrypoints/background/panel-state.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/index.html
++  - apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/main.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
++  - apps/chrome-extension/src/lib/local-runtime-status-client.ts
++  - apps/chrome-extension/src/lib/panel-contracts.ts
++  - apps/chrome-extension/tests/helpers/daemon-fixtures.ts
++  - apps/chrome-extension/tests/helpers/extension-harness.ts
++  - apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-9.md
++  - .ralph/.tmp/story-20260422-085058-72504-9.json
++  - .ralph/.tmp/story-20260422-085058-72504-9.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-8.log
++  - .ralph/runs/run-20260422-085058-72504-iter-8.md
++  - .ralph/runs/run-20260422-085058-72504-iter-9.log
++- What was implemented
++  Added a compact side panel local runtime/privacy status surface that shows local-only mode, daemon/runtime readiness,
++  the selected route/model, remote-provider privacy warnings, and actionable setup guidance without exposing tokens or
++  raw environment values. The background runtime now fetches the daemon local-runtime status endpoint asynchronously,
++  caches it briefly, and emits a status-only panel message so UI state refreshes do not block or race summary controls.
++  Extension tests cover local-only rendering, remote-provider warning behavior, and local runtime setup errors.
++- **Learnings for future iterations:**
++  - Patterns discovered: side panel status surfaces work best when the first `ui:state` remains fast and richer daemon
++    diagnostics arrive through a narrow follow-up message.
++  - Gotchas encountered: fetching a localhost daemon endpoint directly from the side panel causes Chromium console
++    network errors in tests; keep daemon diagnostics in the background service worker.
++  - Useful context: the supported Chrome suite currently has an unrelated local-video failure when `yt-dlp` is missing;
++    `--grep-invert "local video"` exercises the rest of the Chromium extension suite in this environment.
++---
++
+ ## 2026-04-22 10:02:04 PDT - LLR-008: Expose Local Runtime Status in Daemon API
+ Thread: 019db61d-458c-7af1-a095-ae13770df211
+ Run: 20260422-085058-72504 (iteration 8)
+diff --git a/apps/chrome-extension/src/entrypoints/background/panel-runtime.ts b/apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
+index 7e9e03de565e8a607e0e187d6a2b3e19e4865cd8..fb239e6be3052cb803036937c54ac68fad9f57f4
+--- a/apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
++++ b/apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
+@@ -1,7 +1,11 @@
+ import { logExtensionEvent } from "../../lib/extension-logs";
++import { fetchLocalRuntimeStatus } from "../../lib/local-runtime-status-client";
++import type { LocalRuntimeStatus } from "../../lib/panel-contracts";
+ import { resolvePanelState } from "./panel-state";
+ import { summarizeActiveTab as runPanelSummarize } from "./panel-summarize";
+ 
++const LOCAL_RUNTIME_STATUS_CACHE_MS = 15_000;
++
+ export function createBackgroundPanelRuntime<
+   Session extends {
+     windowId: number;
+@@ -56,6 +60,39 @@
+     send(session, { type: "ui:status", status });
+   };
+ 
++  let localRuntimeStatusCache: { value: LocalRuntimeStatus; fetchedAt: number } | null = null;
++  let localRuntimeStatusRefresh: Promise<void> | null = null;
++
++  const getCachedLocalRuntimeStatus = () => {
++    if (
++      localRuntimeStatusCache &&
++      Date.now() - localRuntimeStatusCache.fetchedAt < LOCAL_RUNTIME_STATUS_CACHE_MS
++    ) {
++      return localRuntimeStatusCache.value;
++    }
++    return null;
++  };
++
++  const refreshLocalRuntimeStatus = (session: Session) => {
++    if (localRuntimeStatusRefresh) return;
++    localRuntimeStatusRefresh = (async () => {
++      let status: LocalRuntimeStatus;
++      try {
++        const settings = await loadSettings();
++        const token = settings.token.trim();
++        if (!token) return;
++        status = await fetchLocalRuntimeStatus({ token, fetchImpl });
++      } catch (err) {
++        const message = err instanceof Error ? err.message : "Local runtime status unavailable.";
++        status = { ok: false, error: message };
++      }
++      localRuntimeStatusCache = { value: status, fetchedAt: Date.now() };
++      send(session, { type: "ui:local-runtime-status", status });
++    })().finally(() => {
++      localRuntimeStatusRefresh = null;
++    });
++  };
++
+   const emitState = async (
+     session: Session,
+     status: string,
+@@ -69,11 +106,20 @@
+       getActiveTab,
+       daemonHealth,
+       daemonPing,
++      localRuntimeStatus: getCachedLocalRuntimeStatus(),
+       panelSessionStore,
+       urlsMatch,
+       canSummarizeUrl,
+     });
+     send(session, { type: "ui:state", state: next.state });
++    if (
++      !next.state.localRuntime &&
++      next.state.settings.tokenPresent &&
++      next.state.daemon.ok &&
++      next.state.daemon.authed
++    ) {
++      refreshLocalRuntimeStatus(session);
++    }
+ 
+     if (next.shouldRecover) {
+       void summarizeActiveTab(session, "daemon-recovered");
+diff --git a/apps/chrome-extension/src/entrypoints/background/panel-state.ts b/apps/chrome-extension/src/entrypoints/background/panel-state.ts
+index f97d3f3f374ae2d39e105af217f4ebf6d26d8c49..4d311c6188a6650a23cb263f1cb615e721b1f7c0
+--- a/apps/chrome-extension/src/entrypoints/background/panel-state.ts
++++ b/apps/chrome-extension/src/entrypoints/background/panel-state.ts
+@@ -1,4 +1,4 @@
+-import type { UiState as PanelUiState } from "../../lib/panel-contracts";
++import type { LocalRuntimeStatus, UiState as PanelUiState } from "../../lib/panel-contracts";
+ 
+ export type { PanelUiState };
+ 
+@@ -54,6 +54,7 @@
+   getActiveTab,
+   daemonHealth,
+   daemonPing,
++  localRuntimeStatus,
+   panelSessionStore,
+   urlsMatch,
+   canSummarizeUrl,
+@@ -65,6 +66,7 @@
+   getActiveTab: (windowId: number) => Promise<chrome.tabs.Tab | null>;
+   daemonHealth: () => Promise<{ ok: boolean; error?: string }>;
+   daemonPing: (token: string) => Promise<{ ok: boolean; error?: string }>;
++  localRuntimeStatus: LocalRuntimeStatus | null;
+   panelSessionStore: {
+     isPanelOpen: (session: SessionLike) => boolean;
+     getCachedExtract: (tabId: number, url?: string | null) => CachedExtractLike | null;
+@@ -111,6 +113,7 @@
+     state: {
+       panelOpen: panelSessionStore.isPanelOpen(session),
+       daemon,
++      localRuntime: daemonReady ? localRuntimeStatus : null,
+       tab: { id: tab?.id ?? null, url: tab?.url ?? null, title: tab?.title ?? null },
+       media: cached?.media ?? null,
+       stats: {
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts b/apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
+index 2489d450871376504a9feb58a31c33f4430a302e..7355f7b9409b9ec2c6a9234845be7bb735440a75
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
+@@ -1,4 +1,4 @@
+-import type { BgToPanel, RunStart, UiState } from "../../lib/panel-contracts";
++import type { BgToPanel, LocalRuntimeStatus, RunStart, UiState } from "../../lib/panel-contracts";
+ import {
+   normalizePanelUrl,
+   shouldAcceptRunForCurrentPage,
+@@ -9,6 +9,7 @@
+   msg: BgToPanel;
+   applyUiState: (state: UiState) => void;
+   setStatus: (text: string) => void;
++  handleLocalRuntimeStatus: (status: LocalRuntimeStatus) => void;
+   isStreaming: () => boolean;
+   handleRunError: (message: string) => void;
+   handleSlidesRun: (msg: Extract<BgToPanel, { type: "slides:run" }>) => void;
+@@ -27,6 +28,9 @@
+     case "ui:status":
+       if (!options.isStreaming()) options.setStatus(msg.status);
+       return;
++    case "ui:local-runtime-status":
++      options.handleLocalRuntimeStatus(msg.status);
++      return;
+     case "run:error":
+       options.handleRunError(msg.message);
+       return;
+@@ -69,6 +73,7 @@
+   };
+   applyUiState: (state: UiState) => void;
+   setStatus: (text: string) => void;
++  handleLocalRuntimeStatus: (status: LocalRuntimeStatus) => void;
+   isStreaming: () => boolean;
+   setPhase: (phase: "error", opts?: { error?: string | null }) => void;
+   finishStreamingMessage: () => void;
+@@ -118,6 +123,7 @@
+           options.applyUiState(state);
+         },
+         setStatus: options.setStatus,
++        handleLocalRuntimeStatus: options.handleLocalRuntimeStatus,
+         isStreaming: options.isStreaming,
+         handleRunError: (message) => {
+           const detail = message && message.trim().length > 0 ? message : "Something went wrong.";
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/dom.ts b/apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
+index dcb6104fcf48a940ce9041f4e7f4a63f0fd43a89..7d191971cbb50123bc3e3763508d7fb7e004b8d2
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
+@@ -10,6 +10,10 @@
+   const headerEl = document.querySelector("header") as HTMLElement | null;
+   if (!headerEl) throw new Error("Missing <header>");
+   const progressFillEl = byId<HTMLDivElement>("progressFill");
++  const localRuntimeStatusEl = byId<HTMLDivElement>("localRuntimeStatus");
++  const localRuntimePrivacyEl = byId<HTMLElement>("localRuntimePrivacy");
++  const localRuntimeRouteEl = byId<HTMLSpanElement>("localRuntimeRoute");
++  const localRuntimeDetailEl = byId<HTMLDivElement>("localRuntimeDetail");
+   const drawerEl = byId<HTMLElement>("drawer");
+   const setupEl = byId<HTMLDivElement>("setup");
+   const errorEl = byId<HTMLDivElement>("error");
+@@ -107,6 +111,10 @@
+     lengthRoot,
+     lineLooseBtn,
+     lineTightBtn,
++    localRuntimeDetailEl,
++    localRuntimePrivacyEl,
++    localRuntimeRouteEl,
++    localRuntimeStatusEl,
+     mainEl,
+     metricsEl,
+     metricsHomeEl,
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/index.html b/apps/chrome-extension/src/entrypoints/sidepanel/index.html
+index d9e5894a1e4aed5e9a3efdf860b6abc9b65a04eb..41a35d6a8428cb197a05ba5ee414b7221032dcc6
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/index.html
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/index.html
+@@ -27,6 +27,24 @@
+       <div id="progress" class="progress" aria-hidden="true">
+         <div id="progressFill" class="progressFill"></div>
+       </div>
++      <div
++        id="localRuntimeStatus"
++        class="localRuntimeStatus"
++        data-state="neutral"
++        role="status"
++        aria-live="polite"
++      >
++        <span class="localRuntimeStatus__dot" aria-hidden="true"></span>
++        <div class="localRuntimeStatus__body">
++          <div class="localRuntimeStatus__line">
++            <strong id="localRuntimePrivacy">Checking local privacy</strong>
++            <span id="localRuntimeRoute">Model: auto</span>
++          </div>
++          <div id="localRuntimeDetail" class="localRuntimeStatus__detail">
++            Waiting for daemon status.
++          </div>
++        </div>
++      </div>
+       <div id="slideNotice" class="slideNotice hidden" role="status" aria-live="polite">
+         <span id="slideNoticeMessage" class="slideNotice__message"></span>
+         <div class="slideNotice__actions">
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts b/apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..36248523117407154972b014f504cf64f5b4c5d7
+--- /dev/null
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts
+@@ -0,0 +1,215 @@
++import type {
++  LocalRuntimeStatus,
++  LocalRuntimeStatusPayload,
++  LocalRuntimeStatusProbe,
++  UiState,
++} from "../../lib/panel-contracts";
++
++type LocalRuntimeTone = "ok" | "warn" | "error" | "neutral";
++
++type LocalRuntimeStatusView = {
++  tone: LocalRuntimeTone;
++  privacy: string;
++  route: string;
++  detail: string;
++};
++
++type LocalRuntimeStatusSurfaceOptions = {
++  rootEl: HTMLElement;
++  privacyEl: HTMLElement;
++  routeEl: HTMLElement;
++  detailEl: HTMLElement;
++};
++
++const remoteProviderPattern = /^(anthropic|google|openrouter|xai|zai|nvidia|github-copilot|cli)\//i;
++
++function trimText(value: unknown): string {
++  return typeof value === "string" ? value.trim() : "";
++}
++
++function formatBucket(bucket: string): string {
++  if (bucket === "traditionalChinese") return "Traditional Chinese";
++  if (bucket === "bilingual") return "Bilingual";
++  if (bucket === "english") return "English";
++  return "Fallback";
++}
++
++function selectedModelInput(status: LocalRuntimeStatusPayload, state: UiState): string {
++  const explicitModel = trimText(state.settings.model);
++  if (explicitModel && explicitModel !== "auto") return explicitModel;
++  const routed = trimText(status.modelHints.selected?.modelInput);
++  if (routed) return routed;
++  const configured = trimText(status.modelHints.configuredModel.input);
++  return configured || explicitModel || "auto";
++}
++
++function routeLabel(status: LocalRuntimeStatusPayload, state: UiState): string {
++  if (status.modelHints.selected) {
++    return `Route: ${formatBucket(status.modelHints.selected.bucket)} -> ${
++      status.modelHints.selected.modelInput
++    }`;
++  }
++
++  const explicitModel = trimText(state.settings.model) || "auto";
++  const configured = trimText(status.modelHints.configuredModel.input);
++  if (explicitModel === "auto" && configured && configured !== "auto") {
++    return `Model: auto -> ${configured}`;
++  }
++  return `Model: ${explicitModel}`;
++}
++
++function selectProbe(status: LocalRuntimeStatusPayload): LocalRuntimeStatusProbe | null {
++  if (status.runtime.configured) {
++    const configured = status.probes.find((probe) => {
++      if (status.runtime.endpointHost && probe.endpointHost === status.runtime.endpointHost) {
++        return true;
++      }
++      return status.runtime.type !== null && probe.runtimeType === status.runtime.type;
++    });
++    if (configured) return configured;
++  }
++  return status.probes.find((probe) => probe.reachable) ?? status.probes[0] ?? null;
++}
++
++function runtimeLabel(probe: LocalRuntimeStatusProbe | null): string {
++  if (!probe) return "local runtime";
++  const label = trimText(probe.runtimeLabel) || trimText(probe.runtimeType) || "local runtime";
++  const host = trimText(probe.endpointHost);
++  return host ? `${label} at ${host}` : label;
++}
++
++function probeAction(errorCode: string | null): string {
++  if (errorCode === "invalid-runtime") {
++    return "Check openai.baseUrl; use a localhost http URL without credentials, query, or fragment.";
++  }
++  if (errorCode === "timeout") {
++    return "Start your local model server, then run summarize local-runtime probe.";
++  }
++  return "Start your local model server or set openai.baseUrl to localhost, then restart the daemon.";
++}
++
++function probeFailureDetail(probe: LocalRuntimeStatusProbe | null): string {
++  const message = trimText(probe?.error?.message) || "Local runtime is not reachable.";
++  const action = probeAction(trimText(probe?.error?.code) || null);
++  return `${message} ${action}`;
++}
++
++function isConfirmedLocalModel(status: LocalRuntimeStatusPayload, modelInput: string): boolean {
++  const normalized = modelInput.trim().toLowerCase();
++  if (!normalized || normalized === "auto" || normalized === "free") return false;
++  if (remoteProviderPattern.test(normalized)) return false;
++  if (!normalized.startsWith("openai/")) return false;
++  if (!status.runtime.endpointHost) return false;
++  return status.probes.some(
++    (probe) => probe.reachable && probe.endpointHost === status.runtime.endpointHost,
++  );
++}
++
++function buildView(
++  state: UiState | null,
++  localRuntimeOverride?: LocalRuntimeStatus | null,
++): LocalRuntimeStatusView {
++  if (!state) {
++    return {
++      tone: "neutral",
++      privacy: "Checking local privacy",
++      route: "Model: auto",
++      detail: "Waiting for daemon status.",
++    };
++  }
++
++  const fallbackRoute = `Model: ${trimText(state.settings.model) || "auto"}`;
++  if (!state.settings.tokenPresent) {
++    return {
++      tone: "warn",
++      privacy: "Setup needed",
++      route: fallbackRoute,
++      detail: "Add the daemon token to check local runtime privacy.",
++    };
++  }
++
++  if (!state.daemon.ok || !state.daemon.authed) {
++    return {
++      tone: "warn",
++      privacy: "Daemon offline",
++      route: fallbackRoute,
++      detail: state.daemon.error || "Run summarize daemon status, then restart the daemon.",
++    };
++  }
++
++  const status = localRuntimeOverride ?? state.localRuntime;
++  if (!status) {
++    return {
++      tone: "neutral",
++      privacy: "Checking local privacy",
++      route: fallbackRoute,
++      detail: "Waiting for local runtime status.",
++    };
++  }
++
++  if (!status.ok) {
++    return {
++      tone: "warn",
++      privacy: "Local status unavailable",
++      route: fallbackRoute,
++      detail: status.error,
++    };
++  }
++
++  const probe = selectProbe(status);
++  const reachable = Boolean(probe?.reachable);
++  const route = routeLabel(status, state);
++  const modelInput = selectedModelInput(status, state);
++  const runtimeDetail = reachable
++    ? `Runtime reachable: ${runtimeLabel(probe)}.`
++    : probeFailureDetail(probe);
++
++  if (status.localOnly.enabled) {
++    return {
++      tone: reachable ? "ok" : "error",
++      privacy: "Local-only on",
++      route,
++      detail: runtimeDetail,
++    };
++  }
++
++  if (isConfirmedLocalModel(status, modelInput)) {
++    return {
++      tone: reachable ? "ok" : "warn",
++      privacy: "Local runtime",
++      route,
++      detail: runtimeDetail,
++    };
++  }
++
++  const warning = status.warnings.find((entry) => entry.trim().length > 0);
++  return {
++    tone: "warn",
++    privacy: "Remote allowed",
++    route,
++    detail:
++      warning ??
++      "Cloud providers may be used. Enable privacy.localOnly in daemon config to block remote routes.",
++  };
++}
++
++export function createLocalRuntimeStatusSurface(options: LocalRuntimeStatusSurfaceOptions) {
++  let lastState: UiState | null = null;
++
++  const render = (state: UiState | null) => {
++    lastState = state;
++    const view = buildView(state);
++    options.rootEl.dataset.state = view.tone;
++    options.privacyEl.textContent = view.privacy;
++    options.routeEl.textContent = view.route;
++    options.detailEl.textContent = view.detail;
++    options.rootEl.title = `${view.privacy}. ${view.route}. ${view.detail}`;
++  };
++
++  const renderStatus = (status: LocalRuntimeStatus) => {
++    if (!lastState) return;
++    render({ ...lastState, localRuntime: status });
++  };
++
++  return { render, renderStatus };
++}
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/main.ts b/apps/chrome-extension/src/entrypoints/sidepanel/main.ts
+index 58b299bba0a92bcd6f4e2dbf871a7f9750ef9375..6a7c192ab968c80fa910017786f0202740ca671c
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/main.ts
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/main.ts
+@@ -33,6 +33,7 @@
+ import { createErrorController } from "./error-controller";
+ import { createHeaderController } from "./header-controller";
+ import { createSidepanelInteractionRuntime } from "./interaction-runtime";
++import { createLocalRuntimeStatusSurface } from "./local-runtime-status";
+ import { createMetricsController } from "./metrics-controller";
+ import { createNavigationRuntime } from "./navigation-runtime";
+ import { createPanelCacheController, type PanelCachePayload } from "./panel-cache";
+@@ -97,6 +98,10 @@
+   lengthRoot,
+   lineLooseBtn,
+   lineTightBtn,
++  localRuntimeDetailEl,
++  localRuntimePrivacyEl,
++  localRuntimeRouteEl,
++  localRuntimeStatusEl,
+   mainEl,
+   metricsEl,
+   metricsHomeEl,
+@@ -548,6 +553,14 @@
+   }),
+ });
+ 
++const localRuntimeStatusSurface = createLocalRuntimeStatusSurface({
++  rootEl: localRuntimeStatusEl,
++  privacyEl: localRuntimePrivacyEl,
++  routeEl: localRuntimeRouteEl,
++  detailEl: localRuntimeDetailEl,
++});
++localRuntimeStatusSurface.render(null);
++
+ headerController.updateHeaderOffset();
+ window.addEventListener("resize", headerController.updateHeaderOffset);
+ 
+@@ -1277,6 +1290,8 @@
+ 
+ function updateControls(state: UiState) {
+   uiStateRuntime.apply(state);
++  localRuntimeStatusSurface.render(state);
++  headerController.updateHeaderOffset();
+ }
+ 
+ const bgMessageRuntime = createSidepanelBgMessageRuntime({
+@@ -1285,6 +1300,15 @@
+   setStatus: (text) => {
+     headerController.setStatus(text);
+   },
++  handleLocalRuntimeStatus: (status) => {
++    if (panelState.ui) {
++      panelState.ui = { ...panelState.ui, localRuntime: status };
++      localRuntimeStatusSurface.render(panelState.ui);
++      headerController.updateHeaderOffset();
++    } else {
++      localRuntimeStatusSurface.renderStatus(status);
++    }
++  },
+   isStreaming,
+   setPhase,
+   finishStreamingMessage: () => {
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css b/apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
+index ece561bfc97e21b46b1c7b0e8a940c1c2b6bc2c4..48d385f1b30821f1893a862baf284c26ad155695
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
+@@ -63,6 +63,90 @@
+   gap: 8px;
+ }
+ 
++.localRuntimeStatus {
++  display: grid;
++  grid-template-columns: 8px minmax(0, 1fr);
++  align-items: center;
++  gap: 8px;
++  min-height: 34px;
++  padding: 6px 8px;
++  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
++  border-radius: 8px;
++  background: color-mix(in srgb, var(--surface) 82%, transparent);
++  color: var(--muted);
++  font-size: 11px;
++}
++
++.localRuntimeStatus__dot {
++  width: 8px;
++  height: 8px;
++  border-radius: 999px;
++  background: var(--muted);
++  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 10%, transparent);
++}
++
++.localRuntimeStatus__body {
++  display: grid;
++  gap: 2px;
++  min-width: 0;
++}
++
++.localRuntimeStatus__line {
++  display: flex;
++  align-items: baseline;
++  gap: 8px;
++  min-width: 0;
++}
++
++.localRuntimeStatus__line strong,
++.localRuntimeStatus__line span,
++.localRuntimeStatus__detail {
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++.localRuntimeStatus__line strong {
++  flex: 0 0 auto;
++  color: var(--text);
++  font-size: 11px;
++}
++
++.localRuntimeStatus__line span {
++  min-width: 0;
++}
++
++.localRuntimeStatus__detail {
++  min-width: 0;
++}
++
++.localRuntimeStatus[data-state="ok"] {
++  border-color: color-mix(in srgb, #2bb673 35%, var(--border));
++  background: color-mix(in srgb, #2bb673 9%, var(--surface));
++}
++
++.localRuntimeStatus[data-state="ok"] .localRuntimeStatus__dot {
++  background: #2bb673;
++}
++
++.localRuntimeStatus[data-state="warn"] {
++  border-color: color-mix(in srgb, #d99a2b 42%, var(--border));
++  background: color-mix(in srgb, #d99a2b 10%, var(--surface));
++}
++
++.localRuntimeStatus[data-state="warn"] .localRuntimeStatus__dot {
++  background: #d99a2b;
++}
++
++.localRuntimeStatus[data-state="error"] {
++  border-color: color-mix(in srgb, #ff6a6a 52%, var(--border));
++  background: color-mix(in srgb, #ff6a6a 10%, var(--surface));
++}
++
++.localRuntimeStatus[data-state="error"] .localRuntimeStatus__dot {
++  background: #ff6a6a;
++}
++
+ .summarizeControlRoot {
+   display: flex;
+ }
+diff --git a/apps/chrome-extension/src/lib/local-runtime-status-client.ts b/apps/chrome-extension/src/lib/local-runtime-status-client.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..8cbbbce3e18d87680ef8e873594c8623e681a1e8
+--- /dev/null
++++ b/apps/chrome-extension/src/lib/local-runtime-status-client.ts
+@@ -0,0 +1,72 @@
++import type { LocalRuntimeStatus, LocalRuntimeStatusPayload } from "./panel-contracts";
++
++const LOCAL_RUNTIME_STATUS_TIMEOUT_MS = 4000;
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === "object" && value !== null;
++}
++
++function isLocalRuntimeStatusPayload(
++  value: Record<string, unknown>,
++): value is LocalRuntimeStatusPayload {
++  return (
++    value.ok === true &&
++    isRecord(value.localOnly) &&
++    isRecord(value.runtime) &&
++    isRecord(value.modelHints) &&
++    Array.isArray(value.probes) &&
++    Array.isArray(value.warnings)
++  );
++}
++
++function statusHttpError(res: Response): string {
++  if (res.status === 404) {
++    return "Daemon does not support local runtime status. Restart the daemon after updating.";
++  }
++  const statusText = res.statusText.trim();
++  return `Local runtime status failed (${res.status}${statusText ? ` ${statusText}` : ""})`;
++}
++
++export async function fetchLocalRuntimeStatus({
++  token,
++  fetchImpl = fetch,
++}: {
++  token: string;
++  fetchImpl?: typeof fetch;
++}): Promise<LocalRuntimeStatus> {
++  const trimmedToken = token.trim();
++  if (!trimmedToken) {
++    return { ok: false, error: "Add the daemon token to check local runtime privacy." };
++  }
++
++  const controller = new AbortController();
++  const timeout = setTimeout(() => controller.abort(), LOCAL_RUNTIME_STATUS_TIMEOUT_MS);
++  try {
++    const res = await fetchImpl("http://127.0.0.1:8787/v1/local-runtime/status?timeoutMs=1200", {
++      headers: { Authorization: `Bearer ${trimmedToken}` },
++      signal: controller.signal,
++    });
++    if (!res.ok) {
++      return { ok: false, error: statusHttpError(res) };
++    }
++    const json = (await res.json()) as unknown;
++    if (!isRecord(json) || !isLocalRuntimeStatusPayload(json)) {
++      return { ok: false, error: "Daemon returned an invalid local runtime status." };
++    }
++    return json;
++  } catch (err) {
++    if (err instanceof DOMException && err.name === "AbortError") {
++      return { ok: false, error: "Local runtime status timed out." };
++    }
++    const message = err instanceof Error ? err.message : "Local runtime status failed.";
++    if (message.toLowerCase() === "failed to fetch") {
++      return {
++        ok: false,
++        error: "Local runtime status unavailable (daemon unreachable or blocked by Chrome).",
++      };
++    }
++    return { ok: false, error: message };
++  } finally {
++    clearTimeout(timeout);
++  }
++}
+diff --git a/apps/chrome-extension/src/lib/panel-contracts.ts b/apps/chrome-extension/src/lib/panel-contracts.ts
+index 2e551b249c6105c10d142e4c2aab01c38b1294ee..7a6612c93e53322f68318f6ac57c195aaef2b885
+--- a/apps/chrome-extension/src/lib/panel-contracts.ts
++++ b/apps/chrome-extension/src/lib/panel-contracts.ts
+@@ -1,9 +1,83 @@
+ import type { AssistantMessage, Message } from "@mariozechner/pi-ai";
+ import type { SseSlidesData } from "./runtime-contracts";
+ 
++export type LocalRuntimeKind = "openai-compatible" | "llama-cpp" | "ollama";
++
++export type LocalRuntimeStatusProbe = {
++  ok: boolean;
++  reachable: boolean;
++  runtimeType: LocalRuntimeKind | null;
++  runtimeLabel: string | null;
++  endpointHost: string | null;
++  timeoutMs: number;
++  models: {
++    count: number;
++    hints: string[];
++  };
++  server: {
++    status: number;
++    name?: string;
++    version?: string;
++  } | null;
++  error: {
++    code: string;
++    message: string;
++    status?: number;
++  } | null;
++};
++
++export type LocalRuntimeStatusPayload = {
++  ok: true;
++  localOnly: {
++    enabled: boolean;
++    source: string | null;
++  };
++  runtime: {
++    configured: boolean;
++    type: LocalRuntimeKind | null;
++    endpointHost: string | null;
++    baseUrlSource: "configured" | "default" | null;
++  };
++  modelHints: {
++    configuredModel: {
++      input: string;
++      source: "env" | "config" | "default";
++    };
++    localRoutingEnabled: boolean;
++    selected: {
++      bucket: "english" | "traditionalChinese" | "bilingual" | "fallback";
++      modelInput: string;
++      language: {
++        kind: string;
++        tag?: string;
++        label?: string;
++      };
++    } | null;
++    routes: Array<{
++      bucket: "english" | "traditionalChinese" | "bilingual" | "fallback";
++      modelInput: string;
++      language: {
++        kind: string;
++        tag?: string;
++        label?: string;
++      };
++    }>;
++  };
++  probes: LocalRuntimeStatusProbe[];
++  warnings: string[];
++};
++
++export type LocalRuntimeStatus =
++  | LocalRuntimeStatusPayload
++  | {
++      ok: false;
++      error: string;
++    };
++
+ export type UiState = {
+   panelOpen: boolean;
+   daemon: { ok: boolean; authed: boolean; error?: string };
++  localRuntime: LocalRuntimeStatus | null;
+   tab: { id: number | null; url: string | null; title: string | null };
+   media: { hasVideo: boolean; hasAudio: boolean; hasCaptions: boolean } | null;
+   stats: { pageWords: number | null; videoDurationSeconds: number | null };
+@@ -84,6 +158,7 @@
+ export type BgToPanel =
+   | { type: "ui:state"; state: UiState }
+   | { type: "ui:status"; status: string }
++  | { type: "ui:local-runtime-status"; status: LocalRuntimeStatus }
+   | { type: "run:start"; run: RunStart }
+   | { type: "run:error"; message: string }
+   | { type: "slides:run"; ok: boolean; runId?: string; url?: string; error?: string }
+diff --git a/apps/chrome-extension/tests/helpers/daemon-fixtures.ts b/apps/chrome-extension/tests/helpers/daemon-fixtures.ts
+index c55350a0b3993b04bd6b2f36f34ef523df15de09..0821e7fddefda377231b337684ff810fda057900
+--- a/apps/chrome-extension/tests/helpers/daemon-fixtures.ts
++++ b/apps/chrome-extension/tests/helpers/daemon-fixtures.ts
+@@ -59,6 +59,48 @@
+       if (url === "http://127.0.0.1:8787/v1/ping") {
+         return new Response("", { status: 200 });
+       }
++      if (url.startsWith("http://127.0.0.1:8787/v1/local-runtime/status")) {
++        return new Response(
++          JSON.stringify({
++            ok: true,
++            localOnly: { enabled: true, source: "privacy.localOnly" },
++            runtime: {
++              configured: true,
++              type: "openai-compatible",
++              endpointHost: "127.0.0.1:8080",
++              baseUrlSource: "configured",
++            },
++            modelHints: {
++              configuredModel: { input: "auto", source: "default" },
++              localRoutingEnabled: true,
++              selected: {
++                bucket: "fallback",
++                modelInput: "openai/llama-local",
++                language: { kind: "auto" },
++              },
++              routes: [],
++            },
++            probes: [
++              {
++                ok: true,
++                reachable: true,
++                runtimeType: "openai-compatible",
++                runtimeLabel: "OpenAI-compatible",
++                endpointHost: "127.0.0.1:8080",
++                timeoutMs: 1200,
++                models: { count: 1, hints: ["llama-local"] },
++                server: { status: 200, name: "test-runtime" },
++                error: null,
++              },
++            ],
++            warnings: [],
++          }),
++          {
++            status: 200,
++            headers: { "content-type": "application/json" },
++          },
++        );
++      }
+       if (url === "http://127.0.0.1:8787/v1/summarize") {
+         globalThis.__summarizeCalls += 1;
+         globalThis.__summarizeCallTimes.push(Date.now());
+diff --git a/apps/chrome-extension/tests/helpers/extension-harness.ts b/apps/chrome-extension/tests/helpers/extension-harness.ts
+index dd00406c824c552fd6b315f9c07acb21693fcf14..a9f6f4e92bfab8a0006c78b5d8152d9984691a33
+--- a/apps/chrome-extension/tests/helpers/extension-harness.ts
++++ b/apps/chrome-extension/tests/helpers/extension-harness.ts
+@@ -24,6 +24,10 @@
+ export type UiState = {
+   panelOpen: boolean;
+   daemon: { ok: boolean; authed: boolean; error?: string };
++  localRuntime: {
++    ok: boolean;
++    [key: string]: unknown;
++  } | null;
+   tab: { id: number | null; url: string | null; title: string | null };
+   media: { hasVideo: boolean; hasAudio: boolean; hasCaptions: boolean } | null;
+   stats: { pageWords: number | null; videoDurationSeconds: number | null };
+@@ -46,6 +50,7 @@
+ const defaultUiState: UiState = {
+   panelOpen: true,
+   daemon: { ok: true, authed: true },
++  localRuntime: null,
+   tab: { id: null, url: null, title: null },
+   media: null,
+   stats: { pageWords: null, videoDurationSeconds: null },
+@@ -70,6 +75,10 @@
+     ...defaultUiState,
+     ...overrides,
+     daemon: { ...defaultUiState.daemon, ...overrides.daemon },
++    localRuntime:
++      typeof overrides.localRuntime === "undefined"
++        ? defaultUiState.localRuntime
++        : overrides.localRuntime,
+     tab: { ...defaultUiState.tab, ...overrides.tab },
+     settings: { ...defaultUiState.settings, ...overrides.settings },
+   };
+diff --git a/apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts b/apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..9628cee11920bda5d4cdfb416b82bf47872a3546
+--- /dev/null
++++ b/apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts
+@@ -0,0 +1,176 @@
++import { expect, test } from "@playwright/test";
++import {
++  assertNoErrors,
++  buildUiState,
++  closeExtension,
++  getBrowserFromProject,
++  launchExtension,
++  openExtensionPage,
++  seedSettings,
++  sendBgMessage,
++  waitForPanelPort,
++} from "./helpers/extension-harness";
++import { allowFirefoxExtensionTests } from "./helpers/extension-test-config";
++import { waitForSettingsHydratedHook } from "./helpers/panel-hooks";
++
++test.skip(
++  ({ browserName }) => browserName === "firefox" && !allowFirefoxExtensionTests,
++  "Firefox extension tests are blocked by Playwright limitations. Set ALLOW_FIREFOX_EXTENSION_TESTS=1 to run.",
++);
++
++function buildLocalRuntimeStatus(overrides: Record<string, unknown> = {}) {
++  return {
++    ok: true,
++    localOnly: { enabled: true, source: "privacy.localOnly" },
++    runtime: {
++      configured: true,
++      type: "openai-compatible",
++      endpointHost: "127.0.0.1:8080",
++      baseUrlSource: "configured",
++    },
++    modelHints: {
++      configuredModel: { input: "auto", source: "default" },
++      localRoutingEnabled: true,
++      selected: {
++        bucket: "traditionalChinese",
++        modelInput: "openai/qwen-local",
++        language: { kind: "fixed", tag: "zh-TW", label: "Traditional Chinese" },
++      },
++      routes: [],
++    },
++    probes: [
++      {
++        ok: true,
++        reachable: true,
++        runtimeType: "openai-compatible",
++        runtimeLabel: "OpenAI-compatible",
++        endpointHost: "127.0.0.1:8080",
++        timeoutMs: 1200,
++        models: { count: 1, hints: ["qwen-local"] },
++        server: { status: 200, name: "llama.cpp" },
++        error: null,
++      },
++    ],
++    warnings: [],
++    ...overrides,
++  };
++}
++
++test("sidepanel renders local-only runtime and selected route", async ({
++  browserName: _browserName,
++}, testInfo) => {
++  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
++
++  try {
++    await seedSettings(harness, { token: "test-token", autoSummarize: false, model: "auto" });
++    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
++    await waitForPanelPort(page);
++    await waitForSettingsHydratedHook(page);
++
++    await sendBgMessage(harness, {
++      type: "ui:state",
++      state: buildUiState({
++        settings: { tokenPresent: true, autoSummarize: false, model: "auto", length: "xl" },
++        localRuntime: buildLocalRuntimeStatus(),
++      }),
++    });
++
++    const status = page.locator("#localRuntimeStatus");
++    await expect(status).toBeVisible();
++    await expect(status).toHaveAttribute("data-state", "ok");
++    await expect(page.locator("#localRuntimePrivacy")).toHaveText("Local-only on");
++    await expect(page.locator("#localRuntimeRoute")).toHaveText(
++      "Route: Traditional Chinese -> openai/qwen-local",
++    );
++    await expect(page.locator("#localRuntimeDetail")).toContainText(
++      "Runtime reachable: OpenAI-compatible at 127.0.0.1:8080.",
++    );
++    await expect(status).not.toContainText("sk-");
++    assertNoErrors(harness);
++  } finally {
++    await closeExtension(harness.context, harness.userDataDir);
++  }
++});
++
++test("sidepanel warns when remote providers are allowed", async ({
++  browserName: _browserName,
++}, testInfo) => {
++  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
++
++  try {
++    await seedSettings(harness, { token: "test-token", autoSummarize: false, model: "free" });
++    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
++    await waitForPanelPort(page);
++    await waitForSettingsHydratedHook(page);
++
++    await sendBgMessage(harness, {
++      type: "ui:state",
++      state: buildUiState({
++        settings: { tokenPresent: true, autoSummarize: false, model: "free", length: "xl" },
++        localRuntime: buildLocalRuntimeStatus({
++          localOnly: { enabled: false, source: null },
++          modelHints: {
++            configuredModel: { input: "auto", source: "default" },
++            localRoutingEnabled: false,
++            selected: null,
++            routes: [],
++          },
++        }),
++      }),
++    });
++
++    await expect(page.locator("#localRuntimeStatus")).toHaveAttribute("data-state", "warn");
++    await expect(page.locator("#localRuntimePrivacy")).toHaveText("Remote allowed");
++    await expect(page.locator("#localRuntimeRoute")).toHaveText("Model: free");
++    await expect(page.locator("#localRuntimeDetail")).toContainText(
++      "Enable privacy.localOnly in daemon config",
++    );
++    assertNoErrors(harness);
++  } finally {
++    await closeExtension(harness.context, harness.userDataDir);
++  }
++});
++
++test("sidepanel shows actionable local runtime setup errors", async ({
++  browserName: _browserName,
++}, testInfo) => {
++  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
++
++  try {
++    await seedSettings(harness, { token: "test-token", autoSummarize: false, model: "auto" });
++    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
++    await waitForPanelPort(page);
++    await waitForSettingsHydratedHook(page);
++
++    await sendBgMessage(harness, {
++      type: "ui:state",
++      state: buildUiState({
++        settings: { tokenPresent: true, autoSummarize: false, model: "auto", length: "xl" },
++        localRuntime: buildLocalRuntimeStatus({
++          probes: [
++            {
++              ok: false,
++              reachable: false,
++              runtimeType: "openai-compatible",
++              runtimeLabel: "OpenAI-compatible",
++              endpointHost: "127.0.0.1:8080",
++              timeoutMs: 1200,
++              models: { count: 0, hints: [] },
++              server: null,
++              error: { code: "connection-error", message: "Local runtime probe failed." },
++            },
++          ],
++        }),
++      }),
++    });
++
++    await expect(page.locator("#localRuntimeStatus")).toHaveAttribute("data-state", "error");
++    await expect(page.locator("#localRuntimePrivacy")).toHaveText("Local-only on");
++    await expect(page.locator("#localRuntimeDetail")).toContainText(
++      "Start your local model server or set openai.baseUrl to localhost",
++    );
++    assertNoErrors(harness);
++  } finally {
++    await closeExtension(harness.context, harness.userDataDir);
++  }
++});
+
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 7da9fae712e2e745233f3a801dc33ae878afb43d..d82822dfafaaabcc2933ed98b7600fb80ddfd25e
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,63 @@
+ 
+ ---
+ 
++## 2026-04-22 10:22:08 PDT - LLR-009: Show Local-Only Status in Side Panel
++Thread:
++Run: 20260422-085058-72504 (iteration 9)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-9.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-9.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 00cc6d14 feat: show local runtime status in side panel
++- Post-commit status: clean after follow-up progress/log commit
++- Verification:
++  - Command: `pnpm -C apps/chrome-extension exec tsc -p tsconfig.json --noEmit` -> FAIL (pre-existing extension tsconfig includes `wxt.config.ts` outside `rootDir: src`)
++  - Command: `pnpm -C apps/chrome-extension build` -> PASS
++  - Command: `env -u NO_COLOR pnpm -C apps/chrome-extension exec playwright test -c playwright.config.ts --project=chromium tests/sidepanel.local-runtime-status.spec.ts` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s check` -> PASS
++  - Command: `pnpm -C apps/chrome-extension test:chrome` -> FAIL (unrelated local-video test waits for slides tools; this environment has ffmpeg but no `yt-dlp`)
++  - Command: `env -u NO_COLOR pnpm -C apps/chrome-extension exec playwright test -c playwright.config.ts --project=chromium --grep-invert "local video"` -> PASS
++  - Command: `git diff --check -- apps/chrome-extension/src apps/chrome-extension/tests` -> PASS
++- Files changed:
++  - apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
++  - apps/chrome-extension/src/entrypoints/background/panel-state.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/index.html
++  - apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/main.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
++  - apps/chrome-extension/src/lib/local-runtime-status-client.ts
++  - apps/chrome-extension/src/lib/panel-contracts.ts
++  - apps/chrome-extension/tests/helpers/daemon-fixtures.ts
++  - apps/chrome-extension/tests/helpers/extension-harness.ts
++  - apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-9.md
++  - .ralph/.tmp/story-20260422-085058-72504-9.json
++  - .ralph/.tmp/story-20260422-085058-72504-9.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-8.log
++  - .ralph/runs/run-20260422-085058-72504-iter-8.md
++  - .ralph/runs/run-20260422-085058-72504-iter-9.log
++- What was implemented
++  Added a compact side panel local runtime/privacy status surface that shows local-only mode, daemon/runtime readiness,
++  the selected route/model, remote-provider privacy warnings, and actionable setup guidance without exposing tokens or
++  raw environment values. The background runtime now fetches the daemon local-runtime status endpoint asynchronously,
++  caches it briefly, and emits a status-only panel message so UI state refreshes do not block or race summary controls.
++  Extension tests cover local-only rendering, remote-provider warning behavior, and local runtime setup errors.
++- **Learnings for future iterations:**
++  - Patterns discovered: side panel status surfaces work best when the first `ui:state` remains fast and richer daemon
++    diagnostics arrive through a narrow follow-up message.
++  - Gotchas encountered: fetching a localhost daemon endpoint directly from the side panel causes Chromium console
++    network errors in tests; keep daemon diagnostics in the background service worker.
++  - Useful context: the supported Chrome suite currently has an unrelated local-video failure when `yt-dlp` is missing;
++    `--grep-invert "local video"` exercises the rest of the Chromium extension suite in this environment.
++---
++
+ ## 2026-04-22 10:02:04 PDT - LLR-008: Expose Local Runtime Status in Daemon API
+ Thread: 019db61d-458c-7af1-a095-ae13770df211
+ Run: 20260422-085058-72504 (iteration 8)
+diff --git a/apps/chrome-extension/src/entrypoints/background/panel-runtime.ts b/apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
+index 7e9e03de565e8a607e0e187d6a2b3e19e4865cd8..fb239e6be3052cb803036937c54ac68fad9f57f4
+--- a/apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
++++ b/apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
+@@ -1,7 +1,11 @@
+ import { logExtensionEvent } from "../../lib/extension-logs";
++import { fetchLocalRuntimeStatus } from "../../lib/local-runtime-status-client";
++import type { LocalRuntimeStatus } from "../../lib/panel-contracts";
+ import { resolvePanelState } from "./panel-state";
+ import { summarizeActiveTab as runPanelSummarize } from "./panel-summarize";
+ 
++const LOCAL_RUNTIME_STATUS_CACHE_MS = 15_000;
++
+ export function createBackgroundPanelRuntime<
+   Session extends {
+     windowId: number;
+@@ -56,6 +60,39 @@
+     send(session, { type: "ui:status", status });
+   };
+ 
++  let localRuntimeStatusCache: { value: LocalRuntimeStatus; fetchedAt: number } | null = null;
++  let localRuntimeStatusRefresh: Promise<void> | null = null;
++
++  const getCachedLocalRuntimeStatus = () => {
++    if (
++      localRuntimeStatusCache &&
++      Date.now() - localRuntimeStatusCache.fetchedAt < LOCAL_RUNTIME_STATUS_CACHE_MS
++    ) {
++      return localRuntimeStatusCache.value;
++    }
++    return null;
++  };
++
++  const refreshLocalRuntimeStatus = (session: Session) => {
++    if (localRuntimeStatusRefresh) return;
++    localRuntimeStatusRefresh = (async () => {
++      let status: LocalRuntimeStatus;
++      try {
++        const settings = await loadSettings();
++        const token = settings.token.trim();
++        if (!token) return;
++        status = await fetchLocalRuntimeStatus({ token, fetchImpl });
++      } catch (err) {
++        const message = err instanceof Error ? err.message : "Local runtime status unavailable.";
++        status = { ok: false, error: message };
++      }
++      localRuntimeStatusCache = { value: status, fetchedAt: Date.now() };
++      send(session, { type: "ui:local-runtime-status", status });
++    })().finally(() => {
++      localRuntimeStatusRefresh = null;
++    });
++  };
++
+   const emitState = async (
+     session: Session,
+     status: string,
+@@ -69,11 +106,20 @@
+       getActiveTab,
+       daemonHealth,
+       daemonPing,
++      localRuntimeStatus: getCachedLocalRuntimeStatus(),
+       panelSessionStore,
+       urlsMatch,
+       canSummarizeUrl,
+     });
+     send(session, { type: "ui:state", state: next.state });
++    if (
++      !next.state.localRuntime &&
++      next.state.settings.tokenPresent &&
++      next.state.daemon.ok &&
++      next.state.daemon.authed
++    ) {
++      refreshLocalRuntimeStatus(session);
++    }
+ 
+     if (next.shouldRecover) {
+       void summarizeActiveTab(session, "daemon-recovered");
+diff --git a/apps/chrome-extension/src/entrypoints/background/panel-state.ts b/apps/chrome-extension/src/entrypoints/background/panel-state.ts
+index f97d3f3f374ae2d39e105af217f4ebf6d26d8c49..4d311c6188a6650a23cb263f1cb615e721b1f7c0
+--- a/apps/chrome-extension/src/entrypoints/background/panel-state.ts
++++ b/apps/chrome-extension/src/entrypoints/background/panel-state.ts
+@@ -1,4 +1,4 @@
+-import type { UiState as PanelUiState } from "../../lib/panel-contracts";
++import type { LocalRuntimeStatus, UiState as PanelUiState } from "../../lib/panel-contracts";
+ 
+ export type { PanelUiState };
+ 
+@@ -54,6 +54,7 @@
+   getActiveTab,
+   daemonHealth,
+   daemonPing,
++  localRuntimeStatus,
+   panelSessionStore,
+   urlsMatch,
+   canSummarizeUrl,
+@@ -65,6 +66,7 @@
+   getActiveTab: (windowId: number) => Promise<chrome.tabs.Tab | null>;
+   daemonHealth: () => Promise<{ ok: boolean; error?: string }>;
+   daemonPing: (token: string) => Promise<{ ok: boolean; error?: string }>;
++  localRuntimeStatus: LocalRuntimeStatus | null;
+   panelSessionStore: {
+     isPanelOpen: (session: SessionLike) => boolean;
+     getCachedExtract: (tabId: number, url?: string | null) => CachedExtractLike | null;
+@@ -111,6 +113,7 @@
+     state: {
+       panelOpen: panelSessionStore.isPanelOpen(session),
+       daemon,
++      localRuntime: daemonReady ? localRuntimeStatus : null,
+       tab: { id: tab?.id ?? null, url: tab?.url ?? null, title: tab?.title ?? null },
+       media: cached?.media ?? null,
+       stats: {
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts b/apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
+index 2489d450871376504a9feb58a31c33f4430a302e..7355f7b9409b9ec2c6a9234845be7bb735440a75
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
+@@ -1,4 +1,4 @@
+-import type { BgToPanel, RunStart, UiState } from "../../lib/panel-contracts";
++import type { BgToPanel, LocalRuntimeStatus, RunStart, UiState } from "../../lib/panel-contracts";
+ import {
+   normalizePanelUrl,
+   shouldAcceptRunForCurrentPage,
+@@ -9,6 +9,7 @@
+   msg: BgToPanel;
+   applyUiState: (state: UiState) => void;
+   setStatus: (text: string) => void;
++  handleLocalRuntimeStatus: (status: LocalRuntimeStatus) => void;
+   isStreaming: () => boolean;
+   handleRunError: (message: string) => void;
+   handleSlidesRun: (msg: Extract<BgToPanel, { type: "slides:run" }>) => void;
+@@ -27,6 +28,9 @@
+     case "ui:status":
+       if (!options.isStreaming()) options.setStatus(msg.status);
+       return;
++    case "ui:local-runtime-status":
++      options.handleLocalRuntimeStatus(msg.status);
++      return;
+     case "run:error":
+       options.handleRunError(msg.message);
+       return;
+@@ -69,6 +73,7 @@
+   };
+   applyUiState: (state: UiState) => void;
+   setStatus: (text: string) => void;
++  handleLocalRuntimeStatus: (status: LocalRuntimeStatus) => void;
+   isStreaming: () => boolean;
+   setPhase: (phase: "error", opts?: { error?: string | null }) => void;
+   finishStreamingMessage: () => void;
+@@ -118,6 +123,7 @@
+           options.applyUiState(state);
+         },
+         setStatus: options.setStatus,
++        handleLocalRuntimeStatus: options.handleLocalRuntimeStatus,
+         isStreaming: options.isStreaming,
+         handleRunError: (message) => {
+           const detail = message && message.trim().length > 0 ? message : "Something went wrong.";
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/dom.ts b/apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
+index dcb6104fcf48a940ce9041f4e7f4a63f0fd43a89..7d191971cbb50123bc3e3763508d7fb7e004b8d2
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
+@@ -10,6 +10,10 @@
+   const headerEl = document.querySelector("header") as HTMLElement | null;
+   if (!headerEl) throw new Error("Missing <header>");
+   const progressFillEl = byId<HTMLDivElement>("progressFill");
++  const localRuntimeStatusEl = byId<HTMLDivElement>("localRuntimeStatus");
++  const localRuntimePrivacyEl = byId<HTMLElement>("localRuntimePrivacy");
++  const localRuntimeRouteEl = byId<HTMLSpanElement>("localRuntimeRoute");
++  const localRuntimeDetailEl = byId<HTMLDivElement>("localRuntimeDetail");
+   const drawerEl = byId<HTMLElement>("drawer");
+   const setupEl = byId<HTMLDivElement>("setup");
+   const errorEl = byId<HTMLDivElement>("error");
+@@ -107,6 +111,10 @@
+     lengthRoot,
+     lineLooseBtn,
+     lineTightBtn,
++    localRuntimeDetailEl,
++    localRuntimePrivacyEl,
++    localRuntimeRouteEl,
++    localRuntimeStatusEl,
+     mainEl,
+     metricsEl,
+     metricsHomeEl,
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/index.html b/apps/chrome-extension/src/entrypoints/sidepanel/index.html
+index d9e5894a1e4aed5e9a3efdf860b6abc9b65a04eb..41a35d6a8428cb197a05ba5ee414b7221032dcc6
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/index.html
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/index.html
+@@ -27,6 +27,24 @@
+       <div id="progress" class="progress" aria-hidden="true">
+         <div id="progressFill" class="progressFill"></div>
+       </div>
++      <div
++        id="localRuntimeStatus"
++        class="localRuntimeStatus"
++        data-state="neutral"
++        role="status"
++        aria-live="polite"
++      >
++        <span class="localRuntimeStatus__dot" aria-hidden="true"></span>
++        <div class="localRuntimeStatus__body">
++          <div class="localRuntimeStatus__line">
++            <strong id="localRuntimePrivacy">Checking local privacy</strong>
++            <span id="localRuntimeRoute">Model: auto</span>
++          </div>
++          <div id="localRuntimeDetail" class="localRuntimeStatus__detail">
++            Waiting for daemon status.
++          </div>
++        </div>
++      </div>
+       <div id="slideNotice" class="slideNotice hidden" role="status" aria-live="polite">
+         <span id="slideNoticeMessage" class="slideNotice__message"></span>
+         <div class="slideNotice__actions">
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts b/apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..36248523117407154972b014f504cf64f5b4c5d7
+--- /dev/null
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts
+@@ -0,0 +1,215 @@
++import type {
++  LocalRuntimeStatus,
++  LocalRuntimeStatusPayload,
++  LocalRuntimeStatusProbe,
++  UiState,
++} from "../../lib/panel-contracts";
++
++type LocalRuntimeTone = "ok" | "warn" | "error" | "neutral";
++
++type LocalRuntimeStatusView = {
++  tone: LocalRuntimeTone;
++  privacy: string;
++  route: string;
++  detail: string;
++};
++
++type LocalRuntimeStatusSurfaceOptions = {
++  rootEl: HTMLElement;
++  privacyEl: HTMLElement;
++  routeEl: HTMLElement;
++  detailEl: HTMLElement;
++};
++
++const remoteProviderPattern = /^(anthropic|google|openrouter|xai|zai|nvidia|github-copilot|cli)\//i;
++
++function trimText(value: unknown): string {
++  return typeof value === "string" ? value.trim() : "";
++}
++
++function formatBucket(bucket: string): string {
++  if (bucket === "traditionalChinese") return "Traditional Chinese";
++  if (bucket === "bilingual") return "Bilingual";
++  if (bucket === "english") return "English";
++  return "Fallback";
++}
++
++function selectedModelInput(status: LocalRuntimeStatusPayload, state: UiState): string {
++  const explicitModel = trimText(state.settings.model);
++  if (explicitModel && explicitModel !== "auto") return explicitModel;
++  const routed = trimText(status.modelHints.selected?.modelInput);
++  if (routed) return routed;
++  const configured = trimText(status.modelHints.configuredModel.input);
++  return configured || explicitModel || "auto";
++}
++
++function routeLabel(status: LocalRuntimeStatusPayload, state: UiState): string {
++  if (status.modelHints.selected) {
++    return `Route: ${formatBucket(status.modelHints.selected.bucket)} -> ${
++      status.modelHints.selected.modelInput
++    }`;
++  }
++
++  const explicitModel = trimText(state.settings.model) || "auto";
++  const configured = trimText(status.modelHints.configuredModel.input);
++  if (explicitModel === "auto" && configured && configured !== "auto") {
++    return `Model: auto -> ${configured}`;
++  }
++  return `Model: ${explicitModel}`;
++}
++
++function selectProbe(status: LocalRuntimeStatusPayload): LocalRuntimeStatusProbe | null {
++  if (status.runtime.configured) {
++    const configured = status.probes.find((probe) => {
++      if (status.runtime.endpointHost && probe.endpointHost === status.runtime.endpointHost) {
++        return true;
++      }
++      return status.runtime.type !== null && probe.runtimeType === status.runtime.type;
++    });
++    if (configured) return configured;
++  }
++  return status.probes.find((probe) => probe.reachable) ?? status.probes[0] ?? null;
++}
++
++function runtimeLabel(probe: LocalRuntimeStatusProbe | null): string {
++  if (!probe) return "local runtime";
++  const label = trimText(probe.runtimeLabel) || trimText(probe.runtimeType) || "local runtime";
++  const host = trimText(probe.endpointHost);
++  return host ? `${label} at ${host}` : label;
++}
++
++function probeAction(errorCode: string | null): string {
++  if (errorCode === "invalid-runtime") {
++    return "Check openai.baseUrl; use a localhost http URL without credentials, query, or fragment.";
++  }
++  if (errorCode === "timeout") {
++    return "Start your local model server, then run summarize local-runtime probe.";
++  }
++  return "Start your local model server or set openai.baseUrl to localhost, then restart the daemon.";
++}
++
++function probeFailureDetail(probe: LocalRuntimeStatusProbe | null): string {
++  const message = trimText(probe?.error?.message) || "Local runtime is not reachable.";
++  const action = probeAction(trimText(probe?.error?.code) || null);
++  return `${message} ${action}`;
++}
++
++function isConfirmedLocalModel(status: LocalRuntimeStatusPayload, modelInput: string): boolean {
++  const normalized = modelInput.trim().toLowerCase();
++  if (!normalized || normalized === "auto" || normalized === "free") return false;
++  if (remoteProviderPattern.test(normalized)) return false;
++  if (!normalized.startsWith("openai/")) return false;
++  if (!status.runtime.endpointHost) return false;
++  return status.probes.some(
++    (probe) => probe.reachable && probe.endpointHost === status.runtime.endpointHost,
++  );
++}
++
++function buildView(
++  state: UiState | null,
++  localRuntimeOverride?: LocalRuntimeStatus | null,
++): LocalRuntimeStatusView {
++  if (!state) {
++    return {
++      tone: "neutral",
++      privacy: "Checking local privacy",
++      route: "Model: auto",
++      detail: "Waiting for daemon status.",
++    };
++  }
++
++  const fallbackRoute = `Model: ${trimText(state.settings.model) || "auto"}`;
++  if (!state.settings.tokenPresent) {
++    return {
++      tone: "warn",
++      privacy: "Setup needed",
++      route: fallbackRoute,
++      detail: "Add the daemon token to check local runtime privacy.",
++    };
++  }
++
++  if (!state.daemon.ok || !state.daemon.authed) {
++    return {
++      tone: "warn",
++      privacy: "Daemon offline",
++      route: fallbackRoute,
++      detail: state.daemon.error || "Run summarize daemon status, then restart the daemon.",
++    };
++  }
++
++  const status = localRuntimeOverride ?? state.localRuntime;
++  if (!status) {
++    return {
++      tone: "neutral",
++      privacy: "Checking local privacy",
++      route: fallbackRoute,
++      detail: "Waiting for local runtime status.",
++    };
++  }
++
++  if (!status.ok) {
++    return {
++      tone: "warn",
++      privacy: "Local status unavailable",
++      route: fallbackRoute,
++      detail: status.error,
++    };
++  }
++
++  const probe = selectProbe(status);
++  const reachable = Boolean(probe?.reachable);
++  const route = routeLabel(status, state);
++  const modelInput = selectedModelInput(status, state);
++  const runtimeDetail = reachable
++    ? `Runtime reachable: ${runtimeLabel(probe)}.`
++    : probeFailureDetail(probe);
++
++  if (status.localOnly.enabled) {
++    return {
++      tone: reachable ? "ok" : "error",
++      privacy: "Local-only on",
++      route,
++      detail: runtimeDetail,
++    };
++  }
++
++  if (isConfirmedLocalModel(status, modelInput)) {
++    return {
++      tone: reachable ? "ok" : "warn",
++      privacy: "Local runtime",
++      route,
++      detail: runtimeDetail,
++    };
++  }
++
++  const warning = status.warnings.find((entry) => entry.trim().length > 0);
++  return {
++    tone: "warn",
++    privacy: "Remote allowed",
++    route,
++    detail:
++      warning ??
++      "Cloud providers may be used. Enable privacy.localOnly in daemon config to block remote routes.",
++  };
++}
++
++export function createLocalRuntimeStatusSurface(options: LocalRuntimeStatusSurfaceOptions) {
++  let lastState: UiState | null = null;
++
++  const render = (state: UiState | null) => {
++    lastState = state;
++    const view = buildView(state);
++    options.rootEl.dataset.state = view.tone;
++    options.privacyEl.textContent = view.privacy;
++    options.routeEl.textContent = view.route;
++    options.detailEl.textContent = view.detail;
++    options.rootEl.title = `${view.privacy}. ${view.route}. ${view.detail}`;
++  };
++
++  const renderStatus = (status: LocalRuntimeStatus) => {
++    if (!lastState) return;
++    render({ ...lastState, localRuntime: status });
++  };
++
++  return { render, renderStatus };
++}
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/main.ts b/apps/chrome-extension/src/entrypoints/sidepanel/main.ts
+index 58b299bba0a92bcd6f4e2dbf871a7f9750ef9375..6a7c192ab968c80fa910017786f0202740ca671c
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/main.ts
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/main.ts
+@@ -33,6 +33,7 @@
+ import { createErrorController } from "./error-controller";
+ import { createHeaderController } from "./header-controller";
+ import { createSidepanelInteractionRuntime } from "./interaction-runtime";
++import { createLocalRuntimeStatusSurface } from "./local-runtime-status";
+ import { createMetricsController } from "./metrics-controller";
+ import { createNavigationRuntime } from "./navigation-runtime";
+ import { createPanelCacheController, type PanelCachePayload } from "./panel-cache";
+@@ -97,6 +98,10 @@
+   lengthRoot,
+   lineLooseBtn,
+   lineTightBtn,
++  localRuntimeDetailEl,
++  localRuntimePrivacyEl,
++  localRuntimeRouteEl,
++  localRuntimeStatusEl,
+   mainEl,
+   metricsEl,
+   metricsHomeEl,
+@@ -548,6 +553,14 @@
+   }),
+ });
+ 
++const localRuntimeStatusSurface = createLocalRuntimeStatusSurface({
++  rootEl: localRuntimeStatusEl,
++  privacyEl: localRuntimePrivacyEl,
++  routeEl: localRuntimeRouteEl,
++  detailEl: localRuntimeDetailEl,
++});
++localRuntimeStatusSurface.render(null);
++
+ headerController.updateHeaderOffset();
+ window.addEventListener("resize", headerController.updateHeaderOffset);
+ 
+@@ -1277,6 +1290,8 @@
+ 
+ function updateControls(state: UiState) {
+   uiStateRuntime.apply(state);
++  localRuntimeStatusSurface.render(state);
++  headerController.updateHeaderOffset();
+ }
+ 
+ const bgMessageRuntime = createSidepanelBgMessageRuntime({
+@@ -1285,6 +1300,15 @@
+   setStatus: (text) => {
+     headerController.setStatus(text);
+   },
++  handleLocalRuntimeStatus: (status) => {
++    if (panelState.ui) {
++      panelState.ui = { ...panelState.ui, localRuntime: status };
++      localRuntimeStatusSurface.render(panelState.ui);
++      headerController.updateHeaderOffset();
++    } else {
++      localRuntimeStatusSurface.renderStatus(status);
++    }
++  },
+   isStreaming,
+   setPhase,
+   finishStreamingMessage: () => {
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css b/apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
+index ece561bfc97e21b46b1c7b0e8a940c1c2b6bc2c4..48d385f1b30821f1893a862baf284c26ad155695
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
+@@ -63,6 +63,90 @@
+   gap: 8px;
+ }
+ 
++.localRuntimeStatus {
++  display: grid;
++  grid-template-columns: 8px minmax(0, 1fr);
++  align-items: center;
++  gap: 8px;
++  min-height: 34px;
++  padding: 6px 8px;
++  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
++  border-radius: 8px;
++  background: color-mix(in srgb, var(--surface) 82%, transparent);
++  color: var(--muted);
++  font-size: 11px;
++}
++
++.localRuntimeStatus__dot {
++  width: 8px;
++  height: 8px;
++  border-radius: 999px;
++  background: var(--muted);
++  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 10%, transparent);
++}
++
++.localRuntimeStatus__body {
++  display: grid;
++  gap: 2px;
++  min-width: 0;
++}
++
++.localRuntimeStatus__line {
++  display: flex;
++  align-items: baseline;
++  gap: 8px;
++  min-width: 0;
++}
++
++.localRuntimeStatus__line strong,
++.localRuntimeStatus__line span,
++.localRuntimeStatus__detail {
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++.localRuntimeStatus__line strong {
++  flex: 0 0 auto;
++  color: var(--text);
++  font-size: 11px;
++}
++
++.localRuntimeStatus__line span {
++  min-width: 0;
++}
++
++.localRuntimeStatus__detail {
++  min-width: 0;
++}
++
++.localRuntimeStatus[data-state="ok"] {
++  border-color: color-mix(in srgb, #2bb673 35%, var(--border));
++  background: color-mix(in srgb, #2bb673 9%, var(--surface));
++}
++
++.localRuntimeStatus[data-state="ok"] .localRuntimeStatus__dot {
++  background: #2bb673;
++}
++
++.localRuntimeStatus[data-state="warn"] {
++  border-color: color-mix(in srgb, #d99a2b 42%, var(--border));
++  background: color-mix(in srgb, #d99a2b 10%, var(--surface));
++}
++
++.localRuntimeStatus[data-state="warn"] .localRuntimeStatus__dot {
++  background: #d99a2b;
++}
++
++.localRuntimeStatus[data-state="error"] {
++  border-color: color-mix(in srgb, #ff6a6a 52%, var(--border));
++  background: color-mix(in srgb, #ff6a6a 10%, var(--surface));
++}
++
++.localRuntimeStatus[data-state="error"] .localRuntimeStatus__dot {
++  background: #ff6a6a;
++}
++
+ .summarizeControlRoot {
+   display: flex;
+ }
+diff --git a/apps/chrome-extension/src/lib/local-runtime-status-client.ts b/apps/chrome-extension/src/lib/local-runtime-status-client.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..8cbbbce3e18d87680ef8e873594c8623e681a1e8
+--- /dev/null
++++ b/apps/chrome-extension/src/lib/local-runtime-status-client.ts
+@@ -0,0 +1,72 @@
++import type { LocalRuntimeStatus, LocalRuntimeStatusPayload } from "./panel-contracts";
++
++const LOCAL_RUNTIME_STATUS_TIMEOUT_MS = 4000;
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === "object" && value !== null;
++}
++
++function isLocalRuntimeStatusPayload(
++  value: Record<string, unknown>,
++): value is LocalRuntimeStatusPayload {
++  return (
++    value.ok === true &&
++    isRecord(value.localOnly) &&
++    isRecord(value.runtime) &&
++    isRecord(value.modelHints) &&
++    Array.isArray(value.probes) &&
++    Array.isArray(value.warnings)
++  );
++}
++
++function statusHttpError(res: Response): string {
++  if (res.status === 404) {
++    return "Daemon does not support local runtime status. Restart the daemon after updating.";
++  }
++  const statusText = res.statusText.trim();
++  return `Local runtime status failed (${res.status}${statusText ? ` ${statusText}` : ""})`;
++}
++
++export async function fetchLocalRuntimeStatus({
++  token,
++  fetchImpl = fetch,
++}: {
++  token: string;
++  fetchImpl?: typeof fetch;
++}): Promise<LocalRuntimeStatus> {
++  const trimmedToken = token.trim();
++  if (!trimmedToken) {
++    return { ok: false, error: "Add the daemon token to check local runtime privacy." };
++  }
++
++  const controller = new AbortController();
++  const timeout = setTimeout(() => controller.abort(), LOCAL_RUNTIME_STATUS_TIMEOUT_MS);
++  try {
++    const res = await fetchImpl("http://127.0.0.1:8787/v1/local-runtime/status?timeoutMs=1200", {
++      headers: { Authorization: `Bearer ${trimmedToken}` },
++      signal: controller.signal,
++    });
++    if (!res.ok) {
++      return { ok: false, error: statusHttpError(res) };
++    }
++    const json = (await res.json()) as unknown;
++    if (!isRecord(json) || !isLocalRuntimeStatusPayload(json)) {
++      return { ok: false, error: "Daemon returned an invalid local runtime status." };
++    }
++    return json;
++  } catch (err) {
++    if (err instanceof DOMException && err.name === "AbortError") {
++      return { ok: false, error: "Local runtime status timed out." };
++    }
++    const message = err instanceof Error ? err.message : "Local runtime status failed.";
++    if (message.toLowerCase() === "failed to fetch") {
++      return {
++        ok: false,
++        error: "Local runtime status unavailable (daemon unreachable or blocked by Chrome).",
++      };
++    }
++    return { ok: false, error: message };
++  } finally {
++    clearTimeout(timeout);
++  }
++}
+diff --git a/apps/chrome-extension/src/lib/panel-contracts.ts b/apps/chrome-extension/src/lib/panel-contracts.ts
+index 2e551b249c6105c10d142e4c2aab01c38b1294ee..7a6612c93e53322f68318f6ac57c195aaef2b885
+--- a/apps/chrome-extension/src/lib/panel-contracts.ts
++++ b/apps/chrome-extension/src/lib/panel-contracts.ts
+@@ -1,9 +1,83 @@
+ import type { AssistantMessage, Message } from "@mariozechner/pi-ai";
+ import type { SseSlidesData } from "./runtime-contracts";
+ 
++export type LocalRuntimeKind = "openai-compatible" | "llama-cpp" | "ollama";
++
++export type LocalRuntimeStatusProbe = {
++  ok: boolean;
++  reachable: boolean;
++  runtimeType: LocalRuntimeKind | null;
++  runtimeLabel: string | null;
++  endpointHost: string | null;
++  timeoutMs: number;
++  models: {
++    count: number;
++    hints: string[];
++  };
++  server: {
++    status: number;
++    name?: string;
++    version?: string;
++  } | null;
++  error: {
++    code: string;
++    message: string;
++    status?: number;
++  } | null;
++};
++
++export type LocalRuntimeStatusPayload = {
++  ok: true;
++  localOnly: {
++    enabled: boolean;
++    source: string | null;
++  };
++  runtime: {
++    configured: boolean;
++    type: LocalRuntimeKind | null;
++    endpointHost: string | null;
++    baseUrlSource: "configured" | "default" | null;
++  };
++  modelHints: {
++    configuredModel: {
++      input: string;
++      source: "env" | "config" | "default";
++    };
++    localRoutingEnabled: boolean;
++    selected: {
++      bucket: "english" | "traditionalChinese" | "bilingual" | "fallback";
++      modelInput: string;
++      language: {
++        kind: string;
++        tag?: string;
++        label?: string;
++      };
++    } | null;
++    routes: Array<{
++      bucket: "english" | "traditionalChinese" | "bilingual" | "fallback";
++      modelInput: string;
++      language: {
++        kind: string;
++        tag?: string;
++        label?: string;
++      };
++    }>;
++  };
++  probes: LocalRuntimeStatusProbe[];
++  warnings: string[];
++};
++
++export type LocalRuntimeStatus =
++  | LocalRuntimeStatusPayload
++  | {
++      ok: false;
++      error: string;
++    };
++
+ export type UiState = {
+   panelOpen: boolean;
+   daemon: { ok: boolean; authed: boolean; error?: string };
++  localRuntime: LocalRuntimeStatus | null;
+   tab: { id: number | null; url: string | null; title: string | null };
+   media: { hasVideo: boolean; hasAudio: boolean; hasCaptions: boolean } | null;
+   stats: { pageWords: number | null; videoDurationSeconds: number | null };
+@@ -84,6 +158,7 @@
+ export type BgToPanel =
+   | { type: "ui:state"; state: UiState }
+   | { type: "ui:status"; status: string }
++  | { type: "ui:local-runtime-status"; status: LocalRuntimeStatus }
+   | { type: "run:start"; run: RunStart }
+   | { type: "run:error"; message: string }
+   | { type: "slides:run"; ok: boolean; runId?: string; url?: string; error?: string }
+diff --git a/apps/chrome-extension/tests/helpers/daemon-fixtures.ts b/apps/chrome-extension/tests/helpers/daemon-fixtures.ts
+index c55350a0b3993b04bd6b2f36f34ef523df15de09..0821e7fddefda377231b337684ff810fda057900
+--- a/apps/chrome-extension/tests/helpers/daemon-fixtures.ts
++++ b/apps/chrome-extension/tests/helpers/daemon-fixtures.ts
+@@ -59,6 +59,48 @@
+       if (url === "http://127.0.0.1:8787/v1/ping") {
+         return new Response("", { status: 200 });
+       }
++      if (url.startsWith("http://127.0.0.1:8787/v1/local-runtime/status")) {
++        return new Response(
++          JSON.stringify({
++            ok: true,
++            localOnly: { enabled: true, source: "privacy.localOnly" },
++            runtime: {
++              configured: true,
++              type: "openai-compatible",
++              endpointHost: "127.0.0.1:8080",
++              baseUrlSource: "configured",
++            },
++            modelHints: {
++              configuredModel: { input: "auto", source: "default" },
++              localRoutingEnabled: true,
++              selected: {
++                bucket: "fallback",
++                modelInput: "openai/llama-local",
++                language: { kind: "auto" },
++              },
++              routes: [],
++            },
++            probes: [
++              {
++                ok: true,
++                reachable: true,
++                runtimeType: "openai-compatible",
++                runtimeLabel: "OpenAI-compatible",
++                endpointHost: "127.0.0.1:8080",
++                timeoutMs: 1200,
++                models: { count: 1, hints: ["llama-local"] },
++                server: { status: 200, name: "test-runtime" },
++                error: null,
++              },
++            ],
++            warnings: [],
++          }),
++          {
++            status: 200,
++            headers: { "content-type": "application/json" },
++          },
++        );
++      }
+       if (url === "http://127.0.0.1:8787/v1/summarize") {
+         globalThis.__summarizeCalls += 1;
+         globalThis.__summarizeCallTimes.push(Date.now());
+diff --git a/apps/chrome-extension/tests/helpers/extension-harness.ts b/apps/chrome-extension/tests/helpers/extension-harness.ts
+index dd00406c824c552fd6b315f9c07acb21693fcf14..a9f6f4e92bfab8a0006c78b5d8152d9984691a33
+--- a/apps/chrome-extension/tests/helpers/extension-harness.ts
++++ b/apps/chrome-extension/tests/helpers/extension-harness.ts
+@@ -24,6 +24,10 @@
+ export type UiState = {
+   panelOpen: boolean;
+   daemon: { ok: boolean; authed: boolean; error?: string };
++  localRuntime: {
++    ok: boolean;
++    [key: string]: unknown;
++  } | null;
+   tab: { id: number | null; url: string | null; title: string | null };
+   media: { hasVideo: boolean; hasAudio: boolean; hasCaptions: boolean } | null;
+   stats: { pageWords: number | null; videoDurationSeconds: number | null };
+@@ -46,6 +50,7 @@
+ const defaultUiState: UiState = {
+   panelOpen: true,
+   daemon: { ok: true, authed: true },
++  localRuntime: null,
+   tab: { id: null, url: null, title: null },
+   media: null,
+   stats: { pageWords: null, videoDurationSeconds: null },
+@@ -70,6 +75,10 @@
+     ...defaultUiState,
+     ...overrides,
+     daemon: { ...defaultUiState.daemon, ...overrides.daemon },
++    localRuntime:
++      typeof overrides.localRuntime === "undefined"
++        ? defaultUiState.localRuntime
++        : overrides.localRuntime,
+     tab: { ...defaultUiState.tab, ...overrides.tab },
+     settings: { ...defaultUiState.settings, ...overrides.settings },
+   };
+diff --git a/apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts b/apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..9628cee11920bda5d4cdfb416b82bf47872a3546
+--- /dev/null
++++ b/apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts
+@@ -0,0 +1,176 @@
++import { expect, test } from "@playwright/test";
++import {
++  assertNoErrors,
++  buildUiState,
++  closeExtension,
++  getBrowserFromProject,
++  launchExtension,
++  openExtensionPage,
++  seedSettings,
++  sendBgMessage,
++  waitForPanelPort,
++} from "./helpers/extension-harness";
++import { allowFirefoxExtensionTests } from "./helpers/extension-test-config";
++import { waitForSettingsHydratedHook } from "./helpers/panel-hooks";
++
++test.skip(
++  ({ browserName }) => browserName === "firefox" && !allowFirefoxExtensionTests,
++  "Firefox extension tests are blocked by Playwright limitations. Set ALLOW_FIREFOX_EXTENSION_TESTS=1 to run.",
++);
++
++function buildLocalRuntimeStatus(overrides: Record<string, unknown> = {}) {
++  return {
++    ok: true,
++    localOnly: { enabled: true, source: "privacy.localOnly" },
++    runtime: {
++      configured: true,
++      type: "openai-compatible",
++      endpointHost: "127.0.0.1:8080",
++      baseUrlSource: "configured",
++    },
++    modelHints: {
++      configuredModel: { input: "auto", source: "default" },
++      localRoutingEnabled: true,
++      selected: {
++        bucket: "traditionalChinese",
++        modelInput: "openai/qwen-local",
++        language: { kind: "fixed", tag: "zh-TW", label: "Traditional Chinese" },
++      },
++      routes: [],
++    },
++    probes: [
++      {
++        ok: true,
++        reachable: true,
++        runtimeType: "openai-compatible",
++        runtimeLabel: "OpenAI-compatible",
++        endpointHost: "127.0.0.1:8080",
++        timeoutMs: 1200,
++        models: { count: 1, hints: ["qwen-local"] },
++        server: { status: 200, name: "llama.cpp" },
++        error: null,
++      },
++    ],
++    warnings: [],
++    ...overrides,
++  };
++}
++
++test("sidepanel renders local-only runtime and selected route", async ({
++  browserName: _browserName,
++}, testInfo) => {
++  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
++
++  try {
++    await seedSettings(harness, { token: "test-token", autoSummarize: false, model: "auto" });
++    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
++    await waitForPanelPort(page);
++    await waitForSettingsHydratedHook(page);
++
++    await sendBgMessage(harness, {
++      type: "ui:state",
++      state: buildUiState({
++        settings: { tokenPresent: true, autoSummarize: false, model: "auto", length: "xl" },
++        localRuntime: buildLocalRuntimeStatus(),
++      }),
++    });
++
++    const status = page.locator("#localRuntimeStatus");
++    await expect(status).toBeVisible();
++    await expect(status).toHaveAttribute("data-state", "ok");
++    await expect(page.locator("#localRuntimePrivacy")).toHaveText("Local-only on");
++    await expect(page.locator("#localRuntimeRoute")).toHaveText(
++      "Route: Traditional Chinese -> openai/qwen-local",
++    );
++    await expect(page.locator("#localRuntimeDetail")).toContainText(
++      "Runtime reachable: OpenAI-compatible at 127.0.0.1:8080.",
++    );
++    await expect(status).not.toContainText("sk-");
++    assertNoErrors(harness);
++  } finally {
++    await closeExtension(harness.context, harness.userDataDir);
++  }
++});
++
++test("sidepanel warns when remote providers are allowed", async ({
++  browserName: _browserName,
++}, testInfo) => {
++  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
++
++  try {
++    await seedSettings(harness, { token: "test-token", autoSummarize: false, model: "free" });
++    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
++    await waitForPanelPort(page);
++    await waitForSettingsHydratedHook(page);
++
++    await sendBgMessage(harness, {
++      type: "ui:state",
++      state: buildUiState({
++        settings: { tokenPresent: true, autoSummarize: false, model: "free", length: "xl" },
++        localRuntime: buildLocalRuntimeStatus({
++          localOnly: { enabled: false, source: null },
++          modelHints: {
++            configuredModel: { input: "auto", source: "default" },
++            localRoutingEnabled: false,
++            selected: null,
++            routes: [],
++          },
++        }),
++      }),
++    });
++
++    await expect(page.locator("#localRuntimeStatus")).toHaveAttribute("data-state", "warn");
++    await expect(page.locator("#localRuntimePrivacy")).toHaveText("Remote allowed");
++    await expect(page.locator("#localRuntimeRoute")).toHaveText("Model: free");
++    await expect(page.locator("#localRuntimeDetail")).toContainText(
++      "Enable privacy.localOnly in daemon config",
++    );
++    assertNoErrors(harness);
++  } finally {
++    await closeExtension(harness.context, harness.userDataDir);
++  }
++});
++
++test("sidepanel shows actionable local runtime setup errors", async ({
++  browserName: _browserName,
++}, testInfo) => {
++  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
++
++  try {
++    await seedSettings(harness, { token: "test-token", autoSummarize: false, model: "auto" });
++    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
++    await waitForPanelPort(page);
++    await waitForSettingsHydratedHook(page);
++
++    await sendBgMessage(harness, {
++      type: "ui:state",
++      state: buildUiState({
++        settings: { tokenPresent: true, autoSummarize: false, model: "auto", length: "xl" },
++        localRuntime: buildLocalRuntimeStatus({
++          probes: [
++            {
++              ok: false,
++              reachable: false,
++              runtimeType: "openai-compatible",
++              runtimeLabel: "OpenAI-compatible",
++              endpointHost: "127.0.0.1:8080",
++              timeoutMs: 1200,
++              models: { count: 0, hints: [] },
++              server: null,
++              error: { code: "connection-error", message: "Local runtime probe failed." },
++            },
++          ],
++        }),
++      }),
++    });
++
++    await expect(page.locator("#localRuntimeStatus")).toHaveAttribute("data-state", "error");
++    await expect(page.locator("#localRuntimePrivacy")).toHaveText("Local-only on");
++    await expect(page.locator("#localRuntimeDetail")).toContainText(
++      "Start your local model server or set openai.baseUrl to localhost",
++    );
++    assertNoErrors(harness);
++  } finally {
++    await closeExtension(harness.context, harness.userDataDir);
++  }
++});
+
+codex
+<promise>COMPLETE</promise>
+file update:
+diff --git a/.ralph/progress.md b/.ralph/progress.md
+index 7da9fae712e2e745233f3a801dc33ae878afb43d..d82822dfafaaabcc2933ed98b7600fb80ddfd25e
+--- a/.ralph/progress.md
++++ b/.ralph/progress.md
+@@ -6,6 +6,63 @@
+ 
+ ---
+ 
++## 2026-04-22 10:22:08 PDT - LLR-009: Show Local-Only Status in Side Panel
++Thread:
++Run: 20260422-085058-72504 (iteration 9)
++Run log: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-9.log
++Run summary: /Users/shh/proj/summarize/.ralph/runs/run-20260422-085058-72504-iter-9.md
++- Guardrails reviewed: yes
++- No-commit run: false
++- Commit: 00cc6d14 feat: show local runtime status in side panel
++- Post-commit status: clean after follow-up progress/log commit
++- Verification:
++  - Command: `pnpm -C apps/chrome-extension exec tsc -p tsconfig.json --noEmit` -> FAIL (pre-existing extension tsconfig includes `wxt.config.ts` outside `rootDir: src`)
++  - Command: `pnpm -C apps/chrome-extension build` -> PASS
++  - Command: `env -u NO_COLOR pnpm -C apps/chrome-extension exec playwright test -c playwright.config.ts --project=chromium tests/sidepanel.local-runtime-status.spec.ts` -> PASS
++  - Command: `pnpm -s typecheck` -> PASS
++  - Command: `pnpm -s check` -> PASS
++  - Command: `pnpm -C apps/chrome-extension test:chrome` -> FAIL (unrelated local-video test waits for slides tools; this environment has ffmpeg but no `yt-dlp`)
++  - Command: `env -u NO_COLOR pnpm -C apps/chrome-extension exec playwright test -c playwright.config.ts --project=chromium --grep-invert "local video"` -> PASS
++  - Command: `git diff --check -- apps/chrome-extension/src apps/chrome-extension/tests` -> PASS
++- Files changed:
++  - apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
++  - apps/chrome-extension/src/entrypoints/background/panel-state.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/index.html
++  - apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/main.ts
++  - apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
++  - apps/chrome-extension/src/lib/local-runtime-status-client.ts
++  - apps/chrome-extension/src/lib/panel-contracts.ts
++  - apps/chrome-extension/tests/helpers/daemon-fixtures.ts
++  - apps/chrome-extension/tests/helpers/extension-harness.ts
++  - apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts
++  - .agents/tasks/prd.json
++  - .ralph/.tmp/prompt-20260422-085058-72504-9.md
++  - .ralph/.tmp/story-20260422-085058-72504-9.json
++  - .ralph/.tmp/story-20260422-085058-72504-9.md
++  - .ralph/activity.log
++  - .ralph/errors.log
++  - .ralph/progress.md
++  - .ralph/runs/run-20260422-085058-72504-iter-8.log
++  - .ralph/runs/run-20260422-085058-72504-iter-8.md
++  - .ralph/runs/run-20260422-085058-72504-iter-9.log
++- What was implemented
++  Added a compact side panel local runtime/privacy status surface that shows local-only mode, daemon/runtime readiness,
++  the selected route/model, remote-provider privacy warnings, and actionable setup guidance without exposing tokens or
++  raw environment values. The background runtime now fetches the daemon local-runtime status endpoint asynchronously,
++  caches it briefly, and emits a status-only panel message so UI state refreshes do not block or race summary controls.
++  Extension tests cover local-only rendering, remote-provider warning behavior, and local runtime setup errors.
++- **Learnings for future iterations:**
++  - Patterns discovered: side panel status surfaces work best when the first `ui:state` remains fast and richer daemon
++    diagnostics arrive through a narrow follow-up message.
++  - Gotchas encountered: fetching a localhost daemon endpoint directly from the side panel causes Chromium console
++    network errors in tests; keep daemon diagnostics in the background service worker.
++  - Useful context: the supported Chrome suite currently has an unrelated local-video failure when `yt-dlp` is missing;
++    `--grep-invert "local video"` exercises the rest of the Chromium extension suite in this environment.
++---
++
+ ## 2026-04-22 10:02:04 PDT - LLR-008: Expose Local Runtime Status in Daemon API
+ Thread: 019db61d-458c-7af1-a095-ae13770df211
+ Run: 20260422-085058-72504 (iteration 8)
+diff --git a/apps/chrome-extension/src/entrypoints/background/panel-runtime.ts b/apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
+index 7e9e03de565e8a607e0e187d6a2b3e19e4865cd8..fb239e6be3052cb803036937c54ac68fad9f57f4
+--- a/apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
++++ b/apps/chrome-extension/src/entrypoints/background/panel-runtime.ts
+@@ -1,7 +1,11 @@
+ import { logExtensionEvent } from "../../lib/extension-logs";
++import { fetchLocalRuntimeStatus } from "../../lib/local-runtime-status-client";
++import type { LocalRuntimeStatus } from "../../lib/panel-contracts";
+ import { resolvePanelState } from "./panel-state";
+ import { summarizeActiveTab as runPanelSummarize } from "./panel-summarize";
+ 
++const LOCAL_RUNTIME_STATUS_CACHE_MS = 15_000;
++
+ export function createBackgroundPanelRuntime<
+   Session extends {
+     windowId: number;
+@@ -56,6 +60,39 @@
+     send(session, { type: "ui:status", status });
+   };
+ 
++  let localRuntimeStatusCache: { value: LocalRuntimeStatus; fetchedAt: number } | null = null;
++  let localRuntimeStatusRefresh: Promise<void> | null = null;
++
++  const getCachedLocalRuntimeStatus = () => {
++    if (
++      localRuntimeStatusCache &&
++      Date.now() - localRuntimeStatusCache.fetchedAt < LOCAL_RUNTIME_STATUS_CACHE_MS
++    ) {
++      return localRuntimeStatusCache.value;
++    }
++    return null;
++  };
++
++  const refreshLocalRuntimeStatus = (session: Session) => {
++    if (localRuntimeStatusRefresh) return;
++    localRuntimeStatusRefresh = (async () => {
++      let status: LocalRuntimeStatus;
++      try {
++        const settings = await loadSettings();
++        const token = settings.token.trim();
++        if (!token) return;
++        status = await fetchLocalRuntimeStatus({ token, fetchImpl });
++      } catch (err) {
++        const message = err instanceof Error ? err.message : "Local runtime status unavailable.";
++        status = { ok: false, error: message };
++      }
++      localRuntimeStatusCache = { value: status, fetchedAt: Date.now() };
++      send(session, { type: "ui:local-runtime-status", status });
++    })().finally(() => {
++      localRuntimeStatusRefresh = null;
++    });
++  };
++
+   const emitState = async (
+     session: Session,
+     status: string,
+@@ -69,11 +106,20 @@
+       getActiveTab,
+       daemonHealth,
+       daemonPing,
++      localRuntimeStatus: getCachedLocalRuntimeStatus(),
+       panelSessionStore,
+       urlsMatch,
+       canSummarizeUrl,
+     });
+     send(session, { type: "ui:state", state: next.state });
++    if (
++      !next.state.localRuntime &&
++      next.state.settings.tokenPresent &&
++      next.state.daemon.ok &&
++      next.state.daemon.authed
++    ) {
++      refreshLocalRuntimeStatus(session);
++    }
+ 
+     if (next.shouldRecover) {
+       void summarizeActiveTab(session, "daemon-recovered");
+diff --git a/apps/chrome-extension/src/entrypoints/background/panel-state.ts b/apps/chrome-extension/src/entrypoints/background/panel-state.ts
+index f97d3f3f374ae2d39e105af217f4ebf6d26d8c49..4d311c6188a6650a23cb263f1cb615e721b1f7c0
+--- a/apps/chrome-extension/src/entrypoints/background/panel-state.ts
++++ b/apps/chrome-extension/src/entrypoints/background/panel-state.ts
+@@ -1,4 +1,4 @@
+-import type { UiState as PanelUiState } from "../../lib/panel-contracts";
++import type { LocalRuntimeStatus, UiState as PanelUiState } from "../../lib/panel-contracts";
+ 
+ export type { PanelUiState };
+ 
+@@ -54,6 +54,7 @@
+   getActiveTab,
+   daemonHealth,
+   daemonPing,
++  localRuntimeStatus,
+   panelSessionStore,
+   urlsMatch,
+   canSummarizeUrl,
+@@ -65,6 +66,7 @@
+   getActiveTab: (windowId: number) => Promise<chrome.tabs.Tab | null>;
+   daemonHealth: () => Promise<{ ok: boolean; error?: string }>;
+   daemonPing: (token: string) => Promise<{ ok: boolean; error?: string }>;
++  localRuntimeStatus: LocalRuntimeStatus | null;
+   panelSessionStore: {
+     isPanelOpen: (session: SessionLike) => boolean;
+     getCachedExtract: (tabId: number, url?: string | null) => CachedExtractLike | null;
+@@ -111,6 +113,7 @@
+     state: {
+       panelOpen: panelSessionStore.isPanelOpen(session),
+       daemon,
++      localRuntime: daemonReady ? localRuntimeStatus : null,
+       tab: { id: tab?.id ?? null, url: tab?.url ?? null, title: tab?.title ?? null },
+       media: cached?.media ?? null,
+       stats: {
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts b/apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
+index 2489d450871376504a9feb58a31c33f4430a302e..7355f7b9409b9ec2c6a9234845be7bb735440a75
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/bg-message-runtime.ts
+@@ -1,4 +1,4 @@
+-import type { BgToPanel, RunStart, UiState } from "../../lib/panel-contracts";
++import type { BgToPanel, LocalRuntimeStatus, RunStart, UiState } from "../../lib/panel-contracts";
+ import {
+   normalizePanelUrl,
+   shouldAcceptRunForCurrentPage,
+@@ -9,6 +9,7 @@
+   msg: BgToPanel;
+   applyUiState: (state: UiState) => void;
+   setStatus: (text: string) => void;
++  handleLocalRuntimeStatus: (status: LocalRuntimeStatus) => void;
+   isStreaming: () => boolean;
+   handleRunError: (message: string) => void;
+   handleSlidesRun: (msg: Extract<BgToPanel, { type: "slides:run" }>) => void;
+@@ -27,6 +28,9 @@
+     case "ui:status":
+       if (!options.isStreaming()) options.setStatus(msg.status);
+       return;
++    case "ui:local-runtime-status":
++      options.handleLocalRuntimeStatus(msg.status);
++      return;
+     case "run:error":
+       options.handleRunError(msg.message);
+       return;
+@@ -69,6 +73,7 @@
+   };
+   applyUiState: (state: UiState) => void;
+   setStatus: (text: string) => void;
++  handleLocalRuntimeStatus: (status: LocalRuntimeStatus) => void;
+   isStreaming: () => boolean;
+   setPhase: (phase: "error", opts?: { error?: string | null }) => void;
+   finishStreamingMessage: () => void;
+@@ -118,6 +123,7 @@
+           options.applyUiState(state);
+         },
+         setStatus: options.setStatus,
++        handleLocalRuntimeStatus: options.handleLocalRuntimeStatus,
+         isStreaming: options.isStreaming,
+         handleRunError: (message) => {
+           const detail = message && message.trim().length > 0 ? message : "Something went wrong.";
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/dom.ts b/apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
+index dcb6104fcf48a940ce9041f4e7f4a63f0fd43a89..7d191971cbb50123bc3e3763508d7fb7e004b8d2
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/dom.ts
+@@ -10,6 +10,10 @@
+   const headerEl = document.querySelector("header") as HTMLElement | null;
+   if (!headerEl) throw new Error("Missing <header>");
+   const progressFillEl = byId<HTMLDivElement>("progressFill");
++  const localRuntimeStatusEl = byId<HTMLDivElement>("localRuntimeStatus");
++  const localRuntimePrivacyEl = byId<HTMLElement>("localRuntimePrivacy");
++  const localRuntimeRouteEl = byId<HTMLSpanElement>("localRuntimeRoute");
++  const localRuntimeDetailEl = byId<HTMLDivElement>("localRuntimeDetail");
+   const drawerEl = byId<HTMLElement>("drawer");
+   const setupEl = byId<HTMLDivElement>("setup");
+   const errorEl = byId<HTMLDivElement>("error");
+@@ -107,6 +111,10 @@
+     lengthRoot,
+     lineLooseBtn,
+     lineTightBtn,
++    localRuntimeDetailEl,
++    localRuntimePrivacyEl,
++    localRuntimeRouteEl,
++    localRuntimeStatusEl,
+     mainEl,
+     metricsEl,
+     metricsHomeEl,
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/index.html b/apps/chrome-extension/src/entrypoints/sidepanel/index.html
+index d9e5894a1e4aed5e9a3efdf860b6abc9b65a04eb..41a35d6a8428cb197a05ba5ee414b7221032dcc6
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/index.html
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/index.html
+@@ -27,6 +27,24 @@
+       <div id="progress" class="progress" aria-hidden="true">
+         <div id="progressFill" class="progressFill"></div>
+       </div>
++      <div
++        id="localRuntimeStatus"
++        class="localRuntimeStatus"
++        data-state="neutral"
++        role="status"
++        aria-live="polite"
++      >
++        <span class="localRuntimeStatus__dot" aria-hidden="true"></span>
++        <div class="localRuntimeStatus__body">
++          <div class="localRuntimeStatus__line">
++            <strong id="localRuntimePrivacy">Checking local privacy</strong>
++            <span id="localRuntimeRoute">Model: auto</span>
++          </div>
++          <div id="localRuntimeDetail" class="localRuntimeStatus__detail">
++            Waiting for daemon status.
++          </div>
++        </div>
++      </div>
+       <div id="slideNotice" class="slideNotice hidden" role="status" aria-live="polite">
+         <span id="slideNoticeMessage" class="slideNotice__message"></span>
+         <div class="slideNotice__actions">
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts b/apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..36248523117407154972b014f504cf64f5b4c5d7
+--- /dev/null
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/local-runtime-status.ts
+@@ -0,0 +1,215 @@
++import type {
++  LocalRuntimeStatus,
++  LocalRuntimeStatusPayload,
++  LocalRuntimeStatusProbe,
++  UiState,
++} from "../../lib/panel-contracts";
++
++type LocalRuntimeTone = "ok" | "warn" | "error" | "neutral";
++
++type LocalRuntimeStatusView = {
++  tone: LocalRuntimeTone;
++  privacy: string;
++  route: string;
++  detail: string;
++};
++
++type LocalRuntimeStatusSurfaceOptions = {
++  rootEl: HTMLElement;
++  privacyEl: HTMLElement;
++  routeEl: HTMLElement;
++  detailEl: HTMLElement;
++};
++
++const remoteProviderPattern = /^(anthropic|google|openrouter|xai|zai|nvidia|github-copilot|cli)\//i;
++
++function trimText(value: unknown): string {
++  return typeof value === "string" ? value.trim() : "";
++}
++
++function formatBucket(bucket: string): string {
++  if (bucket === "traditionalChinese") return "Traditional Chinese";
++  if (bucket === "bilingual") return "Bilingual";
++  if (bucket === "english") return "English";
++  return "Fallback";
++}
++
++function selectedModelInput(status: LocalRuntimeStatusPayload, state: UiState): string {
++  const explicitModel = trimText(state.settings.model);
++  if (explicitModel && explicitModel !== "auto") return explicitModel;
++  const routed = trimText(status.modelHints.selected?.modelInput);
++  if (routed) return routed;
++  const configured = trimText(status.modelHints.configuredModel.input);
++  return configured || explicitModel || "auto";
++}
++
++function routeLabel(status: LocalRuntimeStatusPayload, state: UiState): string {
++  if (status.modelHints.selected) {
++    return `Route: ${formatBucket(status.modelHints.selected.bucket)} -> ${
++      status.modelHints.selected.modelInput
++    }`;
++  }
++
++  const explicitModel = trimText(state.settings.model) || "auto";
++  const configured = trimText(status.modelHints.configuredModel.input);
++  if (explicitModel === "auto" && configured && configured !== "auto") {
++    return `Model: auto -> ${configured}`;
++  }
++  return `Model: ${explicitModel}`;
++}
++
++function selectProbe(status: LocalRuntimeStatusPayload): LocalRuntimeStatusProbe | null {
++  if (status.runtime.configured) {
++    const configured = status.probes.find((probe) => {
++      if (status.runtime.endpointHost && probe.endpointHost === status.runtime.endpointHost) {
++        return true;
++      }
++      return status.runtime.type !== null && probe.runtimeType === status.runtime.type;
++    });
++    if (configured) return configured;
++  }
++  return status.probes.find((probe) => probe.reachable) ?? status.probes[0] ?? null;
++}
++
++function runtimeLabel(probe: LocalRuntimeStatusProbe | null): string {
++  if (!probe) return "local runtime";
++  const label = trimText(probe.runtimeLabel) || trimText(probe.runtimeType) || "local runtime";
++  const host = trimText(probe.endpointHost);
++  return host ? `${label} at ${host}` : label;
++}
++
++function probeAction(errorCode: string | null): string {
++  if (errorCode === "invalid-runtime") {
++    return "Check openai.baseUrl; use a localhost http URL without credentials, query, or fragment.";
++  }
++  if (errorCode === "timeout") {
++    return "Start your local model server, then run summarize local-runtime probe.";
++  }
++  return "Start your local model server or set openai.baseUrl to localhost, then restart the daemon.";
++}
++
++function probeFailureDetail(probe: LocalRuntimeStatusProbe | null): string {
++  const message = trimText(probe?.error?.message) || "Local runtime is not reachable.";
++  const action = probeAction(trimText(probe?.error?.code) || null);
++  return `${message} ${action}`;
++}
++
++function isConfirmedLocalModel(status: LocalRuntimeStatusPayload, modelInput: string): boolean {
++  const normalized = modelInput.trim().toLowerCase();
++  if (!normalized || normalized === "auto" || normalized === "free") return false;
++  if (remoteProviderPattern.test(normalized)) return false;
++  if (!normalized.startsWith("openai/")) return false;
++  if (!status.runtime.endpointHost) return false;
++  return status.probes.some(
++    (probe) => probe.reachable && probe.endpointHost === status.runtime.endpointHost,
++  );
++}
++
++function buildView(
++  state: UiState | null,
++  localRuntimeOverride?: LocalRuntimeStatus | null,
++): LocalRuntimeStatusView {
++  if (!state) {
++    return {
++      tone: "neutral",
++      privacy: "Checking local privacy",
++      route: "Model: auto",
++      detail: "Waiting for daemon status.",
++    };
++  }
++
++  const fallbackRoute = `Model: ${trimText(state.settings.model) || "auto"}`;
++  if (!state.settings.tokenPresent) {
++    return {
++      tone: "warn",
++      privacy: "Setup needed",
++      route: fallbackRoute,
++      detail: "Add the daemon token to check local runtime privacy.",
++    };
++  }
++
++  if (!state.daemon.ok || !state.daemon.authed) {
++    return {
++      tone: "warn",
++      privacy: "Daemon offline",
++      route: fallbackRoute,
++      detail: state.daemon.error || "Run summarize daemon status, then restart the daemon.",
++    };
++  }
++
++  const status = localRuntimeOverride ?? state.localRuntime;
++  if (!status) {
++    return {
++      tone: "neutral",
++      privacy: "Checking local privacy",
++      route: fallbackRoute,
++      detail: "Waiting for local runtime status.",
++    };
++  }
++
++  if (!status.ok) {
++    return {
++      tone: "warn",
++      privacy: "Local status unavailable",
++      route: fallbackRoute,
++      detail: status.error,
++    };
++  }
++
++  const probe = selectProbe(status);
++  const reachable = Boolean(probe?.reachable);
++  const route = routeLabel(status, state);
++  const modelInput = selectedModelInput(status, state);
++  const runtimeDetail = reachable
++    ? `Runtime reachable: ${runtimeLabel(probe)}.`
++    : probeFailureDetail(probe);
++
++  if (status.localOnly.enabled) {
++    return {
++      tone: reachable ? "ok" : "error",
++      privacy: "Local-only on",
++      route,
++      detail: runtimeDetail,
++    };
++  }
++
++  if (isConfirmedLocalModel(status, modelInput)) {
++    return {
++      tone: reachable ? "ok" : "warn",
++      privacy: "Local runtime",
++      route,
++      detail: runtimeDetail,
++    };
++  }
++
++  const warning = status.warnings.find((entry) => entry.trim().length > 0);
++  return {
++    tone: "warn",
++    privacy: "Remote allowed",
++    route,
++    detail:
++      warning ??
++      "Cloud providers may be used. Enable privacy.localOnly in daemon config to block remote routes.",
++  };
++}
++
++export function createLocalRuntimeStatusSurface(options: LocalRuntimeStatusSurfaceOptions) {
++  let lastState: UiState | null = null;
++
++  const render = (state: UiState | null) => {
++    lastState = state;
++    const view = buildView(state);
++    options.rootEl.dataset.state = view.tone;
++    options.privacyEl.textContent = view.privacy;
++    options.routeEl.textContent = view.route;
++    options.detailEl.textContent = view.detail;
++    options.rootEl.title = `${view.privacy}. ${view.route}. ${view.detail}`;
++  };
++
++  const renderStatus = (status: LocalRuntimeStatus) => {
++    if (!lastState) return;
++    render({ ...lastState, localRuntime: status });
++  };
++
++  return { render, renderStatus };
++}
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/main.ts b/apps/chrome-extension/src/entrypoints/sidepanel/main.ts
+index 58b299bba0a92bcd6f4e2dbf871a7f9750ef9375..6a7c192ab968c80fa910017786f0202740ca671c
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/main.ts
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/main.ts
+@@ -33,6 +33,7 @@
+ import { createErrorController } from "./error-controller";
+ import { createHeaderController } from "./header-controller";
+ import { createSidepanelInteractionRuntime } from "./interaction-runtime";
++import { createLocalRuntimeStatusSurface } from "./local-runtime-status";
+ import { createMetricsController } from "./metrics-controller";
+ import { createNavigationRuntime } from "./navigation-runtime";
+ import { createPanelCacheController, type PanelCachePayload } from "./panel-cache";
+@@ -97,6 +98,10 @@
+   lengthRoot,
+   lineLooseBtn,
+   lineTightBtn,
++  localRuntimeDetailEl,
++  localRuntimePrivacyEl,
++  localRuntimeRouteEl,
++  localRuntimeStatusEl,
+   mainEl,
+   metricsEl,
+   metricsHomeEl,
+@@ -548,6 +553,14 @@
+   }),
+ });
+ 
++const localRuntimeStatusSurface = createLocalRuntimeStatusSurface({
++  rootEl: localRuntimeStatusEl,
++  privacyEl: localRuntimePrivacyEl,
++  routeEl: localRuntimeRouteEl,
++  detailEl: localRuntimeDetailEl,
++});
++localRuntimeStatusSurface.render(null);
++
+ headerController.updateHeaderOffset();
+ window.addEventListener("resize", headerController.updateHeaderOffset);
+ 
+@@ -1277,6 +1290,8 @@
+ 
+ function updateControls(state: UiState) {
+   uiStateRuntime.apply(state);
++  localRuntimeStatusSurface.render(state);
++  headerController.updateHeaderOffset();
+ }
+ 
+ const bgMessageRuntime = createSidepanelBgMessageRuntime({
+@@ -1285,6 +1300,15 @@
+   setStatus: (text) => {
+     headerController.setStatus(text);
+   },
++  handleLocalRuntimeStatus: (status) => {
++    if (panelState.ui) {
++      panelState.ui = { ...panelState.ui, localRuntime: status };
++      localRuntimeStatusSurface.render(panelState.ui);
++      headerController.updateHeaderOffset();
++    } else {
++      localRuntimeStatusSurface.renderStatus(status);
++    }
++  },
+   isStreaming,
+   setPhase,
+   finishStreamingMessage: () => {
+diff --git a/apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css b/apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
+index ece561bfc97e21b46b1c7b0e8a940c1c2b6bc2c4..48d385f1b30821f1893a862baf284c26ad155695
+--- a/apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
++++ b/apps/chrome-extension/src/entrypoints/sidepanel/styles/header.css
+@@ -63,6 +63,90 @@
+   gap: 8px;
+ }
+ 
++.localRuntimeStatus {
++  display: grid;
++  grid-template-columns: 8px minmax(0, 1fr);
++  align-items: center;
++  gap: 8px;
++  min-height: 34px;
++  padding: 6px 8px;
++  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
++  border-radius: 8px;
++  background: color-mix(in srgb, var(--surface) 82%, transparent);
++  color: var(--muted);
++  font-size: 11px;
++}
++
++.localRuntimeStatus__dot {
++  width: 8px;
++  height: 8px;
++  border-radius: 999px;
++  background: var(--muted);
++  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 10%, transparent);
++}
++
++.localRuntimeStatus__body {
++  display: grid;
++  gap: 2px;
++  min-width: 0;
++}
++
++.localRuntimeStatus__line {
++  display: flex;
++  align-items: baseline;
++  gap: 8px;
++  min-width: 0;
++}
++
++.localRuntimeStatus__line strong,
++.localRuntimeStatus__line span,
++.localRuntimeStatus__detail {
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++.localRuntimeStatus__line strong {
++  flex: 0 0 auto;
++  color: var(--text);
++  font-size: 11px;
++}
++
++.localRuntimeStatus__line span {
++  min-width: 0;
++}
++
++.localRuntimeStatus__detail {
++  min-width: 0;
++}
++
++.localRuntimeStatus[data-state="ok"] {
++  border-color: color-mix(in srgb, #2bb673 35%, var(--border));
++  background: color-mix(in srgb, #2bb673 9%, var(--surface));
++}
++
++.localRuntimeStatus[data-state="ok"] .localRuntimeStatus__dot {
++  background: #2bb673;
++}
++
++.localRuntimeStatus[data-state="warn"] {
++  border-color: color-mix(in srgb, #d99a2b 42%, var(--border));
++  background: color-mix(in srgb, #d99a2b 10%, var(--surface));
++}
++
++.localRuntimeStatus[data-state="warn"] .localRuntimeStatus__dot {
++  background: #d99a2b;
++}
++
++.localRuntimeStatus[data-state="error"] {
++  border-color: color-mix(in srgb, #ff6a6a 52%, var(--border));
++  background: color-mix(in srgb, #ff6a6a 10%, var(--surface));
++}
++
++.localRuntimeStatus[data-state="error"] .localRuntimeStatus__dot {
++  background: #ff6a6a;
++}
++
+ .summarizeControlRoot {
+   display: flex;
+ }
+diff --git a/apps/chrome-extension/src/lib/local-runtime-status-client.ts b/apps/chrome-extension/src/lib/local-runtime-status-client.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..8cbbbce3e18d87680ef8e873594c8623e681a1e8
+--- /dev/null
++++ b/apps/chrome-extension/src/lib/local-runtime-status-client.ts
+@@ -0,0 +1,72 @@
++import type { LocalRuntimeStatus, LocalRuntimeStatusPayload } from "./panel-contracts";
++
++const LOCAL_RUNTIME_STATUS_TIMEOUT_MS = 4000;
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === "object" && value !== null;
++}
++
++function isLocalRuntimeStatusPayload(
++  value: Record<string, unknown>,
++): value is LocalRuntimeStatusPayload {
++  return (
++    value.ok === true &&
++    isRecord(value.localOnly) &&
++    isRecord(value.runtime) &&
++    isRecord(value.modelHints) &&
++    Array.isArray(value.probes) &&
++    Array.isArray(value.warnings)
++  );
++}
++
++function statusHttpError(res: Response): string {
++  if (res.status === 404) {
++    return "Daemon does not support local runtime status. Restart the daemon after updating.";
++  }
++  const statusText = res.statusText.trim();
++  return `Local runtime status failed (${res.status}${statusText ? ` ${statusText}` : ""})`;
++}
++
++export async function fetchLocalRuntimeStatus({
++  token,
++  fetchImpl = fetch,
++}: {
++  token: string;
++  fetchImpl?: typeof fetch;
++}): Promise<LocalRuntimeStatus> {
++  const trimmedToken = token.trim();
++  if (!trimmedToken) {
++    return { ok: false, error: "Add the daemon token to check local runtime privacy." };
++  }
++
++  const controller = new AbortController();
++  const timeout = setTimeout(() => controller.abort(), LOCAL_RUNTIME_STATUS_TIMEOUT_MS);
++  try {
++    const res = await fetchImpl("http://127.0.0.1:8787/v1/local-runtime/status?timeoutMs=1200", {
++      headers: { Authorization: `Bearer ${trimmedToken}` },
++      signal: controller.signal,
++    });
++    if (!res.ok) {
++      return { ok: false, error: statusHttpError(res) };
++    }
++    const json = (await res.json()) as unknown;
++    if (!isRecord(json) || !isLocalRuntimeStatusPayload(json)) {
++      return { ok: false, error: "Daemon returned an invalid local runtime status." };
++    }
++    return json;
++  } catch (err) {
++    if (err instanceof DOMException && err.name === "AbortError") {
++      return { ok: false, error: "Local runtime status timed out." };
++    }
++    const message = err instanceof Error ? err.message : "Local runtime status failed.";
++    if (message.toLowerCase() === "failed to fetch") {
++      return {
++        ok: false,
++        error: "Local runtime status unavailable (daemon unreachable or blocked by Chrome).",
++      };
++    }
++    return { ok: false, error: message };
++  } finally {
++    clearTimeout(timeout);
++  }
++}
+diff --git a/apps/chrome-extension/src/lib/panel-contracts.ts b/apps/chrome-extension/src/lib/panel-contracts.ts
+index 2e551b249c6105c10d142e4c2aab01c38b1294ee..7a6612c93e53322f68318f6ac57c195aaef2b885
+--- a/apps/chrome-extension/src/lib/panel-contracts.ts
++++ b/apps/chrome-extension/src/lib/panel-contracts.ts
+@@ -1,9 +1,83 @@
+ import type { AssistantMessage, Message } from "@mariozechner/pi-ai";
+ import type { SseSlidesData } from "./runtime-contracts";
+ 
++export type LocalRuntimeKind = "openai-compatible" | "llama-cpp" | "ollama";
++
++export type LocalRuntimeStatusProbe = {
++  ok: boolean;
++  reachable: boolean;
++  runtimeType: LocalRuntimeKind | null;
++  runtimeLabel: string | null;
++  endpointHost: string | null;
++  timeoutMs: number;
++  models: {
++    count: number;
++    hints: string[];
++  };
++  server: {
++    status: number;
++    name?: string;
++    version?: string;
++  } | null;
++  error: {
++    code: string;
++    message: string;
++    status?: number;
++  } | null;
++};
++
++export type LocalRuntimeStatusPayload = {
++  ok: true;
++  localOnly: {
++    enabled: boolean;
++    source: string | null;
++  };
++  runtime: {
++    configured: boolean;
++    type: LocalRuntimeKind | null;
++    endpointHost: string | null;
++    baseUrlSource: "configured" | "default" | null;
++  };
++  modelHints: {
++    configuredModel: {
++      input: string;
++      source: "env" | "config" | "default";
++    };
++    localRoutingEnabled: boolean;
++    selected: {
++      bucket: "english" | "traditionalChinese" | "bilingual" | "fallback";
++      modelInput: string;
++      language: {
++        kind: string;
++        tag?: string;
++        label?: string;
++      };
++    } | null;
++    routes: Array<{
++      bucket: "english" | "traditionalChinese" | "bilingual" | "fallback";
++      modelInput: string;
++      language: {
++        kind: string;
++        tag?: string;
++        label?: string;
++      };
++    }>;
++  };
++  probes: LocalRuntimeStatusProbe[];
++  warnings: string[];
++};
++
++export type LocalRuntimeStatus =
++  | LocalRuntimeStatusPayload
++  | {
++      ok: false;
++      error: string;
++    };
++
+ export type UiState = {
+   panelOpen: boolean;
+   daemon: { ok: boolean; authed: boolean; error?: string };
++  localRuntime: LocalRuntimeStatus | null;
+   tab: { id: number | null; url: string | null; title: string | null };
+   media: { hasVideo: boolean; hasAudio: boolean; hasCaptions: boolean } | null;
+   stats: { pageWords: number | null; videoDurationSeconds: number | null };
+@@ -84,6 +158,7 @@
+ export type BgToPanel =
+   | { type: "ui:state"; state: UiState }
+   | { type: "ui:status"; status: string }
++  | { type: "ui:local-runtime-status"; status: LocalRuntimeStatus }
+   | { type: "run:start"; run: RunStart }
+   | { type: "run:error"; message: string }
+   | { type: "slides:run"; ok: boolean; runId?: string; url?: string; error?: string }
+diff --git a/apps/chrome-extension/tests/helpers/daemon-fixtures.ts b/apps/chrome-extension/tests/helpers/daemon-fixtures.ts
+index c55350a0b3993b04bd6b2f36f34ef523df15de09..0821e7fddefda377231b337684ff810fda057900
+--- a/apps/chrome-extension/tests/helpers/daemon-fixtures.ts
++++ b/apps/chrome-extension/tests/helpers/daemon-fixtures.ts
+@@ -59,6 +59,48 @@
+       if (url === "http://127.0.0.1:8787/v1/ping") {
+         return new Response("", { status: 200 });
+       }
++      if (url.startsWith("http://127.0.0.1:8787/v1/local-runtime/status")) {
++        return new Response(
++          JSON.stringify({
++            ok: true,
++            localOnly: { enabled: true, source: "privacy.localOnly" },
++            runtime: {
++              configured: true,
++              type: "openai-compatible",
++              endpointHost: "127.0.0.1:8080",
++              baseUrlSource: "configured",
++            },
++            modelHints: {
++              configuredModel: { input: "auto", source: "default" },
++              localRoutingEnabled: true,
++              selected: {
++                bucket: "fallback",
++                modelInput: "openai/llama-local",
++                language: { kind: "auto" },
++              },
++              routes: [],
++            },
++            probes: [
++              {
++                ok: true,
++                reachable: true,
++                runtimeType: "openai-compatible",
++                runtimeLabel: "OpenAI-compatible",
++                endpointHost: "127.0.0.1:8080",
++                timeoutMs: 1200,
++                models: { count: 1, hints: ["llama-local"] },
++                server: { status: 200, name: "test-runtime" },
++                error: null,
++              },
++            ],
++            warnings: [],
++          }),
++          {
++            status: 200,
++            headers: { "content-type": "application/json" },
++          },
++        );
++      }
+       if (url === "http://127.0.0.1:8787/v1/summarize") {
+         globalThis.__summarizeCalls += 1;
+         globalThis.__summarizeCallTimes.push(Date.now());
+diff --git a/apps/chrome-extension/tests/helpers/extension-harness.ts b/apps/chrome-extension/tests/helpers/extension-harness.ts
+index dd00406c824c552fd6b315f9c07acb21693fcf14..a9f6f4e92bfab8a0006c78b5d8152d9984691a33
+--- a/apps/chrome-extension/tests/helpers/extension-harness.ts
++++ b/apps/chrome-extension/tests/helpers/extension-harness.ts
+@@ -24,6 +24,10 @@
+ export type UiState = {
+   panelOpen: boolean;
+   daemon: { ok: boolean; authed: boolean; error?: string };
++  localRuntime: {
++    ok: boolean;
++    [key: string]: unknown;
++  } | null;
+   tab: { id: number | null; url: string | null; title: string | null };
+   media: { hasVideo: boolean; hasAudio: boolean; hasCaptions: boolean } | null;
+   stats: { pageWords: number | null; videoDurationSeconds: number | null };
+@@ -46,6 +50,7 @@
+ const defaultUiState: UiState = {
+   panelOpen: true,
+   daemon: { ok: true, authed: true },
++  localRuntime: null,
+   tab: { id: null, url: null, title: null },
+   media: null,
+   stats: { pageWords: null, videoDurationSeconds: null },
+@@ -70,6 +75,10 @@
+     ...defaultUiState,
+     ...overrides,
+     daemon: { ...defaultUiState.daemon, ...overrides.daemon },
++    localRuntime:
++      typeof overrides.localRuntime === "undefined"
++        ? defaultUiState.localRuntime
++        : overrides.localRuntime,
+     tab: { ...defaultUiState.tab, ...overrides.tab },
+     settings: { ...defaultUiState.settings, ...overrides.settings },
+   };
+diff --git a/apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts b/apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..9628cee11920bda5d4cdfb416b82bf47872a3546
+--- /dev/null
++++ b/apps/chrome-extension/tests/sidepanel.local-runtime-status.spec.ts
+@@ -0,0 +1,176 @@
++import { expect, test } from "@playwright/test";
++import {
++  assertNoErrors,
++  buildUiState,
++  closeExtension,
++  getBrowserFromProject,
++  launchExtension,
++  openExtensionPage,
++  seedSettings,
++  sendBgMessage,
++  waitForPanelPort,
++} from "./helpers/extension-harness";
++import { allowFirefoxExtensionTests } from "./helpers/extension-test-config";
++import { waitForSettingsHydratedHook } from "./helpers/panel-hooks";
++
++test.skip(
++  ({ browserName }) => browserName === "firefox" && !allowFirefoxExtensionTests,
++  "Firefox extension tests are blocked by Playwright limitations. Set ALLOW_FIREFOX_EXTENSION_TESTS=1 to run.",
++);
++
++function buildLocalRuntimeStatus(overrides: Record<string, unknown> = {}) {
++  return {
++    ok: true,
++    localOnly: { enabled: true, source: "privacy.localOnly" },
++    runtime: {
++      configured: true,
++      type: "openai-compatible",
++      endpointHost: "127.0.0.1:8080",
++      baseUrlSource: "configured",
++    },
++    modelHints: {
++      configuredModel: { input: "auto", source: "default" },
++      localRoutingEnabled: true,
++      selected: {
++        bucket: "traditionalChinese",
++        modelInput: "openai/qwen-local",
++        language: { kind: "fixed", tag: "zh-TW", label: "Traditional Chinese" },
++      },
++      routes: [],
++    },
++    probes: [
++      {
++        ok: true,
++        reachable: true,
++        runtimeType: "openai-compatible",
++        runtimeLabel: "OpenAI-compatible",
++        endpointHost: "127.0.0.1:8080",
++        timeoutMs: 1200,
++        models: { count: 1, hints: ["qwen-local"] },
++        server: { status: 200, name: "llama.cpp" },
++        error: null,
++      },
++    ],
++    warnings: [],
++    ...overrides,
++  };
++}
++
++test("sidepanel renders local-only runtime and selected route", async ({
++  browserName: _browserName,
++}, testInfo) => {
++  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
++
++  try {
++    await seedSettings(harness, { token: "test-token", autoSummarize: false, model: "auto" });
++    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
++    await waitForPanelPort(page);
++    await waitForSettingsHydratedHook(page);
++
++    await sendBgMessage(harness, {
++      type: "ui:state",
++      state: buildUiState({
++        settings: { tokenPresent: true, autoSummarize: false, model: "auto", length: "xl" },
++        localRuntime: buildLocalRuntimeStatus(),
++      }),
++    });
++
++    const status = page.locator("#localRuntimeStatus");
++    await expect(status).toBeVisible();
++    await expect(status).toHaveAttribute("data-state", "ok");
++    await expect(page.locator("#localRuntimePrivacy")).toHaveText("Local-only on");
++    await expect(page.locator("#localRuntimeRoute")).toHaveText(
++      "Route: Traditional Chinese -> openai/qwen-local",
++    );
++    await expect(page.locator("#localRuntimeDetail")).toContainText(
++      "Runtime reachable: OpenAI-compatible at 127.0.0.1:8080.",
++    );
++    await expect(status).not.toContainText("sk-");
++    assertNoErrors(harness);
++  } finally {
++    await closeExtension(harness.context, harness.userDataDir);
++  }
++});
++
++test("sidepanel warns when remote providers are allowed", async ({
++  browserName: _browserName,
++}, testInfo) => {
++  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
++
++  try {
++    await seedSettings(harness, { token: "test-token", autoSummarize: false, model: "free" });
++    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
++    await waitForPanelPort(page);
++    await waitForSettingsHydratedHook(page);
++
++    await sendBgMessage(harness, {
++      type: "ui:state",
++      state: buildUiState({
++        settings: { tokenPresent: true, autoSummarize: false, model: "free", length: "xl" },
++        localRuntime: buildLocalRuntimeStatus({
++          localOnly: { enabled: false, source: null },
++          modelHints: {
++            configuredModel: { input: "auto", source: "default" },
++            localRoutingEnabled: false,
++            selected: null,
++            routes: [],
++          },
++        }),
++      }),
++    });
++
++    await expect(page.locator("#localRuntimeStatus")).toHaveAttribute("data-state", "warn");
++    await expect(page.locator("#localRuntimePrivacy")).toHaveText("Remote allowed");
++    await expect(page.locator("#localRuntimeRoute")).toHaveText("Model: free");
++    await expect(page.locator("#localRuntimeDetail")).toContainText(
++      "Enable privacy.localOnly in daemon config",
++    );
++    assertNoErrors(harness);
++  } finally {
++    await closeExtension(harness.context, harness.userDataDir);
++  }
++});
++
++test("sidepanel shows actionable local runtime setup errors", async ({
++  browserName: _browserName,
++}, testInfo) => {
++  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name));
++
++  try {
++    await seedSettings(harness, { token: "test-token", autoSummarize: false, model: "auto" });
++    const page = await openExtensionPage(harness, "sidepanel.html", "#title");
++    await waitForPanelPort(page);
++    await waitForSettingsHydratedHook(page);
++
++    await sendBgMessage(harness, {
++      type: "ui:state",
++      state: buildUiState({
++        settings: { tokenPresent: true, autoSummarize: false, model: "auto", length: "xl" },
++        localRuntime: buildLocalRuntimeStatus({
++          probes: [
++            {
++              ok: false,
++              reachable: false,
++              runtimeType: "openai-compatible",
++              runtimeLabel: "OpenAI-compatible",
++              endpointHost: "127.0.0.1:8080",
++              timeoutMs: 1200,
++              models: { count: 0, hints: [] },
++              server: null,
++              error: { code: "connection-error", message: "Local runtime probe failed." },
++            },
++          ],
++        }),
++      }),
++    });
++
++    await expect(page.locator("#localRuntimeStatus")).toHaveAttribute("data-state", "error");
++    await expect(page.locator("#localRuntimePrivacy")).toHaveText("Local-only on");
++    await expect(page.locator("#localRuntimeDetail")).toContainText(
++      "Start your local model server or set openai.baseUrl to localhost",
++    );
++    assertNoErrors(harness);
++  } finally {
++    await closeExtension(harness.context, harness.userDataDir);
++  }
++});
+
+tokens used
+598,868
+<promise>COMPLETE</promise>
