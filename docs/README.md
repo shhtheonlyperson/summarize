@@ -14,6 +14,7 @@ summary: "Docs index for summarize behaviors and modes."
 - `docs/local-llm-onboarding.md` — Mac-first llama.cpp/Ollama setup, local routing, probes, and local-only mode
 - `docs/local-first-roadmap.md` — local-first fork thesis, non-goals, and staged architecture
 - `docs/local-model-capabilities-audit.md` — source-grounded local/OpenAI-compatible provider and request-flow audit
+- `docs/local-research-memory-design.md` — durable local research memory backend, entities, and privacy boundaries
 - `docs/llm.md` — LLM summarization + model config (Gateway/OpenAI)
 - `docs/manual-tests.md` — manual end-to-end test checklist
 - `docs/model-auto.md` — automatic model selection (`--model auto`)

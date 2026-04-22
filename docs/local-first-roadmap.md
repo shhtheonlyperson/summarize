@@ -74,7 +74,9 @@ execution. Add Mac-first onboarding for local model servers and verification com
 ### Stage 6: Local research memory
 
 Design and then add a local storage layer for runs, sources, artifacts, prompt metadata, model route metadata, privacy
-mode metadata, and failures. Local-only mode must keep protected run metadata and artifacts on localhost.
+mode metadata, and failures. The initial design chooses a dedicated SQLite store plus local artifact files; see
+[`docs/local-research-memory-design.md`](local-research-memory-design.md). Local-only mode must keep protected run
+metadata and artifacts on localhost.
 
 ## Implementation Intent
 
