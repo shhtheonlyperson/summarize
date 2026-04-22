@@ -1,0 +1,214 @@
+{
+  "version": 1,
+  "project": "local-first-bilingual-summarize",
+  "summary": "Fork Summarize into a local-first, bilingual research workspace. Preserve upstream extraction, media, side-panel, and daemon strengths while differentiating through private local LLM operation, language-aware local model routing, runtime diagnostics, and durable local research memory.",
+  "qualityGates": [
+    "Follow AGENTS.md operational instructions.",
+    "Run targeted tests for the changed package or app.",
+    "Run pnpm -s typecheck before completing stories that touch TypeScript source.",
+    "Run pnpm -s check before completing stories that touch shared runtime, config, daemon routing, or release-facing behavior.",
+    "For side-panel UI stories, run pnpm -C apps/chrome-extension build and the supported browser/extension test path from AGENTS.md when feasible."
+  ],
+  "stories": [
+    {
+      "id": "LLR-001",
+      "title": "Establish Local-First Fork Positioning",
+      "status": "in_progress",
+      "dependsOn": [],
+      "description": "Make the fork's intended value proposition explicit without destabilizing package publishing or upstream compatibility. Document that this fork keeps upstream generic summarization but adds private local LLM setup, bilingual routing, and local research memory.",
+      "acceptanceCriteria": [
+        "Add a local-first roadmap or docs page that explains the fork thesis, non-goals, and staged architecture.",
+        "Update README.md with a concise local-first fork note that points to the new roadmap without removing upstream feature documentation.",
+        "Document the upstream remote workflow and local fork goals in AGENTS.md operational notes.",
+        "Do not rename npm package IDs or binaries in this story.",
+        "Run pnpm -s typecheck or a narrower no-op-safe verification if only Markdown files changed."
+      ],
+      "startedAt": "2026-04-22T15:50:58.410446+00:00",
+      "completedAt": null,
+      "updatedAt": "2026-04-22T15:50:58.410571+00:00"
+    },
+    {
+      "id": "LLR-002",
+      "title": "Audit Existing Local Model Capabilities",
+      "status": "open",
+      "dependsOn": [
+        "LLR-001"
+      ],
+      "description": "Create a source-grounded audit of upstream's current local model support so future stories extend the right modules instead of duplicating existing provider/config logic.",
+      "acceptanceCriteria": [
+        "Document current local/OpenAI-compatible provider paths, daemon request flow, extension setting flow, and relevant config files.",
+        "Identify where local-only safety checks should live for CLI, daemon, and extension-initiated runs.",
+        "Identify where language-aware routing should live and which existing config types can be extended.",
+        "Add any discovered operational caveats to the Ralph progress log through the normal build loop.",
+        "Do not change runtime behavior in this story."
+      ]
+    },
+    {
+      "id": "LLR-003",
+      "title": "Add Local Runtime Registry Types",
+      "status": "open",
+      "dependsOn": [
+        "LLR-002"
+      ],
+      "description": "Introduce typed local runtime registry primitives for llama.cpp-compatible OpenAI endpoints and Ollama without changing default behavior. The registry should be usable by CLI, daemon, and extension code.",
+      "acceptanceCriteria": [
+        "Add typed runtime descriptors for OpenAI-compatible, llama.cpp, and Ollama local runtimes.",
+        "Add defaults that prefer 127.0.0.1 localhost endpoints and avoid remote URLs unless explicitly configured.",
+        "Add validation helpers for local runtime base URLs.",
+        "Add unit tests for runtime descriptor parsing and URL validation.",
+        "Run targeted tests plus pnpm -s typecheck."
+      ]
+    },
+    {
+      "id": "LLR-004",
+      "title": "Add Local Runtime Probe Logic",
+      "status": "open",
+      "dependsOn": [
+        "LLR-003"
+      ],
+      "description": "Add reusable probe logic that can test whether a configured local runtime is reachable and expose model/server metadata where possible.",
+      "acceptanceCriteria": [
+        "Implement non-streaming probe functions for OpenAI-compatible llama.cpp endpoints and Ollama.",
+        "Probe requests must use bounded timeouts and predictable error objects.",
+        "Add tests using mocked fetch for reachable, unreachable, malformed, and timeout cases.",
+        "Do not require a live local model server in the default test suite.",
+        "Run targeted tests plus pnpm -s typecheck."
+      ]
+    },
+    {
+      "id": "LLR-005",
+      "title": "Add CLI Local Runtime Probe Command",
+      "status": "open",
+      "dependsOn": [
+        "LLR-004"
+      ],
+      "description": "Expose local runtime diagnostics in the CLI so users can verify their local LLM setup before launching the extension or daemon.",
+      "acceptanceCriteria": [
+        "Add a CLI command for probing configured local runtimes.",
+        "The command must print clear success, warning, and failure messages for local endpoints.",
+        "The command must support JSON output for tests and scripts if the CLI has existing JSON output conventions.",
+        "Add CLI tests that mock probe results and do not require a live model server.",
+        "Update docs with the probe command.",
+        "Run targeted CLI tests plus pnpm -s typecheck."
+      ]
+    },
+    {
+      "id": "LLR-006",
+      "title": "Add Language-Aware Local Model Routing",
+      "status": "open",
+      "dependsOn": [
+        "LLR-003"
+      ],
+      "description": "Add routing policy that can choose different local models/endpoints for English, Traditional Chinese, and bilingual outputs while preserving existing explicit model behavior.",
+      "acceptanceCriteria": [
+        "Add config shape for local routing defaults such as English model, Traditional Chinese model, bilingual model, and fallback local model.",
+        "If a user explicitly supplies a model, preserve existing behavior and do not override it.",
+        "When local routing is enabled and no explicit model is supplied, choose the model based on requested output language.",
+        "Traditional Chinese output should be able to prefer a Qwen-class local model by config/default profile.",
+        "English output should be able to prefer a Gemma/Llama-class local model by config/default profile.",
+        "Add deterministic unit tests for routing choices and explicit-model precedence.",
+        "Run targeted tests plus pnpm -s typecheck."
+      ]
+    },
+    {
+      "id": "LLR-007",
+      "title": "Add Local-Only Privacy Guard",
+      "status": "open",
+      "dependsOn": [
+        "LLR-006"
+      ],
+      "description": "Add a hard privacy mode that prevents summarization requests from using cloud providers unless the user explicitly disables local-only mode.",
+      "acceptanceCriteria": [
+        "Add config/request support for local-only mode using existing config patterns.",
+        "When local-only mode is enabled, reject or reroute non-local model/provider selections before any remote provider request is made.",
+        "Return clear errors that explain which setting caused the remote provider to be blocked.",
+        "Add tests proving known remote providers are blocked in local-only mode.",
+        "Add tests proving localhost/OpenAI-compatible local endpoints remain allowed.",
+        "Run targeted tests plus pnpm -s check."
+      ]
+    },
+    {
+      "id": "LLR-008",
+      "title": "Expose Local Runtime Status in Daemon API",
+      "status": "open",
+      "dependsOn": [
+        "LLR-004",
+        "LLR-007"
+      ],
+      "description": "Expose daemon endpoints for local runtime status so the side panel can explain readiness, model routing, and local-only privacy state.",
+      "acceptanceCriteria": [
+        "Add a token-authenticated daemon endpoint for local runtime status/probes.",
+        "Endpoint response must include local-only mode, configured runtime type, endpoint host, selected model hints, and probe status.",
+        "Endpoint must not leak API keys or sensitive environment values.",
+        "Add daemon tests with mocked probe logic.",
+        "Run daemon tests plus pnpm -s typecheck."
+      ]
+    },
+    {
+      "id": "LLR-009",
+      "title": "Show Local-Only Status in Side Panel",
+      "status": "open",
+      "dependsOn": [
+        "LLR-008"
+      ],
+      "description": "Make the side panel visibly communicate whether a run will stay local or use a remote provider, and surface local runtime readiness problems.",
+      "acceptanceCriteria": [
+        "Add a compact local runtime/privacy status surface to the side panel.",
+        "Show local-only enabled, local runtime reachable, selected route/model, and actionable setup errors.",
+        "Avoid exposing secrets or raw environment values in the UI.",
+        "Add extension tests for local status rendering and privacy warning behavior.",
+        "Run pnpm -C apps/chrome-extension build and supported extension tests when feasible."
+      ]
+    },
+    {
+      "id": "LLR-010",
+      "title": "Add Mac-First Local LLM Onboarding",
+      "status": "open",
+      "dependsOn": [
+        "LLR-005",
+        "LLR-009"
+      ],
+      "description": "Provide clear setup instructions for running a local LLM server and connecting it to the CLI, daemon, and extension, focused first on macOS.",
+      "acceptanceCriteria": [
+        "Document llama.cpp OpenAI-compatible server setup for macOS.",
+        "Document Ollama setup if supported by the implemented runtime registry.",
+        "Include exact config examples for English, Traditional Chinese, and bilingual routing.",
+        "Include local-only mode examples and expected probe output.",
+        "Link onboarding docs from README and extension docs.",
+        "Run documentation-safe verification and typecheck if no runtime files changed."
+      ]
+    },
+    {
+      "id": "LLR-011",
+      "title": "Add Local Research Memory Design",
+      "status": "open",
+      "dependsOn": [
+        "LLR-001"
+      ],
+      "description": "Design durable local research memory without implementing storage yet. The design should choose a storage backend and describe how runs, sources, artifacts, prompts, model routes, and failures will be stored locally.",
+      "acceptanceCriteria": [
+        "Add a design document for durable local research memory.",
+        "Compare Postgres, SQLite, and existing cache/session storage for this fork's local-first goals.",
+        "Define initial entities for runs, sources, artifacts, events, model route metadata, and privacy mode metadata.",
+        "State which data must never leave localhost in local-only mode.",
+        "Do not implement the database in this story."
+      ]
+    },
+    {
+      "id": "LLR-012",
+      "title": "Add Local Research Memory Schema Skeleton",
+      "status": "open",
+      "dependsOn": [
+        "LLR-011"
+      ],
+      "description": "Add the first storage schema/migration skeleton for durable local research memory using the backend selected in the design story.",
+      "acceptanceCriteria": [
+        "Add migration/schema files for settings, runs, sources, artifacts, events, and model route metadata.",
+        "Keep default tests deterministic and do not require a live database unless behind an explicit environment flag.",
+        "Add static schema tests that validate required entities and indexes.",
+        "Document how to initialize the local research memory store.",
+        "Run targeted tests plus pnpm -s typecheck."
+      ]
+    }
+  ]
+}
