@@ -1,6 +1,14 @@
 # Activity Log
 
 ## Run Summary
+- 2026-04-22 20:45:41 | run=20260422-192541-94292 | iter=8 | mode=build | story=PNL-008 | duration=386s | status=success
+- 2026-04-22 20:39:13 | run=20260422-192541-94292 | iter=7 | mode=build | story=PNL-007 | duration=664s | status=success
+- 2026-04-22 20:28:06 | run=20260422-192541-94292 | iter=6 | mode=build | story=PNL-006 | duration=537s | status=success
+- 2026-04-22 20:19:07 | run=20260422-192541-94292 | iter=5 | mode=build | story=PNL-005 | duration=562s | status=success
+- 2026-04-22 20:09:43 | run=20260422-192541-94292 | iter=4 | mode=build | story=PNL-004 | duration=1070s | status=success
+- 2026-04-22 19:51:51 | run=20260422-192541-94292 | iter=3 | mode=build | story=PNL-003 | duration=842s | status=success
+- 2026-04-22 19:37:46 | run=20260422-192541-94292 | iter=2 | mode=build | story=PNL-002 | duration=392s | status=success
+- 2026-04-22 19:31:12 | run=20260422-192541-94292 | iter=1 | mode=build | story=PNL-001 | duration=331s | status=success
 - 2026-04-22 10:46:29 | run=20260422-085058-72504 | iter=12 | mode=build | story=LLR-012 | duration=410s | status=success
 - 2026-04-22 10:39:36 | run=20260422-085058-72504 | iter=11 | mode=build | story=LLR-011 | duration=309s | status=success
 - 2026-04-22 10:34:25 | run=20260422-085058-72504 | iter=10 | mode=build | story=LLR-010 | duration=668s | status=success
@@ -102,3 +110,63 @@
 [2026-04-22 10:44:51] Reviewed LLR-012 schema changes for security performance and regression risk before commit
 [2026-04-22 10:45:49] Updated progress log and run summary for LLR-012
 [2026-04-22 10:46:29] ITERATION 12 end (duration=410s)
+[2026-04-22 19:25:41] ITERATION 1 start (mode=build story=PNL-001)
+[2026-04-22 19:26:17] Start PNL-001 audit work (logger path fallback: .agents/ralph/log-activity.sh)
+[2026-04-22 19:29:53] Verification passed for PNL-001 audit: docs:list, typecheck, build, and check
+[2026-04-22 19:30:13] Reviewed PNL-001 audit changes for security, performance, and regression risk (documentation/log only)
+[2026-04-22 19:30:59] Updated progress log and run summary for PNL-001 audit
+[2026-04-22 19:31:12] ITERATION 1 end (duration=331s)
+[2026-04-22 19:31:15] ITERATION 2 start (mode=build story=PNL-002)
+[2026-04-22 19:31:45] Start PNL-002 research memory storage contract story
+[2026-04-22 19:35:05] Added research memory store contract and in-memory contract tests for PNL-002
+[2026-04-22 19:36:02] Verification passed for PNL-002: targeted research-memory tests, typecheck, build, and check
+[2026-04-22 19:36:37] Updated PNL-002 progress log entry
+[2026-04-22 19:37:28] Corrected PNL-002 progress entry to append at end of progress log
+[2026-04-22 19:37:46] ITERATION 2 end (duration=392s)
+[2026-04-22 19:37:49] ITERATION 3 start (mode=build story=PNL-003)
+[2026-04-22 19:38:31] Start PNL-003 optional Postgres research memory backend (logger path: ralph on PATH)
+[2026-04-22 19:40:55] Added pg and @types/pg dependencies for optional Postgres research memory adapter
+[2026-04-22 19:45:43] Implemented PNL-003 config parsing, Postgres schema SQL, pg-backed store, SQL/config/integration tests, and SQL asset copy
+[2026-04-22 19:48:59] Verification passed for PNL-003: targeted tests, typecheck, build, diff check, and pnpm check
+[2026-04-22 19:49:24] Reviewed PNL-003 changes for security, performance, and regression risk before no-commit closeout
+[2026-04-22 19:50:23] Updated progress log and run summary for PNL-003
+[2026-04-22 19:51:41] Corrected PNL-003 progress entry to append at end of progress log
+[2026-04-22 19:51:51] ITERATION 3 end (duration=842s)
+[2026-04-22 19:51:53] ITERATION 4 start (mode=build story=PNL-004)
+[2026-04-22 19:52:19] Start PNL-004 run lifecycle persistence work
+[2026-04-22 20:05:58] Implemented PNL-004 research-memory factory and lifecycle wiring
+[2026-04-22 20:06:34] Targeted PNL-004 tests and typecheck passed
+[2026-04-22 20:07:40] Verification passed for PNL-004: targeted tests, typecheck, build, and check
+[2026-04-22 20:07:56] Final diff check and review completed for PNL-004
+[2026-04-22 20:08:32] Updated progress log for PNL-004 no-commit completion
+[2026-04-22 20:09:03] Created run summary for PNL-004 iteration 4
+[2026-04-22 20:09:30] Updated PNL-004 progress entry with run summary artifact
+[2026-04-22 20:09:43] ITERATION 4 end (duration=1070s)
+[2026-04-22 20:09:45] ITERATION 5 start (mode=build story=PNL-005)
+[2026-04-22 20:10:17] Start PNL-005 memory CLI commands audit (logger path fallback: .agents/ralph/log-activity.sh)
+[2026-04-22 20:15:09] Implemented PNL-005 memory status/list/show/export CLI handler and deterministic tests
+[2026-04-22 20:16:39] Verification passed for PNL-005: targeted CLI test, typecheck, build, and pnpm check
+[2026-04-22 20:16:55] Reviewed PNL-005 changes for security performance and regression risk before no-commit closeout
+[2026-04-22 20:18:49] Updated progress log and run summary for PNL-005 no-commit completion
+[2026-04-22 20:19:07] ITERATION 5 end (duration=562s)
+[2026-04-22 20:19:10] ITERATION 6 start (mode=build story=PNL-006)
+[2026-04-22 20:19:53] Started PNL-006 NotebookLM CLI podcast wrapper implementation
+[2026-04-22 20:24:54] Implemented PNL-006 NotebookLM service wrapper and fake-executable tests
+[2026-04-22 20:26:07] Verification passed for PNL-006: NotebookLM targeted test, typecheck, build, and pnpm check
+[2026-04-22 20:26:23] Reviewed PNL-006 changes for security performance and regression risk before no-commit closeout
+[2026-04-22 20:27:51] Updated PNL-006 progress log and run summary after no-commit verification
+[2026-04-22 20:28:06] ITERATION 6 end (duration=537s)
+[2026-04-22 20:28:09] ITERATION 7 start (mode=build story=PNL-007)
+[2026-04-22 20:28:29] Start PNL-007 podcast CLI command work for run 20260422-192541-94292 iteration 7
+[2026-04-22 20:35:27] Implemented PNL-007 podcast CLI handler, dispatch/help wiring, and fake memory/NotebookLM CLI tests
+[2026-04-22 20:37:13] Verification passed for PNL-007: targeted podcast/memory/NotebookLM/preflight tests, typecheck, build, pnpm check, and diff check
+[2026-04-22 20:37:15] Reviewed PNL-007 changes for security performance and regression risk before no-commit closeout
+[2026-04-22 20:38:57] Updated PNL-007 progress log and run summary after no-commit verification
+[2026-04-22 20:39:13] ITERATION 7 end (duration=664s)
+[2026-04-22 20:39:15] ITERATION 8 start (mode=build story=PNL-008)
+[2026-04-22 20:39:45] Start PNL-008 documentation story: guardrails/errors/PRD read; auditing docs before edits
+[2026-04-22 20:42:32] Implemented PNL-008 docs for optional Postgres research memory, NotebookLM podcast workflow, and Traditional Chinese summary
+[2026-04-22 20:44:20] Verification passed for PNL-008 docs: docs:list, targeted memory/NotebookLM/podcast tests, typecheck, build, pnpm check, and diff check
+[2026-04-22 20:44:29] Reviewed PNL-008 documentation changes for security, performance, and regression risk before no-commit closeout
+[2026-04-22 20:45:21] Updated PNL-008 progress log and run summary after no-commit verification
+[2026-04-22 20:45:41] ITERATION 8 end (duration=386s)
