@@ -1,63 +1,151 @@
 ---
-summary: "Local research memory SQLite schema and initialization."
+summary: "Optional durable research memory backends, Postgres setup, migration, testing, and privacy boundaries."
 read_when:
-  - "When initializing, migrating, or testing the durable local research memory store."
+  - "When configuring local research memory persistence."
+  - "When initializing or testing the optional Postgres research-memory backend."
+  - "When exporting persisted runs for NotebookLM."
 ---
 
 # Local Research Memory
 
-Local research memory is a dedicated SQLite store for durable run history. It is separate from the cache because cache
-entries can expire or be evicted, while research memory records runs, sources, artifacts, event timelines, and model
-route decisions for later inspection.
+Local research memory records durable run history separately from the cache. Cache entries can expire or be evicted;
+research memory is meant for later inspection, export, and NotebookLM source generation.
 
-The current implementation adds the initial schema and deterministic static tests only. Runtime write paths are not
-enabled yet.
+Research memory is disabled by default. Normal `summarize` usage, `pnpm -s check`, and default tests do not require a
+database server.
+
+## Backends
+
+- `memory`: in-process store for deterministic tests and short-lived local experiments.
+- `postgres`: optional persistent backend for local run history.
+- `sqlite`: schema files and docs remain present for the local-first default direction, but the runtime factory currently
+  reports it as a placeholder.
 
 ## Files
 
-- Schema manifest: `src/research-memory/schema.ts`
-- Initial migration: `src/research-memory/migrations/001_initial.sql`
+- Store contract: `src/research-memory/store.ts`
+- Runtime factory: `src/research-memory/factory.ts`
+- In-memory store: `src/research-memory/memory-store.ts`
+- Postgres store: `src/research-memory/postgres-store.ts`
+- Postgres schema manifest: `src/research-memory/postgres-schema.ts`
+- Postgres migration: `src/research-memory/postgres/migrations/001_initial.sql`
+- SQLite schema manifest: `src/research-memory/schema.ts`
+- SQLite migration: `src/research-memory/migrations/001_initial.sql`
 - Design rationale: `docs/local-research-memory-design.md`
 
-## Default Paths
+## Configure Postgres
 
-```text
-~/.summarize/research-memory.sqlite
-~/.summarize/research-memory/artifacts/
+Create a local database with your normal Postgres tooling. On macOS with Homebrew:
+
+```sh
+brew install postgresql@16
+brew services start postgresql@16
+createdb summarize_memory
 ```
 
-SQLite stores structured metadata, small inline payloads, hashes, privacy decisions, events, and route metadata. Large
-or binary artifacts should live under the artifact directory and be referenced by relative path, MIME type, byte size,
-and SHA-256 hash.
+Enable the backend in `~/.summarize/config.json`:
 
-## Initialize The Store
+```json
+{
+  "researchMemory": {
+    "enabled": true,
+    "backend": "postgres",
+    "artifactRoot": "~/.summarize/research-memory/artifacts"
+  }
+}
+```
 
-From the repository root:
+Keep credentials in the environment when possible:
+
+```sh
+export SUMMARIZE_RESEARCH_MEMORY_POSTGRES_URL="postgresql://127.0.0.1:5432/summarize_memory"
+```
+
+`researchMemory.postgresUrl` is also supported for private local config files, and `RESEARCH_MEMORY_POSTGRES_URL` is
+accepted as a fallback environment name. Do not commit config files containing database credentials.
+
+The artifact root defaults to:
+
+```text
+~/.summarize/research-memory/artifacts
+```
+
+Large or binary artifacts, including NotebookLM markdown bundles and downloaded audio, are stored under this directory
+and referenced from Postgres by relative path where possible.
+
+## Initialize And Migrate
+
+The Postgres store applies `src/research-memory/postgres/migrations/001_initial.sql` during store initialization. These
+commands initialize the store without running a summary:
 
 ```sh
 mkdir -p ~/.summarize/research-memory/artifacts
-sqlite3 ~/.summarize/research-memory.sqlite < src/research-memory/migrations/001_initial.sql
-sqlite3 ~/.summarize/research-memory.sqlite ".tables"
+summarize memory status
 ```
 
-The `.tables` output should include:
+To apply or inspect the migration manually from the repository root:
 
-```text
-research_artifacts
-research_events
-research_memory_schema_migrations
-research_memory_settings
-research_model_routes
-research_runs
-research_sources
+```sh
+psql "$SUMMARIZE_RESEARCH_MEMORY_POSTGRES_URL" -v ON_ERROR_STOP=1 \
+  -f src/research-memory/postgres/migrations/001_initial.sql
+psql "$SUMMARIZE_RESEARCH_MEMORY_POSTGRES_URL" -c "\\dt research_*"
 ```
 
-Do not store API keys, bearer tokens, cookies, raw auth headers, or full environment snapshots in this database. In
-local-only mode, source content, prompts, model outputs, route details, and diagnostic payloads remain local unless the
-user explicitly exports them.
+The Postgres schema includes settings, runs, sources, artifacts, events, model routes, failures, and NotebookLM export
+metadata. The SQLite migration remains documented and tested separately so future SQLite work can proceed without making
+Postgres mandatory.
+
+## Run And Export
+
+Check the configured backend:
+
+```sh
+summarize memory status
+```
+
+Persist a run, list recent successful runs, inspect one, and export a NotebookLM-ready bundle:
+
+```sh
+summarize "https://example.com/research" --language zh-TW --length long
+summarize memory list --status succeeded
+summarize memory show run_123
+summarize memory export run_123 --output notebooklm.md --language zh-TW
+```
+
+Use `--json` with `status`, `list`, `show`, or `export` for machine-readable output.
+
+## Privacy Boundary
+
+Research memory must not store API keys, bearer tokens, cookies, raw auth headers, raw environment snapshots, or
+NotebookLM credentials. Runtime records are sanitized before they are persisted.
+
+Persisted source text, prompts, summaries, route metadata, failures, and artifacts can still be sensitive. Keep
+`artifactRoot` on local storage if you do not want source content or generated audio in a synced folder. A NotebookLM
+export or podcast command is an explicit user action that sends the selected markdown source bundle to NotebookLM; the
+default test suite and ordinary disabled-memory runs do not contact NotebookLM.
 
 ## Test Posture
 
-Default tests validate the migration text and schema manifest statically. They do not open SQLite or require a live
-database. Add future live database checks only behind an explicit environment flag so the normal test suite remains
-deterministic.
+Default checks are deterministic and do not need a live Postgres server:
+
+```sh
+pnpm -s test tests/research-memory.store.test.ts \
+  tests/research-memory.factory.test.ts \
+  tests/research-memory.postgres-schema.test.ts \
+  tests/research-memory.postgres-store.test.ts \
+  tests/research-memory.lifecycle.test.ts \
+  tests/cli.memory.test.ts
+pnpm -s typecheck
+pnpm -s docs:list
+```
+
+The live Postgres integration test is explicitly environment-gated:
+
+```sh
+pnpm -s test tests/research-memory.postgres.integration.test.ts
+SUMMARIZE_POSTGRES_TEST_URL="$SUMMARIZE_RESEARCH_MEMORY_POSTGRES_URL" \
+  pnpm -s test tests/research-memory.postgres.integration.test.ts
+```
+
+The first command is safe in default automation because it skips when `SUMMARIZE_POSTGRES_TEST_URL` is unset. Use the
+second command only when a disposable local test database is available.

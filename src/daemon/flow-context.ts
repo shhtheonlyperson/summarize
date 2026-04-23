@@ -9,6 +9,7 @@ import type {
 import type { ExecFileFn } from "../markitdown.js";
 import type { FixedModelSpec } from "../model-spec.js";
 import { execFileTracked } from "../processes.js";
+import type { ResearchMemoryRunRecorder } from "../research-memory/lifecycle.js";
 import {
   createAssetSummaryContext,
   type SummarizeAssetArgs,
@@ -108,6 +109,7 @@ export type DaemonUrlFlowContextArgs = {
     onLinkPreviewProgress?: ((event: LinkPreviewProgressEvent) => void) | null;
     onSummaryCached?: ((cached: boolean) => void) | null;
   } | null;
+  researchMemory?: ResearchMemoryRunRecorder | null;
   runStartedAtMs: number;
   stdoutSink: TextSink;
 };
@@ -129,6 +131,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     extractOnly,
     slides,
     hooks,
+    researchMemory,
     runStartedAtMs,
     stdoutSink,
   } = args;
@@ -371,6 +374,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
       assemblyaiApiKey,
       openaiApiKey,
     },
+    researchMemory,
   });
 
   const ctx: UrlFlowContext = createUrlFlowContext({
@@ -465,6 +469,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     },
     cache,
     mediaCache,
+    researchMemory,
     runtimeHooks: {
       setTranscriptionCost: metrics.setTranscriptionCost,
       summarizeAsset: (assetArgs: SummarizeAssetArgs) =>

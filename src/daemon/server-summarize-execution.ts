@@ -1,8 +1,15 @@
 import type http from "node:http";
 import type { CacheState } from "../cache.js";
+import type { SummarizeConfig } from "../config.js";
 import type { MediaCache } from "../content/index.js";
 import { runWithProcessContext } from "../processes.js";
+import {
+  createResearchMemoryRunRecorder,
+  createResearchMemoryStoreFromConfig,
+} from "../research-memory/index.js";
 import { formatModelLabelForDisplay } from "../run/finish-line.js";
+import { resolveLocalOnlyMode } from "../run/local-only.js";
+import { resolveOutputLanguageSetting, resolveSummaryLength } from "../run/run-settings.js";
 import { encodeSseEvent, type SseSlidesData } from "../shared/sse-events.js";
 import type { SlideExtractionResult, SlideSettings, SlideSourceKind } from "../slides/index.js";
 import { type DaemonRequestedMode, resolveAutoDaemonMode } from "./auto-mode.js";
@@ -57,6 +64,7 @@ type ExecuteSummarizeSessionArgs = {
   fetchImpl: typeof fetch;
   cacheState: CacheState;
   mediaCache: MediaCache | null;
+  summarizeConfig: SummarizeConfig | null;
   port: number;
   onSessionEvent?: ((event: SessionEvent, sessionId: string) => void) | null;
   requestLogger?: LoggerLike | null;
@@ -72,6 +80,125 @@ type ExecuteSummarizeSessionArgs = {
   sessions: Map<string, Session>;
   refreshSessions: Map<string, Session>;
 };
+
+function formatLengthForMemory(lengthRaw: unknown, config: SummarizeConfig | null): string {
+  const { lengthArg } = resolveSummaryLength(lengthRaw, config?.output?.length ?? "xl");
+  return lengthArg.kind === "preset" ? lengthArg.preset : `${lengthArg.maxCharacters} chars`;
+}
+
+function providerBaseUrl(
+  env: Record<string, string | undefined>,
+  envKeys: string[],
+  configured: string | null | undefined,
+): string | null {
+  for (const key of envKeys) {
+    const value = env[key]?.trim() ?? "";
+    if (value) return value;
+  }
+  return configured?.trim() || null;
+}
+
+function createDaemonResearchMemoryRecorder({
+  runId,
+  mode,
+  kind,
+  request,
+  env,
+  summarizeConfig,
+  startedAt,
+  requestLogger,
+}: {
+  runId: string;
+  mode: "url" | "page" | "extract";
+  kind: "daemon-summary" | "extract-only";
+  request: ParsedSummarizeRequest;
+  env: Record<string, string | undefined>;
+  summarizeConfig: SummarizeConfig | null;
+  startedAt: number;
+  requestLogger?: LoggerLike | null;
+}) {
+  const factory = createResearchMemoryStoreFromConfig({ config: summarizeConfig, env });
+  if (!factory.store || !factory.artifactRoot) return null;
+
+  const fallbackLanguage = resolveOutputLanguageSetting({
+    raw: summarizeConfig?.output?.language ?? summarizeConfig?.language ?? "auto",
+    fallback: { kind: "auto" },
+  });
+  const outputLanguage = resolveOutputLanguageSetting({
+    raw: request.languageRaw,
+    fallback: fallbackLanguage,
+  });
+  const normalizedModelOverride =
+    request.modelOverride && request.modelOverride.toLowerCase() !== "auto"
+      ? request.modelOverride
+      : null;
+  const selectionSource =
+    normalizedModelOverride != null
+      ? "explicit"
+      : env.SUMMARIZE_MODEL?.trim()
+        ? "env"
+        : summarizeConfig?.localRouting?.enabled === true
+          ? "local-routing"
+          : summarizeConfig?.model
+            ? "config"
+            : "auto";
+
+  return createResearchMemoryRunRecorder({
+    store: factory.store,
+    artifactRoot: factory.artifactRoot,
+    outputLanguage,
+    model: {
+      requestedModelInput: normalizedModelOverride ?? env.SUMMARIZE_MODEL?.trim() ?? "auto",
+      requestedModelLabel: normalizedModelOverride ?? env.SUMMARIZE_MODEL?.trim() ?? "auto",
+      selectionSource,
+      providerBaseUrls: {
+        openai: providerBaseUrl(env, ["OPENAI_BASE_URL"], summarizeConfig?.openai?.baseUrl),
+        nvidia: providerBaseUrl(env, ["NVIDIA_BASE_URL"], summarizeConfig?.nvidia?.baseUrl),
+        anthropic: providerBaseUrl(
+          env,
+          ["ANTHROPIC_BASE_URL"],
+          summarizeConfig?.anthropic?.baseUrl,
+        ),
+        google: providerBaseUrl(
+          env,
+          ["GOOGLE_BASE_URL", "GEMINI_BASE_URL"],
+          summarizeConfig?.google?.baseUrl,
+        ),
+        xai: providerBaseUrl(env, ["XAI_BASE_URL"], summarizeConfig?.xai?.baseUrl),
+        zai: providerBaseUrl(env, ["Z_AI_BASE_URL"], summarizeConfig?.zai?.baseUrl),
+      },
+      localOnlyMode: resolveLocalOnlyMode({
+        config: summarizeConfig,
+        requestLocalOnly: request.requestLocalOnly,
+      }),
+    },
+    run: {
+      id: runId,
+      kind,
+      mode,
+      status: "running",
+      createdAt: startedAt,
+      startedAt,
+      completedAt: null,
+      inputRef: request.pageUrl,
+      length: formatLengthForMemory(request.lengthRaw, summarizeConfig),
+      languageRaw:
+        typeof request.languageRaw === "string" && request.languageRaw.trim()
+          ? request.languageRaw.trim()
+          : outputLanguage.kind === "fixed"
+            ? outputLanguage.tag
+            : "auto",
+      languageBucket: outputLanguage.kind === "auto" ? "none" : null,
+      requestedFormat: request.format ?? "text",
+      summaryArtifactId: null,
+      metrics: {},
+      configFingerprint: null,
+    },
+    onWarning: (message) => {
+      requestLogger?.error?.({ event: "research-memory.warning", message });
+    },
+  });
+}
 
 export function buildSlidesPayload({
   slides,
@@ -106,12 +233,14 @@ export async function handleExtractOnlySummarizeRequest({
   fetchImpl,
   cacheState,
   mediaCache,
+  summarizeConfig,
 }: {
   request: ParsedSummarizeRequest;
   env: Record<string, string | undefined>;
   fetchImpl: typeof fetch;
   cacheState: CacheState;
   mediaCache: MediaCache | null;
+  summarizeConfig: SummarizeConfig | null;
 }): Promise<{
   extracted: Awaited<ReturnType<typeof extractContentForUrl>>["extracted"];
   slides: Awaited<ReturnType<typeof extractContentForUrl>>["slides"];
@@ -120,19 +249,40 @@ export async function handleExtractOnlySummarizeRequest({
     ? { ...cacheState, mode: "bypass" as const, store: null }
     : cacheState;
   const runId = crypto.randomUUID();
-  return await runWithProcessContext({ runId, source: "extract" }, async () =>
-    extractContentForUrl({
-      env,
-      fetchImpl,
-      input: { url: request.pageUrl, title: request.title, maxCharacters: request.maxCharacters },
-      requestLocalOnly: request.requestLocalOnly,
-      cache: requestCache,
-      mediaCache,
-      overrides: request.overrides,
-      format: request.format,
-      slides: request.slidesSettings,
-    }),
-  );
+  const startedAt = Date.now();
+  const researchMemory = createDaemonResearchMemoryRecorder({
+    runId,
+    mode: "extract",
+    kind: "extract-only",
+    request,
+    env,
+    summarizeConfig,
+    startedAt,
+  });
+  await researchMemory?.start();
+  try {
+    const result = await runWithProcessContext({ runId, source: "extract" }, async () =>
+      extractContentForUrl({
+        env,
+        fetchImpl,
+        input: { url: request.pageUrl, title: request.title, maxCharacters: request.maxCharacters },
+        requestLocalOnly: request.requestLocalOnly,
+        cache: requestCache,
+        mediaCache,
+        overrides: request.overrides,
+        format: request.format,
+        slides: request.slidesSettings,
+        researchMemory,
+      }),
+    );
+    await researchMemory?.complete(null);
+    return result;
+  } catch (error) {
+    await researchMemory?.fail(error);
+    throw error;
+  } finally {
+    await researchMemory?.close();
+  }
 }
 
 function createSlideLogState(requested: boolean): SlideLogState {
@@ -225,6 +375,7 @@ export async function executeSummarizeSession({
   fetchImpl,
   cacheState,
   mediaCache,
+  summarizeConfig,
   port,
   onSessionEvent,
   requestLogger,
@@ -258,8 +409,21 @@ export async function executeSummarizeSession({
   let logInputSummary: string | null = null;
   let logSummaryText = "";
   let logExtracted: Record<string, unknown> | null = null;
+  const initialMemoryMode =
+    mode === "url" ? "url" : mode === "page" ? "page" : hasText ? "page" : "url";
+  const researchMemory = createDaemonResearchMemoryRecorder({
+    runId: session.id,
+    mode: initialMemoryMode,
+    kind: "daemon-summary",
+    request,
+    env,
+    summarizeConfig,
+    startedAt: logStartedAt,
+    requestLogger,
+  });
 
   try {
+    await researchMemory?.start();
     let emittedOutput = false;
     const sink = {
       writeChunk: (chunk: string) => {
@@ -335,6 +499,7 @@ export async function executeSummarizeSession({
           mediaCache,
           overrides,
           slides: slidesSettings,
+          researchMemory,
           hooks: {
             ...(includeContentLog
               ? {
@@ -437,6 +602,7 @@ export async function executeSummarizeSession({
         cache: requestCache,
         mediaCache,
         overrides,
+        researchMemory,
       });
     };
 
@@ -493,7 +659,9 @@ export async function executeSummarizeSession({
           }
         : {}),
     });
+    await researchMemory?.complete(null);
   } catch (error) {
+    await researchMemory?.fail(error);
     const message = error instanceof Error ? error.message : String(error);
     pushToSession(session, { event: "error", data: { message } }, onSessionEvent);
     if (session.slidesRequested && !session.slidesDone) {
@@ -523,6 +691,7 @@ export async function executeSummarizeSession({
         : {}),
     });
   } finally {
+    await researchMemory?.close();
     scheduleSessionCleanup({ session, sessions, refreshSessions });
   }
 }

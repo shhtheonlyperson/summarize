@@ -109,6 +109,46 @@ describe("config loading", () => {
     });
   });
 
+  it("loads optional research memory config", () => {
+    const { root } = writeJsonConfig({
+      researchMemory: {
+        enabled: true,
+        backend: "postgres",
+        postgresUrl: "  postgresql://localhost:5432/summarize_memory  ",
+        artifactRoot: "  ~/.summarize/research-memory/artifacts  ",
+      },
+    });
+
+    const result = loadSummarizeConfig({ env: { HOME: root } });
+    expect(result.config).toEqual({
+      researchMemory: {
+        enabled: true,
+        backend: "postgres",
+        postgresUrl: "postgresql://localhost:5432/summarize_memory",
+        artifactRoot: "~/.summarize/research-memory/artifacts",
+      },
+    });
+  });
+
+  it("loads in-memory research memory backend config", () => {
+    const { root } = writeJsonConfig({
+      researchMemory: {
+        enabled: true,
+        backend: "memory",
+        artifactRoot: "  .summarize/research-memory/artifacts  ",
+      },
+    });
+
+    const result = loadSummarizeConfig({ env: { HOME: root } });
+    expect(result.config).toEqual({
+      researchMemory: {
+        enabled: true,
+        backend: "memory",
+        artifactRoot: ".summarize/research-memory/artifacts",
+      },
+    });
+  });
+
   it("supports ui.theme", () => {
     const { root } = writeJsonConfig({
       model: { id: "openai/gpt-5-mini" },
@@ -562,6 +602,37 @@ describe("config loading", () => {
     const { root: badLocalOnly } = writeJsonConfig({ privacy: { localOnly: "yes" } });
     expect(() => loadSummarizeConfig({ env: { HOME: badLocalOnly } })).toThrow(
       /privacy\.localOnly.*must be a boolean/,
+    );
+  });
+
+  it("rejects invalid research memory config", () => {
+    const { root: badRoot } = writeJsonConfig({ researchMemory: "nope" });
+    expect(() => loadSummarizeConfig({ env: { HOME: badRoot } })).toThrow(
+      /"researchMemory" must be an object/,
+    );
+
+    const { root: badEnabled } = writeJsonConfig({ researchMemory: { enabled: "yes" } });
+    expect(() => loadSummarizeConfig({ env: { HOME: badEnabled } })).toThrow(
+      /researchMemory\.enabled.*must be a boolean/,
+    );
+
+    const { root: badBackend } = writeJsonConfig({ researchMemory: { backend: "mysql" } });
+    expect(() => loadSummarizeConfig({ env: { HOME: badBackend } })).toThrow(
+      /researchMemory\.backend.*memory.*sqlite.*postgres/,
+    );
+
+    const { root: badPostgresUrl } = writeJsonConfig({
+      researchMemory: { postgresUrl: "   " },
+    });
+    expect(() => loadSummarizeConfig({ env: { HOME: badPostgresUrl } })).toThrow(
+      /researchMemory\.postgresUrl.*must not be empty/,
+    );
+
+    const { root: badArtifactRoot } = writeJsonConfig({
+      researchMemory: { artifactRoot: 42 },
+    });
+    expect(() => loadSummarizeConfig({ env: { HOME: badArtifactRoot } })).toThrow(
+      /researchMemory\.artifactRoot.*must be a string/,
     );
   });
 

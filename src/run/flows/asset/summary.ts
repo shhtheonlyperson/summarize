@@ -18,6 +18,7 @@ import type { Prompt } from "../../../llm/prompt.js";
 import type { ExecFileFn } from "../../../markitdown.js";
 import type { FixedModelSpec, RequestedModel } from "../../../model-spec.js";
 import { SUMMARY_LENGTH_TARGET_CHARACTERS, SUMMARY_SYSTEM_PROMPT } from "../../../prompts/index.js";
+import type { ResearchMemoryRunRecorder } from "../../../research-memory/lifecycle.js";
 import type { SummaryLength } from "../../../shared/contracts.js";
 import { type AssetAttachment, isUnsupportedAttachmentError } from "../../attachments.js";
 import {
@@ -83,6 +84,10 @@ async function outputBypassedAssetSummary({
   footerLabel: string;
 }) {
   const summary = summaryText.trimEnd();
+  await ctx.researchMemory?.recordSummaryArtifact(summary, {
+    source: "asset-flow",
+    summaryFrom: "short-content",
+  });
   const extracted = {
     kind: "asset" as const,
     source: args.sourceLabel,
@@ -253,6 +258,7 @@ export type AssetSummaryContext = {
   cache: CacheState;
   summaryCacheBypass: boolean;
   mediaCache: MediaCache | null;
+  researchMemory?: ResearchMemoryRunRecorder | null;
   apiStatus: {
     xaiApiKey: string | null;
     apiKey: string | null;
@@ -339,6 +345,7 @@ export type AssetSummaryContextInput = {
   >;
   cache: Pick<AssetSummaryContext, "cache" | "mediaCache">;
   apiStatus: AssetSummaryContext["apiStatus"];
+  researchMemory?: ResearchMemoryRunRecorder | null;
 };
 
 export function createAssetSummaryContext(input: AssetSummaryContextInput): AssetSummaryContext {
@@ -350,6 +357,7 @@ export function createAssetSummaryContext(input: AssetSummaryContextInput): Asse
     ...input.hooks,
     ...input.cache,
     apiStatus: input.apiStatus,
+    researchMemory: input.researchMemory ?? null,
   };
 }
 
@@ -382,6 +390,17 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
     },
     attachment: args.attachment,
   });
+  await ctx.researchMemory?.recordAssetSource({
+    sourceKind: args.sourceKind,
+    sourceLabel: args.sourceLabel,
+    mediaType: args.attachment.mediaType,
+    filename: args.attachment.filename,
+    content: textContent?.content ?? null,
+  });
+  const onModelChosen = (modelId: string) => {
+    void ctx.researchMemory?.recordModelRoute(modelId);
+    args.onModelChosen?.(modelId);
+  };
   const prompt: Prompt = {
     system: SUMMARY_SYSTEM_PROMPT,
     userText: promptText,
@@ -429,6 +448,10 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
     textContent &&
     countTokens(textContent.content) <= ctx.maxOutputTokensArg
   ) {
+    await ctx.researchMemory?.recordSummaryArtifact(textContent.content.trim(), {
+      source: "asset-flow",
+      summaryFrom: "no-model-short-content",
+    });
     ctx.clearProgressForStdout();
     ctx.stdout.write(`${textContent.content.trim()}\n`);
     ctx.restoreProgressAfterStdout?.();
@@ -503,7 +526,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
             ctx.verboseColor,
             ctx.envForRun,
           );
-          args.onModelChosen?.(cachedModelId || matchedAttempt.userModelId);
+          onModelChosen(cachedModelId || matchedAttempt.userModelId);
           summaryResult = {
             summary: cachedSummary,
             summaryAlreadyPrinted: false,
@@ -528,7 +551,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
         const cached = cacheStore.getText("summary", key);
         if (!cached) continue;
         writeVerbose(ctx.stderr, ctx.verbose, "cache hit summary", ctx.verboseColor, ctx.envForRun);
-        args.onModelChosen?.(attempt.userModelId);
+        onModelChosen(attempt.userModelId);
         summaryResult = {
           summary: cached,
           summaryAlreadyPrinted: false,
@@ -591,7 +614,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
           attempt,
           prompt,
           allowStreaming: ctx.streamingEnabled,
-          onModelChosen: args.onModelChosen ?? null,
+          onModelChosen,
           cli: cliContext,
         }),
     });
@@ -636,6 +659,10 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
       throw lastError;
     }
     if (textContent) {
+      await ctx.researchMemory?.recordSummaryArtifact(textContent.content.trim(), {
+        source: "asset-flow",
+        summaryFrom: "no-model-fallback",
+      });
       ctx.clearProgressForStdout();
       ctx.stdout.write(`${textContent.content.trim()}\n`);
       ctx.restoreProgressAfterStdout?.();
@@ -694,6 +721,13 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
   }
 
   const { summary, summaryAlreadyPrinted, modelMeta, maxOutputTokensForCall } = summaryResult;
+  ctx.researchMemory?.recordCacheResult("summary", summaryFromCache);
+  await ctx.researchMemory?.recordSummaryArtifact(summary, {
+    source: "asset-flow",
+    summaryFromCache,
+    model: usedAttempt.userModelId,
+    provider: modelMeta.provider,
+  });
 
   const extracted = {
     kind: "asset" as const,

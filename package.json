@@ -66,6 +66,7 @@
     "mime": "^4.1.0",
     "ora": "^9.4.0",
     "osc-progress": "^0.3.0",
+    "pg": "^8.20.0",
     "tokentally": "^0.1.1",
     "tslog": "^4.10.2"
   },
@@ -73,6 +74,7 @@
     "@fal-ai/client": "^1.10.0",
     "@types/jsdom": "^28.0.1",
     "@types/node": "^25.6.0",
+    "@types/pg": "^8.20.0",
     "@types/sanitize-html": "^2.16.1",
     "@vitest/coverage-v8": "^4.1.5",
     "esbuild": "^0.28.0",

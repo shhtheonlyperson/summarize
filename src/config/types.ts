@@ -129,6 +129,14 @@ export type PrivacyConfig = {
   localOnly?: boolean;
 };
 
+export type ResearchMemoryBackend = "memory" | "sqlite" | "postgres";
+export type ResearchMemoryConfig = {
+  enabled?: boolean;
+  backend?: ResearchMemoryBackend;
+  postgresUrl?: string;
+  artifactRoot?: string;
+};
+
 export type XaiConfig = {
   /**
    * Override the xAI API base URL (e.g. a proxy).
@@ -283,6 +291,7 @@ export type SummarizeConfig = {
   zai?: ZaiConfig;
   localRouting?: LocalModelRoutingConfig;
   privacy?: PrivacyConfig;
+  researchMemory?: ResearchMemoryConfig;
   logging?: LoggingConfig;
   /**
    * Generic environment variable defaults.

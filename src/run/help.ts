@@ -262,6 +262,9 @@ ${heading("Examples")}
   ${cmd('summarize slides "https://www.youtube.com/watch?v=..." --render auto')} ${dim("# slides-only mode with inline thumbnails")}
   ${cmd("summarize transcriber setup")} ${dim("# configure local ONNX transcription (parakeet/canary)")}
   ${cmd("summarize local-runtime probe")} ${dim("# probe configured/default local LLM endpoints")}
+  ${cmd("summarize memory list")} ${dim("# list persisted research-memory runs")}
+  ${cmd("summarize memory export <run-id> --output notebooklm.md --language zh-TW")} ${dim("# NotebookLM-ready markdown")}
+  ${cmd("summarize podcast create <run-id> --output overview.mp3 --language zh-TW")} ${dim("# NotebookLM podcast")}
   ${cmd('summarize "https://example.com" --length 20k --max-output-tokens 2k --timeout 2m --model openai/gpt-5-mini')}
   ${cmd('summarize "https://example.com" --model openai/gpt-5.5 --fast --thinking medium')}
   ${cmd('summarize "https://example.com" --model openai/gpt-5.4 --service-tier fast --thinking low')}
@@ -313,6 +316,8 @@ ${heading("Hint")}
   ${cmd("summarize refresh-free")} ${dim("# refresh free-model candidates into ~/.summarize/config.json")}
   ${cmd("summarize transcriber setup")} ${dim("# set up local ONNX transcription; auto prefers it when configured")}
   ${cmd("summarize local-runtime probe --json")} ${dim("# verify local LLM endpoints before daemon/extension use")}
+  ${cmd("summarize memory status")} ${dim("# check optional research-memory persistence")}
+  ${cmd("summarize podcast create <run-id-or-url>")} ${dim("# create a NotebookLM audio overview from research memory")}
 
 ${heading("Support")}
   ${SUPPORT_URL}
@@ -390,6 +395,59 @@ export function buildLocalRuntimeHelp(): string {
     "  summarize local-runtime probe ollama",
     "  summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1",
     "  summarize local-runtime probe --json",
+  ].join("\n");
+}
+
+export function buildMemoryHelp(): string {
+  return [
+    "Usage: summarize memory <command> [options]",
+    "",
+    "Commands:",
+    "  status                 Check configured research-memory backend availability",
+    "  list                   List persisted runs",
+    "  show <run-id>          Inspect one persisted run",
+    "  export <run-id>        Export a NotebookLM-ready markdown bundle",
+    "",
+    "List options:",
+    "  --limit <n>            Maximum runs to print (default: 20)",
+    "  --status <status>      pending|running|succeeded|failed|cancelled",
+    "  --kind <kind>          cli|daemon-summary|daemon-agent|extension-panel|extension-hover|automation|extract-only",
+    "  --order <order>        desc|asc (default: desc)",
+    "  --json                 Print machine-readable JSON",
+    "",
+    "Export options:",
+    "  -o, --output <path>    Write markdown to a file instead of stdout",
+    "  --language <language>  auto|en|english|zh-TW|traditional-chinese",
+    "  --traditional-chinese  Use Traditional Chinese markdown headings",
+    "  --json                 Print machine-readable JSON",
+    "",
+    "Examples:",
+    "  summarize memory status",
+    "  summarize memory list --status succeeded",
+    "  summarize memory show run_123 --json",
+    "  summarize memory export run_123 --output notebooklm.md --language zh-TW",
+  ].join("\n");
+}
+
+export function buildPodcastHelp(): string {
+  return [
+    "Usage: summarize podcast create <run-id-or-url> [options]",
+    "",
+    "Creates a NotebookLM audio overview from a persisted research-memory run.",
+    "When given a URL, summarize runs first and then uses the new persisted run.",
+    "",
+    "Options:",
+    "  --language <language>  auto|en|english|zh-TW|traditional-chinese",
+    "  --format <format>      NotebookLM audio style: deep-dive|brief|critique|debate (default: deep-dive)",
+    "  --length <length>      NotebookLM audio length: short|default|long (medium/xl map to default/long)",
+    "  -o, --output <path>    Download generated audio to this path",
+    "  --wait                 Wait for source/audio readiness (default)",
+    "  --no-wait              Start audio generation and return without waiting",
+    "  --json                 Print machine-readable JSON",
+    "",
+    "Examples:",
+    "  summarize podcast create run_123 --output overview.mp3 --language zh-TW --format deep-dive",
+    "  summarize podcast create https://example.com/research --length long --output overview.mp3",
   ].join("\n");
 }
 

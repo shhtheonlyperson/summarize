@@ -6,8 +6,9 @@ read_when:
 
 # Local Research Memory Design
 
-Status: design only. This story chooses the storage direction and entity model for durable local research memory without
-adding migrations, database open code, or runtime writes.
+Status: design baseline. The current implementation keeps this local-first entity model, adds a storage contract,
+supports an in-memory test backend, and adds optional Postgres persistence. SQLite remains the documented local default
+direction, but the runtime SQLite backend is still a placeholder.
 
 ## Goals
 
@@ -15,20 +16,20 @@ adding migrations, database open code, or runtime writes.
 - Preserve enough context to inspect a run later: sources, extracted content, prompts, final artifacts, selected route,
   privacy mode, events, metrics, and failures.
 - Keep local-only mode enforceable and auditable without storing secrets.
-- Stay usable for a single-user local app with no server setup.
-- Leave existing cache/session behavior intact until a later schema story implements storage.
+- Stay usable for a single-user local app with no server setup by default.
+- Leave existing cache/session behavior intact while optional research-memory storage is enabled.
 
 ## Non-goals
 
-- Do not replace the existing cache in this design. Cache entries remain optimized for reuse and eviction, not for
+- Do not replace the existing cache. Cache entries remain optimized for reuse and eviction, not for
   research history.
-- Do not add a database, migrations, adapters, or write paths in this story.
+- Do not make any research-memory backend mandatory for normal summarize usage.
 - Do not add sync, collaboration, remote hosting, or cloud backup.
 - Do not store API keys, bearer tokens, cookies, raw auth headers, or full environment snapshots.
 
 ## Storage Decision
 
-Use a dedicated SQLite database as the durable research memory backend.
+Use a dedicated SQLite database as the default durable research memory direction for the local-first fork.
 
 Default metadata path:
 
@@ -48,15 +49,17 @@ content hash, MIME type, and byte size. This keeps the database queryable while 
 slide images, screenshots, or bulky transcripts.
 
 This database should be separate from `~/.summarize/cache.sqlite`. The cache may expire, evict, or overwrite values by
-hash key; research memory needs a durable, user-inspectable record of what happened during a run.
+hash key; research memory needs a durable, user-inspectable record of what happened during a run. Until the runtime
+SQLite adapter is implemented, local persistence can use the optional Postgres backend documented in
+`docs/local-research-memory.md`.
 
 ## Backend Comparison
 
-| Backend                        | Fit                                                  | Strengths                                                                                                                                                                                    | Weaknesses                                                                                                                                                                        | Decision                                                           |
-| ------------------------------ | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| SQLite                         | Best default for this fork                           | Single local file, zero service setup, works with Node 22/Bun native SQLite paths already used by cache, transactional writes, simple backup/export, good enough for single-user run history | Needs careful write serialization from daemon and CLI, migrations must be explicit, large blobs should stay out of the DB                                                         | Choose for initial durable memory                                  |
-| Postgres                       | Useful later for multi-user or networked deployments | Strong concurrency, mature JSON/query/indexing, easier remote dashboards and collaboration                                                                                                   | Requires a running server, credentials, backup administration, and usually a network listener; conflicts with Mac-first local-first defaults                                      | Do not use as default; consider only as an optional future adapter |
-| Existing cache/session storage | Good for current short-lived behavior                | Already present; cache stores summaries/extracts/transcripts in SQLite; daemon sessions buffer SSE events; extension automation artifacts use browser storage                                | Cache has TTL/size eviction and hash keys, not run history; daemon sessions are in-memory with short cleanup; extension artifacts are scoped to tab/session storage and may reset | Do not reuse as the research memory backend                        |
+| Backend                        | Fit                                                            | Strengths                                                                                                                                                                                    | Weaknesses                                                                                                                                                                        | Decision                                                  |
+| ------------------------------ | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| SQLite                         | Best default for this fork                                     | Single local file, zero service setup, works with Node 22/Bun native SQLite paths already used by cache, transactional writes, simple backup/export, good enough for single-user run history | Needs careful write serialization from daemon and CLI, migrations must be explicit, large blobs should stay out of the DB                                                         | Choose for initial durable memory                         |
+| Postgres                       | Useful for explicit local persistence or networked deployments | Strong concurrency, mature JSON/query/indexing, easier remote dashboards and collaboration                                                                                                   | Requires a running server, credentials, backup administration, and usually a network listener; conflicts with Mac-first local-first defaults                                      | Implemented as an optional backend; do not use as default |
+| Existing cache/session storage | Good for current short-lived behavior                          | Already present; cache stores summaries/extracts/transcripts in SQLite; daemon sessions buffer SSE events; extension automation artifacts use browser storage                                | Cache has TTL/size eviction and hash keys, not run history; daemon sessions are in-memory with short cleanup; extension artifacts are scoped to tab/session storage and may reset | Do not reuse as the research memory backend               |
 
 ## Relationship To Existing Storage
 
@@ -226,11 +229,11 @@ loopback aliases. It must block cloud providers, remote OpenAI-compatible gatewa
 uploads, and automatic sync of research memory. API keys, cookies, bearer tokens, auth headers, and raw environment
 values should never be stored in research memory in any mode.
 
-## Implementation Intent For Later Stories
+## Implementation Intent
 
-- Add schema and migration files in the next story, not here.
-- Keep the database optional at first; summaries should still work if memory is disabled or the DB cannot open.
-- Use WAL, bounded busy timeout, and explicit migrations, mirroring the cache's local SQLite operational posture.
+- Keep every backend optional; summaries should still work if research memory is disabled or unavailable.
+- Keep the SQLite schema and tests deterministic while using Postgres only when explicitly configured.
+- Use explicit migrations and bounded database resources for persistent backends.
 - Serialize daemon writes through one local memory service to avoid concurrent write contention.
 - Store route and privacy decisions at the point where the CLI/daemon already knows the selected model attempt and
   local-only policy result.

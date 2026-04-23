@@ -176,6 +176,36 @@ Notes:
 - `--no-cache` bypasses summary caching only (LLM output); extract/transcript caches still apply. Use `--no-media-cache` for media.
 - `verify`: `size` (default), `hash`, or `none`.
 
+## Research Memory
+
+Research memory is optional durable run history for later inspection, export, and NotebookLM podcast workflows. It is
+disabled unless `researchMemory.enabled` is true.
+
+```json
+{
+  "researchMemory": {
+    "enabled": true,
+    "backend": "postgres",
+    "artifactRoot": "~/.summarize/research-memory/artifacts"
+  }
+}
+```
+
+Supported backends:
+
+- `memory`: volatile in-process backend for tests and short-lived local experiments.
+- `postgres`: optional persistent local backend.
+- `sqlite`: recognized placeholder; the SQLite schema remains documented but runtime persistence is not implemented.
+
+Postgres accepts a URL from config or environment:
+
+```sh
+export SUMMARIZE_RESEARCH_MEMORY_POSTGRES_URL="postgresql://127.0.0.1:5432/summarize_memory"
+```
+
+`RESEARCH_MEMORY_POSTGRES_URL` is accepted as a fallback. Prefer environment variables for URLs that contain
+credentials. See `docs/local-research-memory.md` for setup, migrations, tests, and privacy boundaries.
+
 ## UI theme
 
 Set a default CLI theme:

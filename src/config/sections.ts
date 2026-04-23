@@ -22,6 +22,8 @@ import type {
   MediaCacheVerifyMode,
   OpenAiConfig,
   PrivacyConfig,
+  ResearchMemoryBackend,
+  ResearchMemoryConfig,
   VideoMode,
 } from "./types.js";
 
@@ -511,6 +513,70 @@ export function parsePrivacyConfig(
           })();
 
   return typeof localOnly === "boolean" ? { localOnly } : undefined;
+}
+
+function parseResearchMemoryBackend(raw: unknown, path: string): ResearchMemoryBackend | undefined {
+  if (typeof raw === "undefined") return undefined;
+  if (typeof raw !== "string") {
+    throw new Error(`Invalid config file ${path}: "researchMemory.backend" must be a string.`);
+  }
+  const trimmed = raw.trim().toLowerCase();
+  if (trimmed === "memory" || trimmed === "sqlite" || trimmed === "postgres") {
+    return trimmed as ResearchMemoryBackend;
+  }
+  throw new Error(
+    `Invalid config file ${path}: "researchMemory.backend" must be one of "memory", "sqlite", or "postgres".`,
+  );
+}
+
+function parseResearchMemoryString(
+  raw: unknown,
+  path: string,
+  label: "postgresUrl" | "artifactRoot",
+): string | undefined {
+  if (typeof raw === "undefined") return undefined;
+  if (typeof raw !== "string") {
+    throw new Error(`Invalid config file ${path}: "researchMemory.${label}" must be a string.`);
+  }
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error(`Invalid config file ${path}: "researchMemory.${label}" must not be empty.`);
+  }
+  return trimmed;
+}
+
+export function parseResearchMemoryConfig(
+  root: Record<string, unknown>,
+  path: string,
+): ResearchMemoryConfig | undefined {
+  const value = root.researchMemory;
+  if (typeof value === "undefined") return undefined;
+  if (!isRecord(value)) {
+    throw new Error(`Invalid config file ${path}: "researchMemory" must be an object.`);
+  }
+
+  const enabled =
+    typeof value.enabled === "boolean"
+      ? value.enabled
+      : typeof value.enabled === "undefined"
+        ? undefined
+        : (() => {
+            throw new Error(
+              `Invalid config file ${path}: "researchMemory.enabled" must be a boolean.`,
+            );
+          })();
+  const backend = parseResearchMemoryBackend(value.backend, path);
+  const postgresUrl = parseResearchMemoryString(value.postgresUrl, path, "postgresUrl");
+  const artifactRoot = parseResearchMemoryString(value.artifactRoot, path, "artifactRoot");
+
+  return typeof enabled === "boolean" || backend || postgresUrl || artifactRoot
+    ? {
+        ...(typeof enabled === "boolean" ? { enabled } : {}),
+        ...(backend ? { backend } : {}),
+        ...(postgresUrl ? { postgresUrl } : {}),
+        ...(artifactRoot ? { artifactRoot } : {}),
+      }
+    : undefined;
 }
 
 export function parseLocalModelRoutingConfig(

@@ -63,12 +63,21 @@ export type ModelSelection = {
   requestedModel: RequestedModel;
   requestedModelInput: string;
   requestedModelLabel: string;
+  selectionSource: ModelSelectionSource;
   isNamedModelSelection: boolean;
   isImplicitAutoSelection: boolean;
   wantsFreeNamedModel: boolean;
   configForModelSelection: SummarizeConfig | null;
   isFallbackModel: boolean;
 };
+
+export type ModelSelectionSource =
+  | "explicit"
+  | "env"
+  | "config"
+  | "local-routing"
+  | "auto"
+  | "fallback";
 
 export function resolveModelSelection({
   config,
@@ -133,11 +142,13 @@ export function resolveModelSelection({
       ? resolveLanguageAwareLocalModelInput({ config, outputLanguage })
       : null;
   const requestedModelInput = (localRoute?.modelInput ?? baseRequestedModelInput).trim();
-  const requestedModelSource = localRoute
-    ? ("localRouting" as const)
+  const requestedModelSource: ModelSelectionSource = localRoute
+    ? "local-routing"
     : explicitModelInput.length > 0
-      ? ("explicit" as const)
-      : defaultModelResolution.source;
+      ? "explicit"
+      : defaultModelResolution.source === "default"
+        ? "auto"
+        : defaultModelResolution.source;
   const requestedModelInputLower = requestedModelInput.toLowerCase();
   const wantsFreeNamedModel = requestedModelInputLower === "free";
 
@@ -193,12 +204,13 @@ export function resolveModelSelection({
 
   const isFallbackModel = requestedModelResolved.kind === "auto";
   const isImplicitAutoSelection =
-    requestedModelResolved.kind === "auto" && requestedModelSource === "default";
+    requestedModelResolved.kind === "auto" && requestedModelSource === "auto";
 
   return {
     requestedModel: requestedModelResolved,
     requestedModelInput,
     requestedModelLabel,
+    selectionSource: requestedModelSource,
     isNamedModelSelection,
     isImplicitAutoSelection,
     wantsFreeNamedModel,

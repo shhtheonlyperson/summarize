@@ -9,6 +9,9 @@ local-first direction: private local LLM setup, bilingual model routing, and dur
 [`docs/local-first-roadmap.md`](docs/local-first-roadmap.md) for the fork thesis, non-goals, and staged architecture.
 For hands-on macOS setup with llama.cpp or Ollama, see
 [`docs/local-llm-onboarding.md`](docs/local-llm-onboarding.md).
+For durable local research memory and NotebookLM audio overview workflows, see
+[`docs/local-research-memory.md`](docs/local-research-memory.md) and
+[`docs/notebooklm-podcast-workflow.md`](docs/notebooklm-podcast-workflow.md).
 
 ## Highlights
 

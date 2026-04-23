@@ -177,6 +177,10 @@ async function outputSummaryFromExtractedContent({
   verboseMessage?: string | null;
 }) {
   const { io, flags, model, hooks } = ctx;
+  await ctx.researchMemory?.recordSummaryArtifact(extracted.content, {
+    source: "url-flow",
+    summaryFrom: "extracted-content",
+  });
 
   hooks.clearProgressForStdout();
   const finishModel = pickModelForFinishLine(model.llmCalls, null);
@@ -418,6 +422,13 @@ export async function summarizeExtractedUrl({
     modelMeta,
     maxOutputTokensForCall,
   } = resolution;
+  ctx.researchMemory?.recordCacheResult("summary", summaryFromCache);
+  await ctx.researchMemory?.recordSummaryArtifact(normalizedSummary, {
+    source: "url-flow",
+    summaryFromCache,
+    model: usedAttempt.userModelId,
+    provider: modelMeta.provider,
+  });
 
   if (flags.json) {
     const finishReport = await writeUrlJsonOutput({
