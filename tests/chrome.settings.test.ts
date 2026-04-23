@@ -20,6 +20,7 @@ describe("chrome/settings", () => {
     const s = await loadSettings();
     expect(s).toEqual(defaultSettings);
     expect(s.uiLanguage).toBe("zh-tw");
+    expect(s.language).toBe("zh-tw");
   });
 
   it("normalizes model/length/language/ui language on save", async () => {

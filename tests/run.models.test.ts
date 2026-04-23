@@ -345,9 +345,27 @@ describe("run model selection", () => {
       explicitModelArg: null,
       outputLanguage: parseOutputLanguage("zh-Hant"),
     });
+    const bilingual = resolveModelSelection({
+      config: { localRouting: { enabled: true } },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("en+zh-TW bilingual"),
+    });
+    const fallback = resolveModelSelection({
+      config: { localRouting: { enabled: true } },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("auto"),
+    });
 
-    expect(english.requestedModelInput.toLowerCase()).toContain("gemma");
-    expect(traditionalChinese.requestedModelInput.toLowerCase()).toContain("qwen");
+    expect(english.requestedModelInput).toBe("openai/gemma4-31b");
+    expect(traditionalChinese.requestedModelInput).toBe("openai/qwen3.6-35b-a3b");
+    expect(bilingual.requestedModelInput).toBe("openai/qwen3.6-35b-a3b");
+    expect(fallback.requestedModelInput).toBe("openai/gemma4-31b");
   });
 
   it("does not override explicit fixed models with local routing", () => {
@@ -369,6 +387,24 @@ describe("run model selection", () => {
     expect(explicit.requestedModel.kind).toBe("fixed");
     if (explicit.requestedModel.kind === "fixed") {
       expect(explicit.requestedModel.userModelId).toBe("openai/gpt-5.2");
+    }
+  });
+
+  it("keeps Gemini 3.1 Pro explicit when local routing defaults apply", () => {
+    const explicit = resolveModelSelection({
+      config: { localRouting: { enabled: true } },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: "google/gemini-3.1-pro",
+      outputLanguage: parseOutputLanguage("Traditional Chinese"),
+    });
+
+    expect(explicit.requestedModelInput).toBe("google/gemini-3.1-pro");
+    expect(explicit.selectionSource).toBe("explicit");
+    expect(explicit.requestedModel.kind).toBe("fixed");
+    if (explicit.requestedModel.kind === "fixed") {
+      expect(explicit.requestedModel.userModelId).toBe("google/gemini-3.1-pro");
     }
   });
 
