@@ -21,6 +21,7 @@ summary: "Docs index for summarize behaviors and modes."
 - `docs/model-auto.md` — automatic model selection (`--model auto`)
 - `docs/notebooklm-podcast-workflow.md` — NotebookLM login/source/audio/download and `summarize podcast` workflow
 - `docs/openai.md` — OpenAI model usage + flags
+- `docs/atomic-commit-refactor-prd.md` — PRD for splitting the local-first fork into atomic commits
 - `docs/postgres-notebooklm-summary.zh-TW.md` — Traditional Chinese summary of Postgres and NotebookLM work
 - `docs/releasing.md` — release checklist + Homebrew tap update
 - `docs/smoketest.md` — 20-case smoke test plan

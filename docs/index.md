@@ -21,6 +21,7 @@ summary: "Docs index for summarize behaviors and modes."
 - [Model auto](model-auto.md)
 - [NotebookLM podcast workflow](notebooklm-podcast-workflow.md)
 - [OpenAI](openai.md)
+- [Atomic commit refactor PRD](atomic-commit-refactor-prd.md)
 - [Postgres and NotebookLM summary (zh-TW)](postgres-notebooklm-summary.zh-TW.md)
 - [Releasing](releasing.md)
 - [Smoke test](smoketest.md)
