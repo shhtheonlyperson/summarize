@@ -1,5 +1,7 @@
 # Summarize 📝 — Chrome Side Panel + CLI
 
+Latest measured coverage: 84.77% statements, 75.12% branches, 87.49% functions, and 87.91% lines at 2026-04-23 03:48:06 PDT.
+
 Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side Panel and Firefox Sidebar.
 
 ## Local-first fork note
@@ -791,6 +793,26 @@ Compatibility (pulls in CLI deps):
 pnpm install
 pnpm check
 ```
+
+Useful local gates:
+
+```bash
+pnpm test
+pnpm lint
+pnpm test:coverage
+pnpm test:coverage:html
+pnpm check
+pnpm build
+pnpm test:extension-e2e
+```
+
+Coverage output:
+
+- Terminal summary: `pnpm test:coverage`
+- Machine report: `coverage/coverage-summary.json`
+- Visual report: `coverage/index.html` after `pnpm test:coverage:html`
+
+The latest measured coverage is shown at the top of this README.
 
 ## More
 

@@ -154,6 +154,34 @@ summarize --cli opencode --plain --timeout 2m /tmp/summarize-cli-smoke.txt
 
 If Agent fails with auth, run `agent login` (interactive) or set `CURSOR_API_KEY`.
 
+## Testing and coverage
+
+Last measured: 2026-04-23 03:48:06 PDT.
+
+```bash
+pnpm test
+pnpm lint
+pnpm test:coverage
+pnpm test:coverage:html
+pnpm check
+pnpm build
+pnpm test:extension-e2e
+```
+
+`pnpm test:coverage` prints the terminal-readable V8 coverage table and writes
+`coverage/coverage-summary.json`. `pnpm test:coverage:html` also writes the visual
+HTML report at `coverage/index.html`.
+
+Latest coverage summary:
+
+- Statements: 84.77% (16393/19338)
+- Branches: 75.12% (12445/16565)
+- Functions: 87.49% (2505/2863)
+- Lines: 87.91% (15058/17127)
+
+Coverage focuses on `src/**/*.ts`; the Vitest config excludes daemon internals, slide extraction internals, type-only
+entrypoints, and external OS/browser integration paths that are covered by higher-level or manual suites.
+
 ## Local runtime probe
 
 `summarize local-runtime probe` verifies local HTTP model runtimes before daemon or extension use. It only calls the
