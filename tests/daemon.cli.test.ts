@@ -1,3 +1,6 @@
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -198,6 +201,46 @@ describe("daemon cli", () => {
         tokens: ["existing-token-1234", "new-token-123456"],
       }),
     });
+  });
+
+  it("prefers the user-managed node for installed daemon commands", async () => {
+    Object.defineProperty(process, "platform", { value: "darwin" });
+
+    const home = mkdtempSync(path.join(tmpdir(), "summarize-node-home-"));
+    const nodePath = path.join(home, "n", "bin", "node");
+    mkdirSync(path.dirname(nodePath), { recursive: true });
+    writeFileSync(nodePath, "#!/bin/sh\n");
+    chmodSync(nodePath, 0o755);
+
+    mocks.readDaemonConfig.mockResolvedValueOnce(null);
+    mocks.writeDaemonConfig.mockResolvedValueOnce(path.join(home, ".summarize", "daemon.json"));
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/health"))
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      if (url.endsWith("/v1/ping"))
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const handled = await handleDaemonRequest({
+      normalizedArgv: ["daemon", "install", "--token", "new-token-123456"],
+      envForRun: {
+        HOME: home,
+        PATH: "/opt/homebrew/bin:/usr/bin:/bin",
+      },
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+    });
+
+    expect(handled).toBe(true);
+    expect(mocks.installLaunchAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        programArguments: [nodePath, "/usr/local/bin/summarize-cli.js", "daemon", "run"],
+      }),
+    );
   });
 
   it("starts the daemon and prints container autostart instructions for Windows containers", async () => {
