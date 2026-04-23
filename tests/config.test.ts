@@ -76,8 +76,8 @@ describe("config loading", () => {
       localRouting: {
         enabled: true,
         englishModel: " gemma4-31b ",
-        traditionalChineseModel: "openai/qwen3.6-35b-a3b",
-        bilingualModel: "qwen3.6-35b-a3b",
+        traditionalChineseModel: "openai/qwen3.5-27b",
+        bilingualModel: "qwen3.5-27b",
         fallbackModel: "gemma4-31b",
       },
     });
@@ -87,8 +87,8 @@ describe("config loading", () => {
       localRouting: {
         enabled: true,
         englishModel: "gemma4-31b",
-        traditionalChineseModel: "openai/qwen3.6-35b-a3b",
-        bilingualModel: "qwen3.6-35b-a3b",
+        traditionalChineseModel: "openai/qwen3.5-27b",
+        bilingualModel: "qwen3.5-27b",
         fallbackModel: "gemma4-31b",
       },
     });

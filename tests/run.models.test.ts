@@ -363,8 +363,8 @@ describe("run model selection", () => {
     });
 
     expect(english.requestedModelInput).toBe("openai/gemma4-31b");
-    expect(traditionalChinese.requestedModelInput).toBe("openai/qwen3.6-35b-a3b");
-    expect(bilingual.requestedModelInput).toBe("openai/qwen3.6-35b-a3b");
+    expect(traditionalChinese.requestedModelInput).toBe("openai/qwen3.5-27b");
+    expect(bilingual.requestedModelInput).toBe("openai/qwen3.5-27b");
     expect(fallback.requestedModelInput).toBe("openai/gemma4-31b");
   });
 

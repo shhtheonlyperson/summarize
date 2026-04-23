@@ -5,8 +5,8 @@ export type LocalModelRoutingBucket = "english" | "traditionalChinese" | "biling
 
 export const DEFAULT_LOCAL_MODEL_ROUTING_MODELS = {
   englishModel: "openai/gemma4-31b",
-  traditionalChineseModel: "openai/qwen3.6-35b-a3b",
-  bilingualModel: "openai/qwen3.6-35b-a3b",
+  traditionalChineseModel: "openai/qwen3.5-27b",
+  bilingualModel: "openai/qwen3.5-27b",
   fallbackModel: "openai/gemma4-31b",
 } as const satisfies Required<Omit<LocalModelRoutingConfig, "enabled">>;
 
