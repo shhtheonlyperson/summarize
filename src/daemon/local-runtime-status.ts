@@ -8,7 +8,7 @@ import {
 import type { SummarizeConfig } from "../config.js";
 import { formatOutputLanguageForJson, resolveOutputLanguage } from "../language.js";
 import {
-  DEFAULT_LOCAL_MODEL_ROUTING_MODELS,
+  getDefaultLocalModelRoutingModel,
   type LocalModelRoutingBucket,
   resolveLanguageAwareLocalModelInput,
 } from "../run/local-model-routing.js";
@@ -181,14 +181,7 @@ function resolveLocalRoutingRoutes(
   return languages.map(({ bucket, raw }) => {
     const language = resolveOutputLanguage(raw);
     const routed = resolveLanguageAwareLocalModelInput({ config, outputLanguage: language });
-    const fallbackModel =
-      bucket === "english"
-        ? DEFAULT_LOCAL_MODEL_ROUTING_MODELS.englishModel
-        : bucket === "traditionalChinese"
-          ? DEFAULT_LOCAL_MODEL_ROUTING_MODELS.traditionalChineseModel
-          : bucket === "bilingual"
-            ? DEFAULT_LOCAL_MODEL_ROUTING_MODELS.bilingualModel
-            : DEFAULT_LOCAL_MODEL_ROUTING_MODELS.fallbackModel;
+    const fallbackModel = getDefaultLocalModelRoutingModel(bucket);
     return {
       bucket,
       modelInput: routed?.modelInput ?? fallbackModel,

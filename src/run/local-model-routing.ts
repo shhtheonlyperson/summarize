@@ -3,12 +3,41 @@ import type { OutputLanguage } from "../language.js";
 
 export type LocalModelRoutingBucket = "english" | "traditionalChinese" | "bilingual" | "fallback";
 
+const LOCAL_MODEL_ROUTING_BUCKET_CONFIG = {
+  english: {
+    configKey: "englishModel",
+    defaultModel: "openai/gemma4-31b",
+  },
+  traditionalChinese: {
+    configKey: "traditionalChineseModel",
+    defaultModel: "openai/qwen3.6-27b",
+  },
+  bilingual: {
+    configKey: "bilingualModel",
+    defaultModel: "openai/qwen3.6-27b",
+  },
+  fallback: {
+    configKey: "fallbackModel",
+    defaultModel: "openai/gemma4-31b",
+  },
+} as const satisfies Record<
+  LocalModelRoutingBucket,
+  {
+    configKey: keyof Required<Omit<LocalModelRoutingConfig, "enabled">>;
+    defaultModel: string;
+  }
+>;
+
 export const DEFAULT_LOCAL_MODEL_ROUTING_MODELS = {
-  englishModel: "openai/gemma4-31b",
-  traditionalChineseModel: "openai/qwen3.5-27b",
-  bilingualModel: "openai/qwen3.5-27b",
-  fallbackModel: "openai/gemma4-31b",
+  englishModel: LOCAL_MODEL_ROUTING_BUCKET_CONFIG.english.defaultModel,
+  traditionalChineseModel: LOCAL_MODEL_ROUTING_BUCKET_CONFIG.traditionalChinese.defaultModel,
+  bilingualModel: LOCAL_MODEL_ROUTING_BUCKET_CONFIG.bilingual.defaultModel,
+  fallbackModel: LOCAL_MODEL_ROUTING_BUCKET_CONFIG.fallback.defaultModel,
 } as const satisfies Required<Omit<LocalModelRoutingConfig, "enabled">>;
+
+export function getDefaultLocalModelRoutingModel(bucket: LocalModelRoutingBucket): string {
+  return LOCAL_MODEL_ROUTING_BUCKET_CONFIG[bucket].defaultModel;
+}
 
 function normalizeForMatch(value: string): string {
   return value
@@ -95,22 +124,9 @@ export function resolveLanguageAwareLocalModelInput({
   const bucket = outputLanguage
     ? classifyLocalModelRoutingLanguage(outputLanguage)
     : ("fallback" as const);
-  const configured =
-    bucket === "english"
-      ? routing.englishModel
-      : bucket === "traditionalChinese"
-        ? routing.traditionalChineseModel
-        : bucket === "bilingual"
-          ? routing.bilingualModel
-          : routing.fallbackModel;
-  const defaultModel =
-    bucket === "english"
-      ? DEFAULT_LOCAL_MODEL_ROUTING_MODELS.englishModel
-      : bucket === "traditionalChinese"
-        ? DEFAULT_LOCAL_MODEL_ROUTING_MODELS.traditionalChineseModel
-        : bucket === "bilingual"
-          ? DEFAULT_LOCAL_MODEL_ROUTING_MODELS.bilingualModel
-          : DEFAULT_LOCAL_MODEL_ROUTING_MODELS.fallbackModel;
+  const bucketConfig = LOCAL_MODEL_ROUTING_BUCKET_CONFIG[bucket];
+  const configured = routing[bucketConfig.configKey];
+  const defaultModel = bucketConfig.defaultModel;
   const selected = configured ?? routing.fallbackModel ?? defaultModel;
   return {
     modelInput: normalizeRoutedModelInput(config, selected),

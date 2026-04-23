@@ -432,6 +432,20 @@ Notes:
 
 ## Local routing and local-only mode
 
+Default local routing models:
+
+```json
+{
+  "localRouting": {
+    "enabled": true,
+    "englishModel": "gemma4-31b",
+    "traditionalChineseModel": "qwen3.6-27b",
+    "bilingualModel": "qwen3.6-27b",
+    "fallbackModel": "gemma4-31b"
+  }
+}
+```
+
 Mac-first local LLM setup, exact `localRouting` examples for English, Traditional Chinese, and bilingual output, and
 `privacy.localOnly` examples live in [`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
 
