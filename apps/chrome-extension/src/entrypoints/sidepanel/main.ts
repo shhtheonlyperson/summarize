@@ -1073,7 +1073,8 @@ const {
 } = setupControlsRuntime;
 
 function applyUiLanguage(value: string) {
-  const wasDefaultTitle = (titleEl.textContent ?? "").trim() === t("appTitle");
+  const currentTitle = (titleEl.textContent ?? "").trim();
+  const wasDefaultTitle = currentTitle === t("appTitle");
   setSidepanelUiLanguage(value);
   uiLanguageEl.value = getSidepanelUiLanguage();
   applyStaticSidepanelLocalization();
@@ -1084,6 +1085,8 @@ function applyUiLanguage(value: string) {
   localRuntimeStatusSurface.render(panelState.ui);
   if (wasDefaultTitle) {
     headerController.setBaseTitle(t("appTitle"));
+  } else if (currentTitle) {
+    titleEl.textContent = currentTitle;
   }
   renderMarkdownDisplay();
   if (panelState.ui && !setupEl.classList.contains("hidden")) {
