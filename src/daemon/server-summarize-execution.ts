@@ -640,6 +640,7 @@ export async function executeSummarizeSession({
 
     pushToSession(session, { event: "metrics", data: result.metrics }, onSessionEvent);
     pushToSession(session, { event: "done", data: {} }, onSessionEvent);
+    await researchMemory?.complete(null);
     requestLogger?.info?.({
       event: "summarize.done",
       url: pageUrl,
