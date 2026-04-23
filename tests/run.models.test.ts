@@ -304,6 +304,30 @@ describe("run model selection", () => {
     }
   });
 
+  it("keeps auto selection unchanged when local routing is disabled or missing", () => {
+    const disabled = resolveModelSelection({
+      config: { localRouting: { enabled: false, englishModel: "gemma-local" } },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("en"),
+    });
+    const missing = resolveModelSelection({
+      config: null,
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("en"),
+    });
+
+    expect(disabled.requestedModel.kind).toBe("auto");
+    expect(disabled.requestedModelInput).toBe("auto");
+    expect(missing.requestedModel.kind).toBe("auto");
+    expect(missing.requestedModelInput).toBe("auto");
+  });
+
   it("uses default local routing models when a bucket model is not configured", () => {
     const english = resolveModelSelection({
       config: { localRouting: { enabled: true } },
