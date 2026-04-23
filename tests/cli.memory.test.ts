@@ -319,4 +319,36 @@ describe("memory cli", () => {
     expect(stdout.getText()).toContain(outputPath);
     expect(readFileSync(outputPath, "utf8")).toContain("NotebookLM Source Bundle");
   });
+
+  it("rejects file artifacts that escape the configured artifact root", async () => {
+    const { store, artifactRoot } = await createFixtureStore();
+    await store.addArtifact({
+      id: "artifact-escape",
+      runId: "run-fixture",
+      sourceId: "source-1",
+      artifactKind: "extracted-text",
+      storageKind: "file",
+      relativePath: "../outside.txt",
+      inlineText: null,
+      inlineJson: null,
+      mimeType: "text/plain",
+      byteSize: 12,
+      sha256: "escape-sha",
+      privacyClass: "public-source",
+      retention: "keep",
+      metadata: {},
+      createdAt: Date.UTC(2026, 3, 22, 12, 0, 40),
+    } satisfies ResearchMemoryArtifact);
+
+    await expect(
+      handleMemoryCliRequest(
+        {
+          normalizedArgv: ["memory", "export", "run-fixture"],
+          envForRun: {},
+          stdout: captureStream().stream,
+        },
+        makeFixtureDeps(store, artifactRoot),
+      ),
+    ).rejects.toThrow("escapes artifact root");
+  });
 });
