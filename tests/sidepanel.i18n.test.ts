@@ -129,7 +129,7 @@ describe("sidepanel i18n", () => {
 
     expect(buildLocalRuntimeStatusView(buildState())).toMatchObject({
       privacy: "Local-only on",
-      route: "Route: Traditional Chinese -> openai/qwen-local",
+      route: "Route: English -> openai/gemma4-31b",
       detail: "Runtime reachable: OpenAI-compatible at 127.0.0.1:8080.",
     });
   });
@@ -137,6 +137,7 @@ describe("sidepanel i18n", () => {
   it("does not render retired local routing model inputs from stale daemon status", () => {
     const retiredQwen = ["qwen3.6", "35b", "a3b"].join("-");
     const state = buildState();
+    setSidepanelUiLanguage("zh-tw");
     if (state.localRuntime?.ok === true && state.localRuntime.modelHints.selected) {
       state.localRuntime.modelHints.selected.modelInput = `openai/${retiredQwen}`;
       const route = state.localRuntime.modelHints.routes.find(
@@ -147,7 +148,7 @@ describe("sidepanel i18n", () => {
 
     const view = buildLocalRuntimeStatusView(state);
 
-    expect(view.route).toBe("Route: Traditional Chinese -> openai/qwen3.6-27b");
+    expect(view.route).toBe("路由：繁體中文 -> openai/qwen3.6-27b");
     expect(view.route).not.toContain(retiredQwen);
   });
 
@@ -160,28 +161,25 @@ describe("sidepanel i18n", () => {
     expect(view.route).toBe("Route: English -> openai/gemma4-31b");
   });
 
-  it("uses the Traditional Chinese route for common Chinese language aliases", () => {
-    for (const language of [
-      "zh-Hant",
-      "Traditional Chinese",
-      "Chinese (Traditional)",
-      "\u7e41\u4e2d",
-      "\u7e41\u9ad4\u4e2d\u6587",
-      "\u6b63\u9ad4\u4e2d\u6587",
-    ]) {
-      const state = buildState();
-      state.settings.language = language;
-      if (state.localRuntime?.ok === true) {
-        state.localRuntime.modelHints.selected = {
-          bucket: "fallback",
-          modelInput: "openai/gemma4-31b",
-          language: { kind: "auto" },
-        };
-      }
-
-      const view = buildLocalRuntimeStatusView(state);
-
-      expect(view.route, language).toBe("Route: Traditional Chinese -> openai/qwen-local");
+  it("uses the Traditional Chinese route and wording from the current UI language", () => {
+    const state = buildState();
+    state.settings.language = "en";
+    if (state.localRuntime?.ok === true) {
+      state.localRuntime.modelHints.selected = {
+        bucket: "english",
+        modelInput: "openai/gemma4-31b",
+        language: { kind: "fixed", tag: "en", label: "English" },
+      };
     }
+
+    setSidepanelUiLanguage("zh-tw");
+
+    const view = buildLocalRuntimeStatusView(state);
+
+    expect(view).toMatchObject({
+      privacy: "僅限本機",
+      route: "路由：繁體中文 -> openai/qwen-local",
+      detail: "執行環境可連線：OpenAI-compatible，位於 127.0.0.1:8080。",
+    });
   });
 });

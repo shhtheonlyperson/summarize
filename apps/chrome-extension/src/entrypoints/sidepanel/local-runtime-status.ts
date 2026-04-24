@@ -4,11 +4,13 @@ import type {
   LocalRuntimeStatusProbe,
   UiState,
 } from "../../lib/panel-contracts";
+import { languageForUiLanguage } from "../../lib/settings";
 import {
   formatModelLabel,
   formatRouteLabel,
   formatRuntimeAt,
   formatRuntimeReachable,
+  getSidepanelUiLanguage,
   t,
 } from "./i18n";
 
@@ -178,9 +180,15 @@ function selectedRoutingHint(
   status: LocalRuntimeStatusPayload,
   state: UiState,
 ): LocalModelRoutingHint | null {
-  const languageKey = normalizeLanguageKey(state.settings.language);
+  const languageKey = normalizeLanguageKey(languageForUiLanguage(getSidepanelUiLanguage()));
+  const stateLanguageKey = normalizeLanguageKey(state.settings.language);
   const route = status.modelHints.routes.find((entry) => routeMatchesLanguage(entry, languageKey));
-  return route ?? status.modelHints.selected;
+  if (route) return route;
+
+  const stateRoute = status.modelHints.routes.find((entry) =>
+    routeMatchesLanguage(entry, stateLanguageKey),
+  );
+  return stateRoute ?? status.modelHints.selected;
 }
 
 function selectedModelInput(status: LocalRuntimeStatusPayload, state: UiState): string {
