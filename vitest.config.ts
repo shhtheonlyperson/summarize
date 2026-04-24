@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { cpus } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,8 +13,14 @@ const maxThreads = Number.isFinite(envMaxThreads)
 const coverageReporters = process.env.CI
   ? ["text", "json-summary", "html"]
   : ["text", "json-summary"];
+const localModelRoutingDefaults = JSON.parse(
+  readFileSync(resolve(rootDir, "src/config/local-model-routing-defaults.json"), "utf8"),
+) as unknown;
 
 export default defineConfig({
+  define: {
+    __LOCAL_MODEL_ROUTING_DEFAULTS__: JSON.stringify(localModelRoutingDefaults),
+  },
   poolOptions: {
     threads: {
       minThreads: 1,

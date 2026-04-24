@@ -28,7 +28,29 @@ type LocalRuntimeStatusSurfaceOptions = {
   detailEl: HTMLElement;
 };
 
+type LocalModelRoutingBucket = NonNullable<
+  LocalRuntimeStatusPayload["modelHints"]["selected"]
+>["bucket"];
+type LocalModelRoutingDefaults = {
+  buckets?: Partial<
+    Record<
+      LocalModelRoutingBucket,
+      {
+        defaultModel?: string;
+      }
+    >
+  >;
+  retiredModelInputPatterns?: string[];
+};
+
+declare const __LOCAL_MODEL_ROUTING_DEFAULTS__: LocalModelRoutingDefaults | null;
+
 const remoteProviderPattern = /^(anthropic|google|openrouter|xai|zai|nvidia|github-copilot|cli)\//i;
+const localModelRoutingDefaults =
+  typeof __LOCAL_MODEL_ROUTING_DEFAULTS__ === "undefined" ? null : __LOCAL_MODEL_ROUTING_DEFAULTS__;
+const retiredLocalModelInputPatterns = (
+  localModelRoutingDefaults?.retiredModelInputPatterns ?? []
+).map((pattern) => new RegExp(pattern, "i"));
 
 function trimText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -41,27 +63,46 @@ function formatBucket(bucket: string): string {
   return t("bucketFallback");
 }
 
+function normalizeRetiredLocalModelInput(
+  bucket: LocalModelRoutingBucket | null,
+  modelInput: string,
+): string {
+  const trimmed = trimText(modelInput);
+  if (!trimmed) return "";
+  if (!retiredLocalModelInputPatterns.some((pattern) => pattern.test(trimmed))) {
+    return trimmed;
+  }
+  return (
+    (bucket ? trimText(localModelRoutingDefaults?.buckets?.[bucket]?.defaultModel) : "") || trimmed
+  );
+}
+
 function selectedModelInput(status: LocalRuntimeStatusPayload, state: UiState): string {
   const explicitModel = trimText(state.settings.model);
   if (explicitModel && explicitModel !== "auto") return explicitModel;
   const routed = trimText(status.modelHints.selected?.modelInput);
-  if (routed) return routed;
+  if (routed) {
+    return normalizeRetiredLocalModelInput(status.modelHints.selected?.bucket ?? null, routed);
+  }
   const configured = trimText(status.modelHints.configuredModel.input);
-  return configured || explicitModel || "auto";
+  return normalizeRetiredLocalModelInput("fallback", configured) || explicitModel || "auto";
 }
 
 function routeLabel(status: LocalRuntimeStatusPayload, state: UiState): string {
   if (status.modelHints.selected) {
     return formatRouteLabel(
       formatBucket(status.modelHints.selected.bucket),
-      status.modelHints.selected.modelInput,
+      normalizeRetiredLocalModelInput(
+        status.modelHints.selected.bucket,
+        status.modelHints.selected.modelInput,
+      ),
     );
   }
 
   const explicitModel = trimText(state.settings.model) || "auto";
   const configured = trimText(status.modelHints.configuredModel.input);
   if (explicitModel === "auto" && configured && configured !== "auto") {
-    return formatModelLabel(`auto -> ${configured}`);
+    return formatModelLabel(`auto -> ${normalizeRetiredLocalModelInput("fallback", configured)}`);
   }
   return formatModelLabel(explicitModel);
 }

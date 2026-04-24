@@ -111,4 +111,17 @@ describe("sidepanel i18n", () => {
       detail: "Runtime reachable: OpenAI-compatible at 127.0.0.1:8080.",
     });
   });
+
+  it("does not render retired local routing model inputs from stale daemon status", () => {
+    const retiredQwen = ["qwen3.6", "35b", "a3b"].join("-");
+    const state = buildState();
+    if (state.localRuntime?.ok === true && state.localRuntime.modelHints.selected) {
+      state.localRuntime.modelHints.selected.modelInput = `openai/${retiredQwen}`;
+    }
+
+    const view = buildLocalRuntimeStatusView(state);
+
+    expect(view.route).toBe("Route: Traditional Chinese -> openai/qwen3.6-27b");
+    expect(view.route).not.toContain(retiredQwen);
+  });
 });
