@@ -1,39 +1,77 @@
 import type { LocalModelRoutingConfig, ModelConfig, SummarizeConfig } from "../config.js";
+import localModelRoutingDefaults from "../config/local-model-routing-defaults.json" with { type: "json" };
 import type { OutputLanguage } from "../language.js";
 
 export type LocalModelRoutingBucket = "english" | "traditionalChinese" | "bilingual" | "fallback";
 
-const LOCAL_MODEL_ROUTING_BUCKET_CONFIG = {
-  english: {
-    configKey: "englishModel",
-    defaultModel: "openai/gemma4-31b",
-  },
-  traditionalChinese: {
-    configKey: "traditionalChineseModel",
-    defaultModel: "openai/qwen3.6-27b",
-  },
-  bilingual: {
-    configKey: "bilingualModel",
-    defaultModel: "openai/qwen3.6-27b",
-  },
-  fallback: {
-    configKey: "fallbackModel",
-    defaultModel: "openai/gemma4-31b",
-  },
-} as const satisfies Record<
+type LocalModelRoutingConfigKey = keyof Required<Omit<LocalModelRoutingConfig, "enabled">>;
+type LocalModelRoutingBucketConfig = Record<
   LocalModelRoutingBucket,
   {
-    configKey: keyof Required<Omit<LocalModelRoutingConfig, "enabled">>;
+    configKey: LocalModelRoutingConfigKey;
+    defaultModel: string;
+  }
+>;
+type RawLocalModelRoutingBucketConfig = Record<
+  LocalModelRoutingBucket,
+  {
+    configKey: string;
     defaultModel: string;
   }
 >;
 
-export const DEFAULT_LOCAL_MODEL_ROUTING_MODELS = {
-  englishModel: LOCAL_MODEL_ROUTING_BUCKET_CONFIG.english.defaultModel,
-  traditionalChineseModel: LOCAL_MODEL_ROUTING_BUCKET_CONFIG.traditionalChinese.defaultModel,
-  bilingualModel: LOCAL_MODEL_ROUTING_BUCKET_CONFIG.bilingual.defaultModel,
-  fallbackModel: LOCAL_MODEL_ROUTING_BUCKET_CONFIG.fallback.defaultModel,
-} as const satisfies Required<Omit<LocalModelRoutingConfig, "enabled">>;
+const LOCAL_MODEL_ROUTING_BUCKETS = [
+  "english",
+  "traditionalChinese",
+  "bilingual",
+  "fallback",
+] as const satisfies readonly LocalModelRoutingBucket[];
+const LOCAL_MODEL_ROUTING_CONFIG_KEYS = [
+  "englishModel",
+  "traditionalChineseModel",
+  "bilingualModel",
+  "fallbackModel",
+] as const satisfies readonly LocalModelRoutingConfigKey[];
+
+function isLocalModelRoutingConfigKey(value: string): value is LocalModelRoutingConfigKey {
+  return (LOCAL_MODEL_ROUTING_CONFIG_KEYS as readonly string[]).includes(value);
+}
+
+function parseLocalModelRoutingBucketConfig(
+  raw: RawLocalModelRoutingBucketConfig,
+): LocalModelRoutingBucketConfig {
+  const parsed = {} as LocalModelRoutingBucketConfig;
+
+  for (const bucket of LOCAL_MODEL_ROUTING_BUCKETS) {
+    const value = raw[bucket];
+    if (!isLocalModelRoutingConfigKey(value.configKey)) {
+      throw new Error(`Invalid local model routing defaults: ${bucket}.configKey`);
+    }
+    const defaultModel = value.defaultModel.trim();
+    if (!defaultModel) {
+      throw new Error(`Invalid local model routing defaults: ${bucket}.defaultModel`);
+    }
+    parsed[bucket] = {
+      configKey: value.configKey,
+      defaultModel,
+    };
+  }
+
+  return parsed;
+}
+
+const rawLocalModelRoutingDefaults =
+  localModelRoutingDefaults satisfies RawLocalModelRoutingBucketConfig;
+const LOCAL_MODEL_ROUTING_BUCKET_CONFIG = parseLocalModelRoutingBucketConfig(
+  rawLocalModelRoutingDefaults,
+);
+
+export const DEFAULT_LOCAL_MODEL_ROUTING_MODELS = Object.fromEntries(
+  Object.values(LOCAL_MODEL_ROUTING_BUCKET_CONFIG).map(({ configKey, defaultModel }) => [
+    configKey,
+    defaultModel,
+  ]),
+) as Required<Omit<LocalModelRoutingConfig, "enabled">>;
 
 export function getDefaultLocalModelRoutingModel(bucket: LocalModelRoutingBucket): string {
   return LOCAL_MODEL_ROUTING_BUCKET_CONFIG[bucket].defaultModel;
