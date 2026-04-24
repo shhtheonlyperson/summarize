@@ -160,6 +160,77 @@ With the Ollama example above:
 - Bilingual output routes to `openai/qwen3:8b`.
 - `auto` or unknown language routes to `openai/llama3.2`.
 
+## Gemma/Qwen local router notes
+
+This fork's local development setup can put multiple local model servers behind one OpenAI-compatible router. The
+current private default is:
+
+- English: `openai/gemma4-31b`
+- Traditional Chinese: `openai/qwen3.6-27b`
+- Bilingual: `openai/qwen3.6-27b`
+- Fallback: `openai/gemma4-31b`
+
+Keep these values in `~/.summarize/config.json` as model aliases, not absolute model paths:
+
+```json
+{
+  "model": "auto",
+  "openai": {
+    "baseUrl": "http://127.0.0.1:8090/v1",
+    "useChatCompletions": true
+  },
+  "env": {
+    "OPENAI_API_KEY": "sk-local"
+  },
+  "localRouting": {
+    "enabled": true,
+    "englishModel": "gemma4-31b",
+    "traditionalChineseModel": "qwen3.6-27b",
+    "bilingualModel": "qwen3.6-27b",
+    "fallbackModel": "gemma4-31b"
+  }
+}
+```
+
+The router may rewrite aliases such as `openai/qwen3.6-27b` to the backend's real model path before proxying to the
+model server. Keep that rewrite in the router config, not in Summarize's repo defaults or browser UI wording. If a
+retired alias such as `openai/qwen3.6-35b-a3b` appears in `~/.summarize/config.json`, replace it with
+`qwen3.6-27b` and restart the daemon.
+
+For the browser extension, the side-panel UI language is also the summary routing language. When the UI language is
+Traditional Chinese, the extension sends `zh-tw` to the daemon and the local runtime status should render:
+
+```text
+Local runtime
+Route: Traditional Chinese -> openai/qwen3.6-27b
+Runtime reachable: OpenAI-compatible local endpoint at 127.0.0.1:8090.
+```
+
+With the Traditional Chinese UI selected, the same status is localized:
+
+```text
+本機執行環境
+路由：繁體中文 -> openai/qwen3.6-27b
+執行環境可連線：OpenAI-compatible local endpoint，位於 127.0.0.1:8090。
+```
+
+Operational lessons from the Gemma/Qwen setup:
+
+- Start LaunchAgents with the intended Node binary. On this machine that is `~/n/bin/node`; a Homebrew Node path can
+  make daemon/router behavior differ from the interactive shell.
+- After changing extension routing or UI language behavior, rebuild the extension and restart the daemon:
+  `pnpm -C apps/chrome-extension build` then `pnpm -s summarize daemon restart`.
+- Check all three layers when stale models appear: repo defaults (`src/config/local-model-routing-defaults.json`),
+  user config (`~/.summarize/config.json`), and router aliases/rewrite rules.
+- A reachable `/v1/models` endpoint only proves the server is listening. It does not prove inference is fast, streaming
+  works, or the model obeys the language prompt.
+- Qwen MoE models served through Transformers on Apple Silicon may be slow when fast-path kernels are unavailable. Logs
+  such as "fast path is not available, falling back to torch implementation" usually explain long first-token latency.
+- Old Qwen 35B A3B attempts on MPS hit `histogram_mps` gaps in the Transformers MoE path. Prefer the current 27B route,
+  and keep old 35B aliases retired.
+- Traditional Chinese prompts should be explicit. `zh-tw` resolves to a prompt instruction that asks for Traditional
+  Chinese (`zh-Hant`) and tells the model not to answer in English except for unavoidable source quotes or proper nouns.
+
 ## Local-only mode
 
 `"privacy": { "localOnly": true }` blocks remote providers before a model request is made. Allowed summary requests must
