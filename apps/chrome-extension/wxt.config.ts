@@ -23,6 +23,7 @@ const localModelRoutingDefaults = (() => {
     return null;
   }
 })();
+const localModelRoutingDefaultsJson = JSON.stringify(localModelRoutingDefaults);
 
 const gitHash = (() => {
   try {
@@ -46,7 +47,7 @@ export default defineConfig({
     define: {
       __SUMMARIZE_VERSION__: JSON.stringify(extensionVersion),
       __SUMMARIZE_GIT_HASH__: JSON.stringify(gitHash),
-      __LOCAL_MODEL_ROUTING_DEFAULTS__: JSON.stringify(localModelRoutingDefaults),
+      __LOCAL_MODEL_ROUTING_DEFAULTS_JSON__: JSON.stringify(localModelRoutingDefaultsJson),
     },
     resolve: {
       alias: {

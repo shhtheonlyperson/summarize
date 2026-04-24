@@ -16,10 +16,11 @@ const coverageReporters = process.env.CI
 const localModelRoutingDefaults = JSON.parse(
   readFileSync(resolve(rootDir, "src/config/local-model-routing-defaults.json"), "utf8"),
 ) as unknown;
+const localModelRoutingDefaultsJson = JSON.stringify(localModelRoutingDefaults);
 
 export default defineConfig({
   define: {
-    __LOCAL_MODEL_ROUTING_DEFAULTS__: JSON.stringify(localModelRoutingDefaults),
+    __LOCAL_MODEL_ROUTING_DEFAULTS_JSON__: JSON.stringify(localModelRoutingDefaultsJson),
   },
   poolOptions: {
     threads: {

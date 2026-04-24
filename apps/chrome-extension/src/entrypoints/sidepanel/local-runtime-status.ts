@@ -44,14 +44,45 @@ type LocalModelRoutingDefaults = {
   retiredModelInputPatterns?: string[];
 };
 
-declare const __LOCAL_MODEL_ROUTING_DEFAULTS__: LocalModelRoutingDefaults | null;
+declare const __LOCAL_MODEL_ROUTING_DEFAULTS_JSON__: string | undefined;
 
 const remoteProviderPattern = /^(anthropic|google|openrouter|xai|zai|nvidia|github-copilot|cli)\//i;
-const localModelRoutingDefaults =
-  typeof __LOCAL_MODEL_ROUTING_DEFAULTS__ === "undefined" ? null : __LOCAL_MODEL_ROUTING_DEFAULTS__;
-const retiredLocalModelInputPatterns = (
-  localModelRoutingDefaults?.retiredModelInputPatterns ?? []
-).map((pattern) => new RegExp(pattern, "i"));
+let localModelRoutingDefaultsCache: LocalModelRoutingDefaults | null | undefined;
+let retiredLocalModelInputPatternsCache: RegExp[] | null = null;
+
+function getLocalModelRoutingDefaults(): LocalModelRoutingDefaults | null {
+  if (localModelRoutingDefaultsCache !== undefined) return localModelRoutingDefaultsCache;
+  if (typeof __LOCAL_MODEL_ROUTING_DEFAULTS_JSON__ !== "string") {
+    localModelRoutingDefaultsCache = null;
+    return localModelRoutingDefaultsCache;
+  }
+  try {
+    const parsed = JSON.parse(__LOCAL_MODEL_ROUTING_DEFAULTS_JSON__);
+    localModelRoutingDefaultsCache =
+      parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as LocalModelRoutingDefaults)
+        : null;
+  } catch {
+    localModelRoutingDefaultsCache = null;
+  }
+  return localModelRoutingDefaultsCache;
+}
+
+function getRetiredLocalModelInputPatterns(): RegExp[] {
+  if (retiredLocalModelInputPatternsCache !== null) return retiredLocalModelInputPatternsCache;
+  const defaults = getLocalModelRoutingDefaults();
+  retiredLocalModelInputPatternsCache = (defaults?.retiredModelInputPatterns ?? []).flatMap(
+    (pattern) => {
+      if (typeof pattern !== "string") return [];
+      try {
+        return [new RegExp(pattern, "i")];
+      } catch {
+        return [];
+      }
+    },
+  );
+  return retiredLocalModelInputPatternsCache;
+}
 
 function trimText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -79,9 +110,10 @@ function normalizeRetiredLocalModelInput(
 ): string {
   const trimmed = trimText(modelInput);
   if (!trimmed) return "";
-  if (!retiredLocalModelInputPatterns.some((pattern) => pattern.test(trimmed))) {
+  if (!getRetiredLocalModelInputPatterns().some((pattern) => pattern.test(trimmed))) {
     return trimmed;
   }
+  const localModelRoutingDefaults = getLocalModelRoutingDefaults();
   return (
     (bucket ? trimText(localModelRoutingDefaults?.buckets?.[bucket]?.defaultModel) : "") || trimmed
   );
