@@ -151,6 +151,53 @@ describe("daemon local runtime status", () => {
     expect(serialized).not.toContain("not a url");
   });
 
+  it("does not surface retired local routing model inputs in status hints", async () => {
+    const retiredQwen = ["qwen3.6", "35b", "a3b"].join("-");
+    const runtime = parseLocalRuntimeDescriptor({
+      kind: "openai-compatible",
+      baseUrl: "http://127.0.0.1:8080/v1",
+    });
+    const payload = await buildLocalRuntimeStatus({
+      env: {
+        OPENAI_BASE_URL: "http://127.0.0.1:8080/v1",
+      },
+      config: {
+        output: { language: "Traditional Chinese" },
+        localRouting: {
+          enabled: true,
+          traditionalChineseModel: retiredQwen,
+          bilingualModel: `openai/${retiredQwen}`,
+          fallbackModel: "gemma-local",
+        },
+      },
+      fetchImpl: vi.fn() as unknown as typeof fetch,
+      timeoutMs: 10,
+      probe: vi.fn(async () => {
+        return {
+          ok: true,
+          reachable: true,
+          runtime,
+          endpoint: "http://127.0.0.1:8080/v1/models",
+          timeoutMs: 10,
+          models: [{ id: "qwen3.6-27b" }],
+          server: { status: 200 },
+        } satisfies LocalRuntimeProbeResult;
+      }) as ProbeLocalRuntimeFn,
+    });
+
+    expect(payload.modelHints.selected).toMatchObject({
+      bucket: "traditionalChinese",
+      modelInput: "openai/qwen3.6-27b",
+    });
+    expect(payload.modelHints.routes.map((route) => [route.bucket, route.modelInput])).toEqual([
+      ["english", "openai/gemma-local"],
+      ["traditionalChinese", "openai/qwen3.6-27b"],
+      ["bilingual", "openai/qwen3.6-27b"],
+      ["fallback", "openai/gemma-local"],
+    ]);
+    expect(JSON.stringify(payload)).not.toContain(retiredQwen);
+  });
+
   it("serves the daemon endpoint behind bearer auth with mocked probe fetches", async () => {
     const home = mkdtempSync(join(tmpdir(), "summarize-daemon-local-runtime-status-"));
     const port = await findFreePort();

@@ -368,6 +368,41 @@ describe("run model selection", () => {
     expect(fallback.requestedModelInput).toBe("openai/gemma4-31b");
   });
 
+  it("falls back to bucket defaults for retired local routing model inputs", () => {
+    const retiredQwen = ["qwen3.6", "35b", "a3b"].join("-");
+    const traditionalChinese = resolveModelSelection({
+      config: {
+        localRouting: {
+          enabled: true,
+          traditionalChineseModel: retiredQwen,
+          fallbackModel: "gemma-local",
+        },
+      },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("zh-Hant"),
+    });
+    const bilingual = resolveModelSelection({
+      config: {
+        localRouting: {
+          enabled: true,
+          bilingualModel: `openai/${retiredQwen}`,
+          fallbackModel: "gemma-local",
+        },
+      },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("en+zh-TW bilingual"),
+    });
+
+    expect(traditionalChinese.requestedModelInput).toBe("openai/qwen3.6-27b");
+    expect(bilingual.requestedModelInput).toBe("openai/qwen3.6-27b");
+  });
+
   it("does not override explicit fixed models with local routing", () => {
     const explicit = resolveModelSelection({
       config: {

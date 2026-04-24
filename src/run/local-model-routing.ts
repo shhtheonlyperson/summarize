@@ -19,6 +19,10 @@ type RawLocalModelRoutingBucketConfig = Record<
     defaultModel: string;
   }
 >;
+type RawLocalModelRoutingDefaults = {
+  buckets: RawLocalModelRoutingBucketConfig;
+  retiredModelInputPatterns?: string[];
+};
 
 const LOCAL_MODEL_ROUTING_BUCKETS = [
   "english",
@@ -61,10 +65,13 @@ function parseLocalModelRoutingBucketConfig(
 }
 
 const rawLocalModelRoutingDefaults =
-  localModelRoutingDefaults satisfies RawLocalModelRoutingBucketConfig;
+  localModelRoutingDefaults satisfies RawLocalModelRoutingDefaults;
 const LOCAL_MODEL_ROUTING_BUCKET_CONFIG = parseLocalModelRoutingBucketConfig(
-  rawLocalModelRoutingDefaults,
+  rawLocalModelRoutingDefaults.buckets,
 );
+const RETIRED_LOCAL_MODEL_ROUTING_INPUT_PATTERNS = (
+  rawLocalModelRoutingDefaults.retiredModelInputPatterns ?? []
+).map((pattern) => new RegExp(pattern, "i"));
 
 export const DEFAULT_LOCAL_MODEL_ROUTING_MODELS = Object.fromEntries(
   Object.values(LOCAL_MODEL_ROUTING_BUCKET_CONFIG).map(({ configKey, defaultModel }) => [
@@ -149,6 +156,17 @@ function normalizeRoutedModelInput(config: SummarizeConfig | null, rawModel: str
   return trimmed.includes("/") ? trimmed : `openai/${trimmed}`;
 }
 
+function resolveActiveRoutedModelInput(
+  config: SummarizeConfig | null,
+  rawModel: string | null | undefined,
+): string | null {
+  if (!rawModel) return null;
+  const modelInput = normalizeRoutedModelInput(config, rawModel);
+  return RETIRED_LOCAL_MODEL_ROUTING_INPUT_PATTERNS.some((pattern) => pattern.test(modelInput))
+    ? null
+    : modelInput;
+}
+
 export function resolveLanguageAwareLocalModelInput({
   config,
   outputLanguage,
@@ -165,9 +183,18 @@ export function resolveLanguageAwareLocalModelInput({
   const bucketConfig = LOCAL_MODEL_ROUTING_BUCKET_CONFIG[bucket];
   const configured = routing[bucketConfig.configKey];
   const defaultModel = bucketConfig.defaultModel;
-  const selected = configured ?? routing.fallbackModel ?? defaultModel;
+  const defaultModelInput = normalizeRoutedModelInput(config, defaultModel);
+  const configuredModelInput = resolveActiveRoutedModelInput(config, configured);
+  if (configured) {
+    return {
+      modelInput: configuredModelInput ?? defaultModelInput,
+      bucket,
+    };
+  }
+
+  const fallbackModelInput = resolveActiveRoutedModelInput(config, routing.fallbackModel);
   return {
-    modelInput: normalizeRoutedModelInput(config, selected),
+    modelInput: fallbackModelInput ?? defaultModelInput,
     bucket,
   };
 }
