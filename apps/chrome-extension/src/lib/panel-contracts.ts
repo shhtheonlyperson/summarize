@@ -94,6 +94,7 @@ export type UiState = {
     lineHeight: number;
     model: string;
     length: string;
+    language?: string;
     tokenPresent: boolean;
   };
   status: string;

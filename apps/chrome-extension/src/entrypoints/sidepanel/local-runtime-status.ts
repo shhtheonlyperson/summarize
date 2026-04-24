@@ -31,6 +31,7 @@ type LocalRuntimeStatusSurfaceOptions = {
 type LocalModelRoutingBucket = NonNullable<
   LocalRuntimeStatusPayload["modelHints"]["selected"]
 >["bucket"];
+type LocalModelRoutingHint = NonNullable<LocalRuntimeStatusPayload["modelHints"]["selected"]>;
 type LocalModelRoutingDefaults = {
   buckets?: Partial<
     Record<
@@ -56,6 +57,15 @@ function trimText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normalizeLanguageKey(value: unknown): string {
+  return trimText(value)
+    .toLowerCase()
+    .replaceAll("_", "-")
+    .replaceAll(/[^a-z0-9+-]+/g, "-")
+    .replaceAll(/-+/g, "-")
+    .replaceAll(/^-|-$/g, "");
+}
+
 function formatBucket(bucket: string): string {
   if (bucket === "traditionalChinese") return t("bucketTraditionalChinese");
   if (bucket === "bilingual") return t("bucketBilingual");
@@ -77,25 +87,45 @@ function normalizeRetiredLocalModelInput(
   );
 }
 
+function routeMatchesLanguage(
+  route: LocalRuntimeStatusPayload["modelHints"]["routes"][number],
+  languageKey: string,
+): boolean {
+  if (!languageKey) return false;
+  if (languageKey === "auto") return route.bucket === "fallback";
+  const routeLanguage = route.language;
+  return [routeLanguage.tag, routeLanguage.label].some(
+    (value) => normalizeLanguageKey(value) === languageKey,
+  );
+}
+
+function selectedRoutingHint(
+  status: LocalRuntimeStatusPayload,
+  state: UiState,
+): LocalModelRoutingHint | null {
+  const languageKey = normalizeLanguageKey(state.settings.language);
+  const route = status.modelHints.routes.find((entry) => routeMatchesLanguage(entry, languageKey));
+  return route ?? status.modelHints.selected;
+}
+
 function selectedModelInput(status: LocalRuntimeStatusPayload, state: UiState): string {
   const explicitModel = trimText(state.settings.model);
   if (explicitModel && explicitModel !== "auto") return explicitModel;
-  const routed = trimText(status.modelHints.selected?.modelInput);
+  const selected = selectedRoutingHint(status, state);
+  const routed = trimText(selected?.modelInput);
   if (routed) {
-    return normalizeRetiredLocalModelInput(status.modelHints.selected?.bucket ?? null, routed);
+    return normalizeRetiredLocalModelInput(selected?.bucket ?? null, routed);
   }
   const configured = trimText(status.modelHints.configuredModel.input);
   return normalizeRetiredLocalModelInput("fallback", configured) || explicitModel || "auto";
 }
 
 function routeLabel(status: LocalRuntimeStatusPayload, state: UiState): string {
-  if (status.modelHints.selected) {
+  const selected = selectedRoutingHint(status, state);
+  if (selected) {
     return formatRouteLabel(
-      formatBucket(status.modelHints.selected.bucket),
-      normalizeRetiredLocalModelInput(
-        status.modelHints.selected.bucket,
-        status.modelHints.selected.modelInput,
-      ),
+      formatBucket(selected.bucket),
+      normalizeRetiredLocalModelInput(selected.bucket, selected.modelInput),
     );
   }
 

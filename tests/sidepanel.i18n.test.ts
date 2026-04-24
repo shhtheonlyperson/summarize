@@ -29,7 +29,28 @@ function buildStatus(): LocalRuntimeStatusPayload {
         modelInput: "openai/qwen-local",
         language: { kind: "fixed", tag: "zh-TW", label: "Traditional Chinese" },
       },
-      routes: [],
+      routes: [
+        {
+          bucket: "english",
+          modelInput: "openai/gemma4-31b",
+          language: { kind: "fixed", tag: "en", label: "English" },
+        },
+        {
+          bucket: "traditionalChinese",
+          modelInput: "openai/qwen-local",
+          language: { kind: "fixed", tag: "zh-TW", label: "Chinese (Traditional)" },
+        },
+        {
+          bucket: "bilingual",
+          modelInput: "openai/qwen3.6-27b",
+          language: { kind: "fixed", tag: "en+zh-TW bilingual", label: "en+zh-TW bilingual" },
+        },
+        {
+          bucket: "fallback",
+          modelInput: "openai/gemma4-31b",
+          language: { kind: "auto" },
+        },
+      ],
     },
     probes: [
       {
@@ -69,6 +90,7 @@ function buildState(): UiState {
       lineHeight: 1.45,
       model: "auto",
       length: "xl",
+      language: "zh-tw",
       tokenPresent: true,
     },
     status: "",
@@ -117,11 +139,24 @@ describe("sidepanel i18n", () => {
     const state = buildState();
     if (state.localRuntime?.ok === true && state.localRuntime.modelHints.selected) {
       state.localRuntime.modelHints.selected.modelInput = `openai/${retiredQwen}`;
+      const route = state.localRuntime.modelHints.routes.find(
+        (entry) => entry.bucket === "traditionalChinese",
+      );
+      if (route) route.modelInput = `openai/${retiredQwen}`;
     }
 
     const view = buildLocalRuntimeStatusView(state);
 
     expect(view.route).toBe("Route: Traditional Chinese -> openai/qwen3.6-27b");
     expect(view.route).not.toContain(retiredQwen);
+  });
+
+  it("uses Gemma 4 31B for the English local runtime route", () => {
+    const state = buildState();
+    state.settings.language = "en";
+
+    const view = buildLocalRuntimeStatusView(state);
+
+    expect(view.route).toBe("Route: English -> openai/gemma4-31b");
   });
 });

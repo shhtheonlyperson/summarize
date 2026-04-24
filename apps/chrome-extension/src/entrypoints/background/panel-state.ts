@@ -44,6 +44,7 @@ type SettingsLike = {
   lineHeight: number;
   model: string;
   length: string;
+  language: string;
 };
 
 export async function resolvePanelState({
@@ -134,6 +135,7 @@ export async function resolvePanelState({
         lineHeight: settings.lineHeight,
         model: settings.model,
         length: settings.length,
+        language: settings.language,
         tokenPresent: Boolean(settings.token.trim()),
       },
       status,

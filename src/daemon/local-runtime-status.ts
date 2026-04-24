@@ -173,7 +173,7 @@ function resolveLocalRoutingRoutes(
 
   const languages = [
     { bucket: "english" as const, raw: "English" },
-    { bucket: "traditionalChinese" as const, raw: "Traditional Chinese" },
+    { bucket: "traditionalChinese" as const, raw: "zh-TW" },
     { bucket: "bilingual" as const, raw: "en+zh-TW bilingual" },
     { bucket: "fallback" as const, raw: "auto" },
   ];
