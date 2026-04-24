@@ -1,4 +1,5 @@
 import type { LocalRuntimeStatus, UiState as PanelUiState } from "../../lib/panel-contracts";
+import { summaryLanguageForSettings } from "../../lib/settings";
 
 export type { PanelUiState };
 
@@ -44,6 +45,7 @@ type SettingsLike = {
   lineHeight: number;
   model: string;
   length: string;
+  uiLanguage: string;
   language: string;
 };
 
@@ -135,7 +137,7 @@ export async function resolvePanelState({
         lineHeight: settings.lineHeight,
         model: settings.model,
         length: settings.length,
-        language: settings.language,
+        language: summaryLanguageForSettings(settings),
         tokenPresent: Boolean(settings.token.trim()),
       },
       status,

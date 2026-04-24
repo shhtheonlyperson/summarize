@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   defaultSettings,
+  languageForUiLanguage,
   loadSettings,
   normalizeUiLanguage,
   patchSettings,
   saveSettings,
+  summaryLanguageForSettings,
 } from "../apps/chrome-extension/src/lib/settings.js";
 import { installChromeStorage } from "./helpers/chrome-storage.js";
 
@@ -58,6 +60,18 @@ describe("chrome/settings", () => {
     expect(loaded.length).toBe("20k");
     expect(loaded.language).toBe("en");
     expect(loaded.uiLanguage).toBe("zh-tw");
+  });
+
+  it("syncs summary language when only the sidepanel UI language changes", async () => {
+    await patchSettings({ language: "en", uiLanguage: "en" });
+    await patchSettings({ uiLanguage: "zh-hant" as never });
+
+    const loaded = await loadSettings();
+
+    expect(loaded.language).toBe("zh-tw");
+    expect(loaded.uiLanguage).toBe("zh-tw");
+    expect(summaryLanguageForSettings(loaded)).toBe("zh-tw");
+    expect(languageForUiLanguage("English")).toBe("en");
   });
 
   it("normalizes sidepanel UI language aliases", () => {

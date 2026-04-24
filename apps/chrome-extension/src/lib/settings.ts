@@ -105,6 +105,16 @@ export function normalizeUiLanguage(value: unknown): UiLanguage {
   return defaultSettings.uiLanguage;
 }
 
+export function languageForUiLanguage(value: unknown): string {
+  return normalizeUiLanguage(value) === "zh-tw" ? "zh-tw" : "en";
+}
+
+export function summaryLanguageForSettings(
+  settings: Pick<Settings, "language" | "uiLanguage">,
+): string {
+  return languageForUiLanguage(settings.uiLanguage) || normalizeLanguage(settings.language);
+}
+
 function normalizePromptOverride(value: unknown): string {
   if (typeof value !== "string") return defaultSettings.promptOverride;
   return value;
@@ -395,7 +405,13 @@ export async function saveSettings(settings: Settings): Promise<void> {
 
 export async function patchSettings(patch: Partial<Settings>): Promise<Settings> {
   const current = await loadSettings();
-  const next = { ...current, ...patch };
+  const shouldSyncLanguageToUi =
+    Object.hasOwn(patch, "uiLanguage") && !Object.hasOwn(patch, "language");
+  const next = {
+    ...current,
+    ...patch,
+    ...(shouldSyncLanguageToUi ? { language: languageForUiLanguage(patch.uiLanguage) } : {}),
+  };
   await saveSettings(next);
   return next;
 }
