@@ -92,9 +92,51 @@ function normalizeLanguageKey(value: unknown): string {
   return trimText(value)
     .toLowerCase()
     .replaceAll("_", "-")
-    .replaceAll(/[^a-z0-9+-]+/g, "-")
+    .replaceAll(/[^a-z0-9\u4e00-\u9fff+-]+/g, "-")
     .replaceAll(/-+/g, "-")
     .replaceAll(/^-|-$/g, "");
+}
+
+function isBilingualLanguageKey(languageKey: string): boolean {
+  if (languageKey.includes("bilingual")) return true;
+  if (languageKey.includes("\u4e2d\u82f1") || languageKey.includes("\u82f1\u4e2d")) return true;
+  const mentionsEnglish =
+    languageKey === "en" ||
+    languageKey.startsWith("en-") ||
+    languageKey.includes("en+") ||
+    languageKey.includes("english");
+  const mentionsChinese =
+    languageKey.includes("zh") ||
+    languageKey.includes("chinese") ||
+    languageKey.includes("\u4e2d\u6587") ||
+    languageKey.includes("\u6f22") ||
+    languageKey.includes("\u7e41\u4e2d") ||
+    languageKey.includes("\u7e41\u9ad4") ||
+    languageKey.includes("\u7e41\u4f53");
+  return mentionsEnglish && mentionsChinese;
+}
+
+function isTraditionalChineseLanguageKey(languageKey: string): boolean {
+  return (
+    languageKey === "zh-tw" ||
+    languageKey === "zh-hant" ||
+    languageKey.includes("traditional-chinese") ||
+    languageKey.includes("chinese-traditional") ||
+    languageKey.includes("\u7e41\u4e2d") ||
+    languageKey.includes("\u7e41\u9ad4") ||
+    languageKey.includes("\u7e41\u4f53") ||
+    languageKey.includes("\u6b63\u9ad4")
+  );
+}
+
+function classifyLanguageKey(languageKey: string): LocalModelRoutingBucket | null {
+  if (languageKey === "auto") return "fallback";
+  if (isBilingualLanguageKey(languageKey)) return "bilingual";
+  if (isTraditionalChineseLanguageKey(languageKey)) return "traditionalChinese";
+  if (languageKey === "en" || languageKey.startsWith("en-") || languageKey === "english") {
+    return "english";
+  }
+  return null;
 }
 
 function formatBucket(bucket: string): string {
@@ -124,7 +166,8 @@ function routeMatchesLanguage(
   languageKey: string,
 ): boolean {
   if (!languageKey) return false;
-  if (languageKey === "auto") return route.bucket === "fallback";
+  const languageBucket = classifyLanguageKey(languageKey);
+  if (languageBucket) return route.bucket === languageBucket;
   const routeLanguage = route.language;
   return [routeLanguage.tag, routeLanguage.label].some(
     (value) => normalizeLanguageKey(value) === languageKey,

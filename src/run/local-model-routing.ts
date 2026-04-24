@@ -120,7 +120,9 @@ function isTraditionalChineseLanguage(language: OutputLanguage): boolean {
       value === "zh-hant" ||
       value.includes("traditional-chinese") ||
       value.includes("chinese-traditional") ||
+      value.includes("\u7e41\u4e2d") ||
       value.includes("\u7e41\u9ad4") ||
+      value.includes("\u7e41\u4f53") ||
       value.includes("\u6b63\u9ad4"),
   );
 }

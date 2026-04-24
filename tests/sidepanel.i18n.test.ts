@@ -159,4 +159,29 @@ describe("sidepanel i18n", () => {
 
     expect(view.route).toBe("Route: English -> openai/gemma4-31b");
   });
+
+  it("uses the Traditional Chinese route for common Chinese language aliases", () => {
+    for (const language of [
+      "zh-Hant",
+      "Traditional Chinese",
+      "Chinese (Traditional)",
+      "\u7e41\u4e2d",
+      "\u7e41\u9ad4\u4e2d\u6587",
+      "\u6b63\u9ad4\u4e2d\u6587",
+    ]) {
+      const state = buildState();
+      state.settings.language = language;
+      if (state.localRuntime?.ok === true) {
+        state.localRuntime.modelHints.selected = {
+          bucket: "fallback",
+          modelInput: "openai/gemma4-31b",
+          language: { kind: "auto" },
+        };
+      }
+
+      const view = buildLocalRuntimeStatusView(state);
+
+      expect(view.route, language).toBe("Route: Traditional Chinese -> openai/qwen-local");
+    }
+  });
 });

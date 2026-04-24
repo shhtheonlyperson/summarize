@@ -368,6 +368,27 @@ describe("run model selection", () => {
     expect(fallback.requestedModelInput).toBe("openai/gemma4-31b");
   });
 
+  it("routes common Traditional Chinese aliases to the Qwen local default", () => {
+    for (const language of [
+      "Traditional Chinese",
+      "Chinese (Traditional)",
+      "\u7e41\u4e2d",
+      "\u7e41\u9ad4\u4e2d\u6587",
+      "\u6b63\u9ad4\u4e2d\u6587",
+    ]) {
+      const resolved = resolveModelSelection({
+        config: { localRouting: { enabled: true } },
+        configForCli: null,
+        configPath: null,
+        envForRun: {},
+        explicitModelArg: null,
+        outputLanguage: parseOutputLanguage(language),
+      });
+
+      expect(resolved.requestedModelInput, language).toBe("openai/qwen3.6-27b");
+    }
+  });
+
   it("falls back to bucket defaults for retired local routing model inputs", () => {
     const retiredQwen = ["qwen3.6", "35b", "a3b"].join("-");
     const traditionalChinese = resolveModelSelection({
