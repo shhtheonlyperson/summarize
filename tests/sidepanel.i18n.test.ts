@@ -155,6 +155,7 @@ describe("sidepanel i18n", () => {
   it("uses Gemma 4 31B for the English local runtime route", () => {
     const state = buildState();
     state.settings.language = "en";
+    setSidepanelUiLanguage("en");
 
     const view = buildLocalRuntimeStatusView(state);
 

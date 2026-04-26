@@ -1,6 +1,6 @@
 import type { CliProvider, ModelConfig, SummarizeConfig } from "../config.js";
-import { mergeModelRequestOptions } from "../llm/model-options.js";
 import type { OutputLanguage } from "../language.js";
+import { mergeModelRequestOptions } from "../llm/model-options.js";
 import type { RequestedModel } from "../model-spec.js";
 import { parseRequestedModelId } from "../model-spec.js";
 import { BUILTIN_MODELS } from "./constants.js";
