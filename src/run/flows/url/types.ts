@@ -11,6 +11,7 @@ import type { OutputLanguage } from "../../../language.js";
 import type { ModelRequestOptions } from "../../../llm/model-options.js";
 import type { ExecFileFn } from "../../../markitdown.js";
 import type { FixedModelSpec, RequestedModel } from "../../../model-spec.js";
+import type { ResearchMemoryRunRecorder } from "../../../research-memory/lifecycle.js";
 import type { SummaryLength } from "../../../shared/contracts.js";
 import type {
   SlideExtractionResult,
@@ -215,8 +216,19 @@ export function createUrlFlowContext(options: {
   perfTrace?: PerfTrace | null;
   runtimeHooks: UrlFlowRuntimeHooks;
   eventHooks?: Partial<UrlFlowEventHooks>;
+  researchMemory?: ResearchMemoryRunRecorder | null;
 }): UrlFlowContext {
-  const { io, flags, model, cache, mediaCache, perfTrace, runtimeHooks, eventHooks } = options;
+  const {
+    io,
+    flags,
+    model,
+    cache,
+    mediaCache,
+    perfTrace,
+    runtimeHooks,
+    eventHooks,
+    researchMemory,
+  } = options;
   return {
     io,
     flags,
@@ -225,6 +237,7 @@ export function createUrlFlowContext(options: {
     mediaCache,
     perfTrace: perfTrace ?? null,
     hooks: createUrlFlowHooks({ runtime: runtimeHooks, events: eventHooks }),
+    researchMemory: researchMemory ?? null,
   };
 }
 
@@ -241,4 +254,5 @@ export type UrlFlowContext = {
   mediaCache: MediaCache | null;
   perfTrace?: PerfTrace | null;
   hooks: UrlFlowHooks;
+  researchMemory?: ResearchMemoryRunRecorder | null;
 };

@@ -3,6 +3,7 @@ import { loadLocalAsset, type InputTarget } from "../content/asset.js";
 import { isDirectVideoInput } from "../content/index.js";
 import type { RunMetricsReport } from "../costs.js";
 import type { ExecFileFn } from "../markitdown.js";
+import type { ResearchMemoryRunRecorder } from "../research-memory/lifecycle.js";
 import { startSpinner } from "../tty/spinner.js";
 import type { AssetAttachment } from "./attachments.js";
 import { MAX_PDF_EXTRACT_BYTES } from "./constants.js";
@@ -62,6 +63,7 @@ export async function executeRunnerInput(options: {
       anthropicConfigured: boolean;
       openaiApiKey: string | null;
     };
+    researchMemory?: ResearchMemoryRunRecorder | null;
   };
   summarizeAsset: (args: SummarizeAssetArgs) => Promise<void>;
   runUrlFlowContext: unknown;

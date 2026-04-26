@@ -284,6 +284,7 @@ export async function runDaemonServer({
               fetchImpl,
               cacheState,
               mediaCache,
+              summarizeConfig,
             });
             const slidesPayload = toExtractOnlySlidesPayload(slides);
             json(
@@ -374,6 +375,7 @@ export async function runDaemonServer({
           fetchImpl,
           cacheState,
           mediaCache,
+          summarizeConfig,
           port,
           onSessionEvent,
           requestLogger,
