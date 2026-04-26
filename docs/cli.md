@@ -154,6 +154,60 @@ summarize --cli opencode --plain --timeout 2m /tmp/summarize-cli-smoke.txt
 
 If Agent fails with auth, run `agent login` (interactive) or set `CURSOR_API_KEY`.
 
+## Testing and coverage
+
+Last measured: 2026-04-26 13:18 PDT.
+
+```bash
+pnpm test
+pnpm lint
+pnpm test:coverage
+pnpm test:coverage:html
+pnpm check
+pnpm build
+pnpm test:extension-e2e
+```
+
+`pnpm test:coverage` prints the terminal-readable V8 coverage table and writes
+`coverage/coverage-summary.json`. `pnpm test:coverage:html` also writes the visual
+HTML report at `coverage/index.html`.
+
+Latest coverage summary:
+
+- Statements: 84.85% (16743/19731)
+- Branches: 75.21% (12796/17012)
+- Functions: 87.70% (2560/2919)
+- Lines: 88.05% (15380/17467)
+
+Coverage focuses on `src/**/*.ts`; the Vitest config excludes daemon internals, slide extraction internals, type-only
+entrypoints, and external OS/browser integration paths that are covered by higher-level or manual suites.
+
+## Local runtime probe
+
+`summarize local-runtime probe` verifies local HTTP model runtimes before daemon or extension use. It only calls the
+runtime model-list endpoint, so it does not start a summarization run or send source content.
+
+Examples:
+
+```bash
+summarize local-runtime probe
+summarize local-runtime probe ollama
+summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1
+summarize local-runtime probe --json
+```
+
+Resolution order:
+
+- If `OPENAI_BASE_URL` or `openai.baseUrl` is configured, probe it as an OpenAI-compatible local runtime.
+- If no endpoint is configured, probe the default llama.cpp and Ollama localhost endpoints.
+- Use `--base-url` to test a specific endpoint and `--allow-remote` only when intentionally probing a non-local host.
+
+Human output uses `OK`, `WARN`, and `FAIL` lines. JSON output is intended for tests and scripts; CLI tests mock the
+probe response and do not require a live model server.
+
+For macOS llama.cpp/Ollama setup, exact local routing config, local-only mode, and extension verification, see
+[`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
+
 ## Generate free preset (OpenRouter)
 
 `summarize` ships with a built-in preset `free`, backed by OpenRouter `:free` models.

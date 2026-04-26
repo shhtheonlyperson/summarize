@@ -77,6 +77,12 @@ The extension talks to a tiny local daemon that runs on your machine. This proce
    - `summarize daemon status`
    - `summarize daemon restart`
 
+Local LLM setup:
+
+- macOS llama.cpp/Ollama onboarding, language-aware routing config, local-only mode, and expected probe output:
+  [`../../docs/local-llm-onboarding.md`](../../docs/local-llm-onboarding.md)
+- Restart the daemon after changing `~/.summarize/config.json` or local model environment variables.
+
 ## Length Presets
 
 - Presets match CLI: `short|medium|long|xl|xxl` (or custom like `20k`).

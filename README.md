@@ -1,6 +1,19 @@
 # Summarize 📝 — Chrome Side Panel + CLI
 
+Latest measured coverage: 84.85% statements, 75.21% branches, 87.70% functions, and 88.05% lines at 2026-04-26 13:18 PDT.
+
 Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side Panel and Firefox Sidebar.
+
+## Local-first fork note
+
+This fork preserves upstream Summarize's generic CLI, media, daemon, and side-panel behavior while documenting a
+local-first direction: private local LLM setup, bilingual model routing, and durable local research memory. See
+[`docs/local-first-roadmap.md`](docs/local-first-roadmap.md) for the fork thesis, non-goals, and staged architecture.
+For hands-on macOS setup with llama.cpp or Ollama, see
+[`docs/local-llm-onboarding.md`](docs/local-llm-onboarding.md).
+For durable local research memory and NotebookLM audio overview workflows, see
+[`docs/local-research-memory.md`](docs/local-research-memory.md) and
+[`docs/notebooklm-podcast-workflow.md`](docs/notebooklm-podcast-workflow.md).
 
 ## Highlights
 
@@ -351,6 +364,24 @@ Use `summarize --help` or `summarize help` for the full help text.
 - `--json`: machine-readable output with diagnostics, prompt, `metrics`, and optional summary
 - `--verbose`: debug/diagnostics on stderr
 - `--metrics off|on|detailed`: metrics output (default `on`)
+
+### Local runtime probe
+
+Use the probe command to verify a local LLM endpoint before starting the daemon or browser extension:
+
+```bash
+summarize local-runtime probe
+summarize local-runtime probe ollama
+summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1
+summarize local-runtime probe --json
+```
+
+The command checks configured `OPENAI_BASE_URL` / `openai.baseUrl` first, otherwise it probes the default llama.cpp and
+Ollama localhost endpoints. It prints `OK`, `WARN`, or `FAIL` lines and `--json` emits the same diagnostics for scripts
+and tests without requiring a live model server.
+
+Mac local LLM setup, language-aware routing examples, local-only mode, and extension verification are documented in
+[`docs/local-llm-onboarding.md`](docs/local-llm-onboarding.md).
 
 ### Coding CLIs (Codex, Claude, Gemini, Agent, OpenClaw, OpenCode)
 
@@ -762,6 +793,26 @@ Compatibility (pulls in CLI deps):
 pnpm install
 pnpm check
 ```
+
+Useful local gates:
+
+```bash
+pnpm test
+pnpm lint
+pnpm test:coverage
+pnpm test:coverage:html
+pnpm check
+pnpm build
+pnpm test:extension-e2e
+```
+
+Coverage output:
+
+- Terminal summary: `pnpm test:coverage`
+- Machine report: `coverage/coverage-summary.json`
+- Visual report: `coverage/index.html` after `pnpm test:coverage:html`
+
+The latest measured coverage is shown at the top of this README.
 
 ## More
 

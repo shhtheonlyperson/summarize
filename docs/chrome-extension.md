@@ -20,6 +20,9 @@ Quickstart:
 - Verify:
   - `summarize daemon status`
   - Restart (if needed): `summarize daemon restart`
+- Local LLM setup:
+  - macOS llama.cpp/Ollama onboarding, language-aware routing config, local-only mode, and expected probe output:
+    [`docs/local-llm-onboarding.md`](local-llm-onboarding.md)
 
 Firefox notes:
 
@@ -167,6 +170,8 @@ See `docs/media.md` for detection and transcript rules.
 - Timeout (e.g. `90s`, `2m`), retries, max output tokens (e.g. `2k`).
 - Process manager: live list of daemon-spawned tools (ffmpeg, yt-dlp, tesseract, etc.) with logs.
 - Extension includes current settings in request; daemon treats them like CLI flags (`--model`, `--length`, `--language`, `--prompt`).
+- For local-only routing, configure the daemon with `openai.baseUrl`, `localRouting`, and `privacy.localOnly`; see
+  [`docs/local-llm-onboarding.md`](local-llm-onboarding.md).
 
 ## Token Pairing / Setup Mode
 
