@@ -232,6 +232,7 @@ See: https://github.com/openai/whisper for setup details`);
       transcriptTimestamps: false,
       fileMtime, // Include file modification time for cache invalidation
     });
+    await ctx.researchMemory?.recordExtractedUrlSource(extracted);
 
     // Check if we got a transcript
     if (!extracted.content || extracted.content.trim().length === 0) {
