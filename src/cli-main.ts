@@ -132,7 +132,7 @@ export async function runCliMain({
 
   try {
     const mergedEnv = env === process.env ? { ...(await loadDotenvFromCwd()), ...env } : env;
-    await runCli(argv, { env: mergedEnv, fetch, stdout, stderr });
+    await runCli(argv, { env: mergedEnv, fetch, stdout, stderr, setExitCode });
   } catch (error: unknown) {
     const isTty = Boolean((stderr as unknown as { isTTY?: boolean }).isTTY);
     if (isTty) stderr.write("\n");
