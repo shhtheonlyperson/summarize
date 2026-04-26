@@ -261,6 +261,7 @@ ${heading("Examples")}
   ${cmd('summarize "https://www.youtube.com/watch?v=..." --slides --extract')} ${dim("# full transcript + inline slides")}
   ${cmd('summarize slides "https://www.youtube.com/watch?v=..." --render auto')} ${dim("# slides-only mode with inline thumbnails")}
   ${cmd("summarize transcriber setup")} ${dim("# configure local ONNX transcription (parakeet/canary)")}
+  ${cmd("summarize local-runtime probe")} ${dim("# probe configured/default local LLM endpoints")}
   ${cmd('summarize "https://example.com" --length 20k --max-output-tokens 2k --timeout 2m --model openai/gpt-5-mini')}
   ${cmd('summarize "https://example.com" --model openai/gpt-5.5 --fast --thinking medium')}
   ${cmd('summarize "https://example.com" --model openai/gpt-5.4 --service-tier fast --thinking low')}
@@ -311,6 +312,7 @@ ${heading("Env Vars")}
 ${heading("Hint")}
   ${cmd("summarize refresh-free")} ${dim("# refresh free-model candidates into ~/.summarize/config.json")}
   ${cmd("summarize transcriber setup")} ${dim("# set up local ONNX transcription; auto prefers it when configured")}
+  ${cmd("summarize local-runtime probe --json")} ${dim("# verify local LLM endpoints before daemon/extension use")}
 
 ${heading("Support")}
   ${SUPPORT_URL}
@@ -363,6 +365,31 @@ export function buildDaemonHelp(): string {
     "  --dev            Install service that runs src/cli.ts via tsx (repo dev mode)",
     "  --port <n>       (default: 8787)",
     "  --token <token>  (required for install)",
+  ].join("\n");
+}
+
+export function buildLocalRuntimeHelp(): string {
+  return [
+    "Usage: summarize local-runtime probe [runtime] [options]",
+    "",
+    "Probes configured or default local LLM runtime endpoints without starting a summary.",
+    "",
+    "Runtimes:",
+    "  openai-compatible  OpenAI-compatible /v1 models endpoint",
+    "  llama-cpp          llama.cpp OpenAI-compatible server",
+    "  ollama             Ollama /api/tags endpoint",
+    "",
+    "Options:",
+    "  --base-url <url>   Override endpoint base URL for this probe",
+    "  --timeout <dur>    Probe timeout (default: 3s; examples: 500ms, 5s)",
+    "  --json             Print a machine-readable probe result",
+    "  --allow-remote     Allow explicitly probing a non-local host",
+    "",
+    "Examples:",
+    "  summarize local-runtime probe",
+    "  summarize local-runtime probe ollama",
+    "  summarize local-runtime probe llama-cpp --base-url http://127.0.0.1:8080/v1",
+    "  summarize local-runtime probe --json",
   ].join("\n");
 }
 
