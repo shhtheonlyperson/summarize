@@ -76,6 +76,7 @@ export type DaemonUrlFlowContextArgs = {
   cache: CacheState;
   mediaCache?: MediaCache | null;
   modelOverride: string | null;
+  requestLocalOnly?: boolean | null;
   promptOverride: string | null;
   lengthRaw: unknown;
   languageRaw: unknown;
@@ -118,6 +119,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     cache,
     mediaCache = null,
     modelOverride,
+    requestLocalOnly = null,
     promptOverride,
     lengthRaw,
     languageRaw,
@@ -202,6 +204,10 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
   const configForCliWithMagic = applyAutoCliFallbackOverrides(configForCli, resolvedOverrides);
   const allowAutoCliFallback = resolvedOverrides.autoCliFallbackEnabled === true;
   const { lengthArg } = resolveSummaryLength(lengthRaw, config?.output?.length ?? "xl");
+  const outputLanguage = resolveOutputLanguageSetting({
+    raw: languageRaw,
+    fallback: outputLanguageFromConfig,
+  });
 
   const {
     requestedModel,
@@ -218,8 +224,9 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     configPath,
     envForRun,
     explicitModelArg: modelOverride?.trim() ? modelOverride.trim() : null,
+    outputLanguage,
   });
-  const localOnlyMode = resolveLocalOnlyMode({ config });
+  const localOnlyMode = resolveLocalOnlyMode({ config, requestLocalOnly });
 
   const fixedModelSpec: FixedModelSpec | null =
     requestedModel.kind === "fixed" ? requestedModel : null;
@@ -276,11 +283,6 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     nvidia: { apiKey: nvidiaApiKey, baseUrl: nvidiaBaseUrl },
     providerBaseUrls,
     localOnlyMode,
-  });
-
-  const outputLanguage = resolveOutputLanguageSetting({
-    raw: languageRaw,
-    fallback: outputLanguageFromConfig,
   });
 
   const lengthInstruction = promptOverride ? buildPromptLengthInstruction(lengthArg) : null;
