@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import http from "node:http";
 import type { SummarizeConfig } from "../config.js";
 import type { DaemonLogger } from "../logging/daemon.js";
+import { buildLocalRuntimeStatus } from "./local-runtime-status.js";
 import { buildModelPickerOptions } from "./models.js";
 import {
   buildProcessListResult,
@@ -183,6 +184,18 @@ export async function handleAdminRoutes({
       envForRun: env,
       configForCli: summarizeConfig,
       fetchImpl,
+    });
+    json(res, 200, result, cors);
+    return true;
+  }
+
+  if (req.method === "GET" && pathname === "/v1/local-runtime/status") {
+    const timeoutMs = clampNumber(Number(url.searchParams.get("timeoutMs") ?? "1200"), 100, 10_000);
+    const result = await buildLocalRuntimeStatus({
+      env,
+      config: summarizeConfig,
+      fetchImpl,
+      timeoutMs,
     });
     json(res, 200, result, cors);
     return true;
