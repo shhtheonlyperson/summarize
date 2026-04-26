@@ -94,6 +94,21 @@ describe("config loading", () => {
     });
   });
 
+  it("loads privacy local-only config", () => {
+    const { root } = writeJsonConfig({
+      privacy: {
+        localOnly: true,
+      },
+    });
+
+    const result = loadSummarizeConfig({ env: { HOME: root } });
+    expect(result.config).toEqual({
+      privacy: {
+        localOnly: true,
+      },
+    });
+  });
+
   it("supports ui.theme", () => {
     const { root } = writeJsonConfig({
       model: { id: "openai/gpt-5-mini" },
@@ -535,6 +550,18 @@ describe("config loading", () => {
     const { root: badAuto } = writeJsonConfig({ localRouting: { fallbackModel: "auto" } });
     expect(() => loadSummarizeConfig({ env: { HOME: badAuto } })).toThrow(
       /localRouting\.fallbackModel.*must not be "auto"/,
+    );
+  });
+
+  it("rejects invalid privacy config", () => {
+    const { root: badRoot } = writeJsonConfig({ privacy: "nope" });
+    expect(() => loadSummarizeConfig({ env: { HOME: badRoot } })).toThrow(
+      /"privacy" must be an object/,
+    );
+
+    const { root: badLocalOnly } = writeJsonConfig({ privacy: { localOnly: "yes" } });
+    expect(() => loadSummarizeConfig({ env: { HOME: badLocalOnly } })).toThrow(
+      /privacy\.localOnly.*must be a boolean/,
     );
   });
 

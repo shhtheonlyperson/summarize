@@ -11,6 +11,7 @@ import { createCacheStateFromConfig } from "./cache-state.js";
 import { parseCliProviderArg } from "./env.js";
 import { isPdfExtension, isTranscribableExtension } from "./flows/asset/input.js";
 import { summarizeMediaFile as summarizeMediaFileImpl } from "./flows/asset/media.js";
+import { resolveLocalOnlyMode } from "./local-only.js";
 import { createMediaCacheFromConfig } from "./media-cache-state.js";
 import { createProgressGate } from "./progress.js";
 import { resolveRunContextState } from "./run-context.js";
@@ -265,6 +266,7 @@ export async function createRunnerPlan(options: {
     outputLanguage,
     allowLanguageAwareLocalRouting: !cliFlagPresent,
   });
+  const localOnlyMode = resolveLocalOnlyMode({ config });
 
   const verboseColor = supportsColor(stderr, envForRun);
   const themeForStderr = createThemeRenderer({
@@ -356,6 +358,7 @@ export async function createRunnerPlan(options: {
       baseUrl: nvidiaBaseUrl,
     },
     providerBaseUrls,
+    localOnlyMode,
   });
 
   const writeViaFooter = (parts: string[]) => {

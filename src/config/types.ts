@@ -121,6 +121,14 @@ export type LoggingConfig = {
   maxFiles?: number;
 };
 
+export type PrivacyConfig = {
+  /**
+   * Hard privacy mode. When enabled, model requests may only use OpenAI-compatible localhost
+   * endpoints; remote providers and unverifiable CLI transports are blocked before a provider call.
+   */
+  localOnly?: boolean;
+};
+
 export type XaiConfig = {
   /**
    * Override the xAI API base URL (e.g. a proxy).
@@ -274,6 +282,7 @@ export type SummarizeConfig = {
   xai?: XaiConfig;
   zai?: ZaiConfig;
   localRouting?: LocalModelRoutingConfig;
+  privacy?: PrivacyConfig;
   logging?: LoggingConfig;
   /**
    * Generic environment variable defaults.

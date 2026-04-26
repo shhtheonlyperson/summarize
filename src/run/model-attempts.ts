@@ -9,6 +9,7 @@ export async function runModelAttempts<T>({
   onAutoSkip,
   onAutoFailure,
   onFixedModelError,
+  assertAttemptAllowed,
   runAttempt,
 }: {
   attempts: ModelAttempt[];
@@ -19,6 +20,7 @@ export async function runModelAttempts<T>({
   onAutoSkip?: (attempt: ModelAttempt) => void;
   onAutoFailure?: (attempt: ModelAttempt, error: unknown) => void;
   onFixedModelError?: (attempt: ModelAttempt, error: unknown) => never;
+  assertAttemptAllowed?: (attempt: ModelAttempt) => void;
   runAttempt: (attempt: ModelAttempt) => Promise<T>;
 }): Promise<{
   result: T | null;
@@ -34,6 +36,20 @@ export async function runModelAttempts<T>({
   const missingRequiredEnvs = new Set<ModelAttemptRequiredEnv>();
 
   for (const attempt of attempts) {
+    try {
+      assertAttemptAllowed?.(attempt);
+    } catch (error) {
+      lastError = error;
+      if (!isFallbackModel) {
+        if (onFixedModelError) {
+          onFixedModelError(attempt, error);
+        }
+        throw error;
+      }
+      onAutoFailure?.(attempt, error);
+      continue;
+    }
+
     const hasKey = envHasKeyFor(attempt.requiredEnv);
     if (!hasKey) {
       if (isFallbackModel) {
