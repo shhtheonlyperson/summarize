@@ -12,6 +12,7 @@ import {
   parseOutputConfig,
   parsePrivacyConfig,
   parseProviderBaseUrlConfig,
+  parseResearchMemoryConfig,
   parseSlidesConfig,
   parseUiConfig,
 } from "./config/sections.js";
@@ -39,6 +40,8 @@ export type {
   NvidiaConfig,
   OpenAiConfig,
   PrivacyConfig,
+  ResearchMemoryBackend,
+  ResearchMemoryConfig,
   SummarizeConfig,
   VideoMode,
   XaiConfig,
@@ -94,6 +97,7 @@ export function loadSummarizeConfig({ env }: { env: Record<string, string | unde
   const logging = parseLoggingConfig(parsed, path);
   const localRouting = parseLocalModelRoutingConfig(parsed, path);
   const privacy = parsePrivacyConfig(parsed, path);
+  const researchMemory = parseResearchMemoryConfig(parsed, path);
   const openai = parseOpenAiConfig(parsed, path);
 
   const nvidia = parseProviderBaseUrlConfig(
@@ -129,6 +133,7 @@ export function loadSummarizeConfig({ env }: { env: Record<string, string | unde
       ...(zai ? { zai } : {}),
       ...(localRouting ? { localRouting } : {}),
       ...(privacy ? { privacy } : {}),
+      ...(researchMemory ? { researchMemory } : {}),
       ...(logging ? { logging } : {}),
       ...(configEnv ? { env: configEnv } : {}),
       ...(apiKeys ? { apiKeys } : {}),
