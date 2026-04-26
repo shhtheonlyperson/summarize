@@ -115,10 +115,11 @@ export async function runUrlFlow({
       markdownRequested: markdown.markdownRequested,
     },
     onProgress:
-      websiteProgress || activeHooks.onLinkPreviewProgress
+      websiteProgress || activeHooks.onLinkPreviewProgress || flowCtx.researchMemory
         ? (event) => {
             websiteProgress?.onProgress(event);
             activeHooks.onLinkPreviewProgress?.(event);
+            flowCtx.researchMemory?.recordLinkPreviewProgress(event);
           }
         : null,
   });
@@ -232,10 +233,12 @@ export async function runUrlFlow({
     }
 
     activeHooks.onExtracted?.(extracted);
+    await flowCtx.researchMemory?.recordExtractedUrlSource(extracted);
 
     let slidesForPrompt: SlideExtractionResult | null = null;
     if (slidesSession.slidesTimelinePromise) {
       slidesForPrompt = await slidesSession.slidesTimelinePromise;
+      if (slidesForPrompt) await flowCtx.researchMemory?.recordSlides(slidesForPrompt);
     }
 
     const prompt = buildUrlPrompt({
@@ -307,6 +310,7 @@ export async function runUrlFlow({
 
     const onModelChosen = (modelId: string) => {
       activeHooks.onModelChosen?.(modelId);
+      void flowCtx.researchMemory?.recordModelRoute(modelId);
       if (!flags.progressEnabled) return;
       progressStatus.setSummary(formatSummaryProgress(modelId), "Summarizing");
     };
