@@ -59,6 +59,48 @@ export async function mockDaemonSummarize(harness: ExtensionHarness) {
       if (url === "http://127.0.0.1:8787/v1/ping") {
         return new Response("", { status: 200 });
       }
+      if (url.startsWith("http://127.0.0.1:8787/v1/local-runtime/status")) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            localOnly: { enabled: true, source: "privacy.localOnly" },
+            runtime: {
+              configured: true,
+              type: "openai-compatible",
+              endpointHost: "127.0.0.1:8080",
+              baseUrlSource: "configured",
+            },
+            modelHints: {
+              configuredModel: { input: "auto", source: "default" },
+              localRoutingEnabled: true,
+              selected: {
+                bucket: "fallback",
+                modelInput: "openai/llama-local",
+                language: { kind: "auto" },
+              },
+              routes: [],
+            },
+            probes: [
+              {
+                ok: true,
+                reachable: true,
+                runtimeType: "openai-compatible",
+                runtimeLabel: "OpenAI-compatible",
+                endpointHost: "127.0.0.1:8080",
+                timeoutMs: 1200,
+                models: { count: 1, hints: ["llama-local"] },
+                server: { status: 200, name: "test-runtime" },
+                error: null,
+              },
+            ],
+            warnings: [],
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        );
+      }
       if (url === "http://127.0.0.1:8787/v1/summarize") {
         globalThis.__summarizeCalls += 1;
         globalThis.__summarizeCallTimes.push(Date.now());
