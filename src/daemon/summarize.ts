@@ -143,6 +143,7 @@ export async function streamSummaryForVisiblePage({
   fetchImpl,
   input,
   modelOverride,
+  requestLocalOnly,
   promptOverride,
   lengthRaw,
   languageRaw,
@@ -156,6 +157,7 @@ export async function streamSummaryForVisiblePage({
   fetchImpl: typeof fetch;
   input: VisiblePageInput;
   modelOverride: string | null;
+  requestLocalOnly?: boolean | null;
   promptOverride: string | null;
   lengthRaw: unknown;
   languageRaw: unknown;
@@ -177,6 +179,7 @@ export async function streamSummaryForVisiblePage({
     cache,
     mediaCache,
     modelOverride,
+    requestLocalOnly,
     promptOverride,
     lengthRaw,
     languageRaw,
@@ -297,6 +300,7 @@ export async function streamSummaryForUrl({
   fetchImpl,
   input,
   modelOverride,
+  requestLocalOnly,
   promptOverride,
   lengthRaw,
   languageRaw,
@@ -312,6 +316,7 @@ export async function streamSummaryForUrl({
   fetchImpl: typeof fetch;
   input: UrlModeInput;
   modelOverride: string | null;
+  requestLocalOnly?: boolean | null;
   promptOverride: string | null;
   lengthRaw: unknown;
   languageRaw: unknown;
@@ -351,6 +356,7 @@ export async function streamSummaryForUrl({
     cache,
     mediaCache,
     modelOverride,
+    requestLocalOnly,
     promptOverride,
     lengthRaw,
     languageRaw,
@@ -432,6 +438,7 @@ export async function extractContentForUrl({
   env,
   fetchImpl,
   input,
+  requestLocalOnly,
   cache,
   mediaCache,
   overrides,
@@ -442,6 +449,7 @@ export async function extractContentForUrl({
   env: Record<string, string | undefined>;
   fetchImpl: typeof fetch;
   input: UrlModeInput;
+  requestLocalOnly?: boolean | null;
   cache: CacheState;
   mediaCache: MediaCache | null;
   overrides: RunOverrides;
@@ -460,6 +468,7 @@ export async function extractContentForUrl({
     cache,
     mediaCache,
     modelOverride: null,
+    requestLocalOnly,
     promptOverride: null,
     lengthRaw: "",
     languageRaw: "",

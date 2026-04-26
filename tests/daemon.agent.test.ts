@@ -208,6 +208,55 @@ describe("daemon/agent", () => {
     expect(model.api).toBe("openai-completions");
   });
 
+  it("blocks remote agent providers when privacy.localOnly is enabled", async () => {
+    const home = makeTempHome();
+    writeHomeConfig(home, {
+      privacy: { localOnly: true },
+    });
+
+    await expect(
+      completeAgentResponse({
+        env: { HOME: home, GEMINI_API_KEY: "gemini-key" },
+        pageUrl: "https://example.com",
+        pageTitle: null,
+        pageContent: "Hello world",
+        messages: [{ role: "user", content: "Hi" }],
+        modelOverride: "google/gemini-3-flash",
+        tools: [],
+        automationEnabled: false,
+      }),
+    ).rejects.toThrow(/Local-only mode \(privacy\.localOnly\) blocked google\/gemini-3-flash/);
+    expect(mockCompleteSimple).not.toHaveBeenCalled();
+  });
+
+  it("allows local OpenAI-compatible agent endpoints when privacy.localOnly is enabled", async () => {
+    const home = makeTempHome();
+    writeHomeConfig(home, {
+      privacy: { localOnly: true },
+      openai: { baseUrl: "http://127.0.0.1:1234/v1" },
+    });
+
+    await completeAgentResponse({
+      env: { HOME: home, OPENAI_API_KEY: "sk-local" },
+      pageUrl: "https://example.com",
+      pageTitle: null,
+      pageContent: "Hello world",
+      messages: [{ role: "user", content: "Hi" }],
+      modelOverride: "openai/local-model",
+      tools: [],
+      automationEnabled: false,
+    });
+
+    const model = mockCompleteSimple.mock.calls[0]?.[0] as {
+      provider: string;
+      id: string;
+      baseUrl?: string;
+    };
+    expect(model.provider).toBe("openai");
+    expect(model.id).toBe("local-model");
+    expect(model.baseUrl).toBe("http://127.0.0.1:1234/v1");
+  });
+
   it("throws a helpful error when openrouter key is missing", async () => {
     const home = makeTempHome();
     await expect(
