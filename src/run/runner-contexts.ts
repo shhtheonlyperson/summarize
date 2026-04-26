@@ -1,5 +1,6 @@
 import type { CacheState } from "../cache.js";
 import type { MediaCache } from "../content/index.js";
+import type { ResearchMemoryRunRecorder } from "../research-memory/lifecycle.js";
 import { createAssetSummaryContext, type SummarizeAssetArgs } from "./flows/asset/summary.js";
 import { summarizeAsset as summarizeAssetFlow } from "./flows/asset/summary.js";
 import { createUrlFlowContext, type UrlFlowContext } from "./flows/url/types.js";
@@ -21,6 +22,7 @@ export function createRunnerFlowContexts(options: {
   clearProgressIfCurrent: UrlFlowContext["hooks"]["clearProgressIfCurrent"];
   buildReport: UrlFlowContext["hooks"]["buildReport"];
   estimateCostUsd: UrlFlowContext["hooks"]["estimateCostUsd"];
+  researchMemory?: ResearchMemoryRunRecorder | null;
 }) {
   const {
     summarizeMediaFileImpl,
@@ -37,6 +39,7 @@ export function createRunnerFlowContexts(options: {
     clearProgressIfCurrent,
     buildReport,
     estimateCostUsd,
+    researchMemory,
   } = options;
 
   const assetSummaryContext = createAssetSummaryContext({
@@ -119,6 +122,7 @@ export function createRunnerFlowContexts(options: {
       assemblyaiApiKey: model.apiStatus.assemblyaiApiKey,
       openaiApiKey: model.apiStatus.openaiApiKey,
     },
+    researchMemory,
   });
 
   const summarizeAsset = (args: SummarizeAssetArgs) =>
@@ -146,6 +150,7 @@ export function createRunnerFlowContexts(options: {
       model,
       cache: cacheState,
       mediaCache,
+      researchMemory,
       runtimeHooks: {
         setTranscriptionCost,
         summarizeAsset,

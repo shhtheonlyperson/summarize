@@ -1,6 +1,7 @@
 import type { CacheState } from "../cache.js";
 import { type ExtractedLinkContent, isYouTubeUrl, type MediaCache } from "../content/index.js";
 import type { RunMetricsReport } from "../costs.js";
+import type { ResearchMemoryRunRecorder } from "../research-memory/lifecycle.js";
 import { buildFinishLineVariants, buildLengthPartsForFinishLine } from "../run/finish-line.js";
 import { deriveExtractionUi } from "../run/flows/url/extract.js";
 import { runUrlFlow } from "../run/flows/url/flow.js";
@@ -152,6 +153,7 @@ export async function streamSummaryForVisiblePage({
   cache,
   mediaCache,
   overrides,
+  researchMemory,
 }: {
   env: Record<string, string | undefined>;
   fetchImpl: typeof fetch;
@@ -166,6 +168,7 @@ export async function streamSummaryForVisiblePage({
   cache: CacheState;
   mediaCache: MediaCache | null;
   overrides: RunOverrides;
+  researchMemory?: ResearchMemoryRunRecorder | null;
 }): Promise<{ usedModel: string; metrics: VisiblePageMetrics }> {
   const startedAt = Date.now();
   let usedModel: string | null = null;
@@ -190,12 +193,14 @@ export async function streamSummaryForVisiblePage({
       onModelChosen: (modelId) => {
         usedModel = modelId;
         sink.onModelChosen(modelId);
+        void researchMemory?.recordModelRoute(modelId);
       },
       onSummaryCached: (cached) => {
         summaryFromCache = cached;
         sink.writeMeta?.({ summaryFromCache: cached });
       },
     },
+    researchMemory,
     runStartedAtMs: startedAt,
     stdoutSink: { writeChunk: sink.writeChunk },
   });
@@ -242,6 +247,8 @@ export async function streamSummaryForVisiblePage({
       },
     } satisfies ExtractedLinkContent["diagnostics"],
   };
+
+  await researchMemory?.recordExtractedUrlSource(extracted);
 
   sink.writeMeta?.({
     inputSummary: formatInputSummary({
@@ -311,6 +318,7 @@ export async function streamSummaryForUrl({
   overrides,
   slides,
   hooks,
+  researchMemory,
 }: {
   env: Record<string, string | undefined>;
   fetchImpl: typeof fetch;
@@ -342,6 +350,7 @@ export async function streamSummaryForUrl({
       };
     }) => void;
   } | null;
+  researchMemory?: ResearchMemoryRunRecorder | null;
 }): Promise<{ usedModel: string; metrics: VisiblePageMetrics }> {
   const startedAt = Date.now();
   let usedModel: string | null = null;
@@ -369,6 +378,7 @@ export async function streamSummaryForUrl({
       onModelChosen: (modelId) => {
         usedModel = modelId;
         sink.onModelChosen(modelId);
+        void researchMemory?.recordModelRoute(modelId);
       },
       onExtracted: (content) => {
         extractedRef.value = content;
@@ -398,6 +408,7 @@ export async function streamSummaryForUrl({
         sink.writeMeta?.({ summaryFromCache: cached });
       },
     },
+    researchMemory,
     runStartedAtMs: startedAt,
     stdoutSink: { writeChunk: sink.writeChunk },
   });
@@ -445,6 +456,7 @@ export async function extractContentForUrl({
   format,
   slides,
   hooks,
+  researchMemory,
 }: {
   env: Record<string, string | undefined>;
   fetchImpl: typeof fetch;
@@ -458,6 +470,7 @@ export async function extractContentForUrl({
   hooks?: {
     onSlidesExtracted?: ((slides: SlideExtractionResult) => void) | null;
   } | null;
+  researchMemory?: ResearchMemoryRunRecorder | null;
 }): Promise<{ extracted: ExtractedLinkContent; slides: SlideExtractionResult | null }> {
   const extractedRef = { value: null as ExtractedLinkContent | null };
   const slidesRef = { value: null as SlideExtractionResult | null };
@@ -487,6 +500,7 @@ export async function extractContentForUrl({
         hooks?.onSlidesExtracted?.(result);
       },
     },
+    researchMemory,
     runStartedAtMs: Date.now(),
     stdoutSink: { writeChunk: () => {} },
   });

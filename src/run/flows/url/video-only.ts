@@ -81,6 +81,7 @@ export async function handleVideoOnlyExtractedContent({
   }
 
   hooks.onExtracted?.(extracted);
+  await ctx.researchMemory?.recordExtractedUrlSource(extracted);
   if (flags.progressEnabled) spinner.setText(renderStatus("Downloading video"));
   const loadedVideo = await loadRemoteAsset({
     url: extracted.video.url,
@@ -98,6 +99,7 @@ export async function handleVideoOnlyExtractedContent({
     onModelChosen: (modelId) => {
       chosenModel = modelId;
       hooks.onModelChosen?.(modelId);
+      void ctx.researchMemory?.recordModelRoute(modelId);
       if (flags.progressEnabled) {
         const meta = `${styleDim("(")}${styleDim("model: ")}${accent(modelId)}${styleDim(")")}`;
         spinner.setText(renderStatusWithMeta("Summarizing video", meta));

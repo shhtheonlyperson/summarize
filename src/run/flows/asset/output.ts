@@ -1,5 +1,6 @@
 import { render as renderMarkdownAnsi } from "markdansi";
 import type { RunMetricsReport } from "../../../costs.js";
+import type { ResearchMemoryRunRecorder } from "../../../research-memory/lifecycle.js";
 import type { AssetAttachment } from "../../attachments.js";
 import { buildExtractFinishLabel, writeFinishLine } from "../../finish-line.js";
 import { prepareMarkdownForTerminal } from "../../markdown.js";
@@ -15,6 +16,7 @@ export async function outputExtractedAsset({
   attachment,
   extracted,
   apiStatus,
+  researchMemory,
 }: {
   io: {
     env: Record<string, string | undefined>;
@@ -53,7 +55,15 @@ export async function outputExtractedAsset({
     googleConfigured: boolean;
     anthropicConfigured: boolean;
   };
+  researchMemory?: ResearchMemoryRunRecorder | null;
 }): Promise<void> {
+  await researchMemory?.recordAssetSource({
+    sourceKind: "asset-url",
+    sourceLabel,
+    mediaType: attachment.mediaType,
+    filename: attachment.filename,
+    content: extracted.content,
+  });
   hooks.clearProgressForStdout();
   const finishLabel = buildExtractFinishLabel({
     extracted: { diagnostics: extracted.diagnostics },

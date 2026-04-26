@@ -1,7 +1,12 @@
+import { randomUUID } from "node:crypto";
 import type { Command } from "commander";
 import { type CacheState } from "../cache.js";
 import type { ExecFileFn } from "../markitdown.js";
 import type { FixedModelSpec } from "../model-spec.js";
+import {
+  createResearchMemoryRunRecorder,
+  createResearchMemoryStoreFromConfig,
+} from "../research-memory/index.js";
 import {
   createThemeRenderer,
   resolveThemeNameFromSources,
@@ -27,6 +32,33 @@ import { resolveRunnerFlags } from "./runner-flags.js";
 import { resolveRunnerSlidesSettings } from "./runner-slides.js";
 import { createSummaryEngine } from "./summary-engine.js";
 import { isRichTty, supportsColor } from "./terminal.js";
+
+function formatLengthForMemory(
+  lengthArg: { kind: "preset"; preset: string } | { kind: "chars"; maxCharacters: number },
+): string {
+  return lengthArg.kind === "preset" ? lengthArg.preset : `${lengthArg.maxCharacters} chars`;
+}
+
+function resolveCliResearchMemoryMode({
+  inputTarget,
+  extractMode,
+  slidesEnabled,
+}: {
+  inputTarget:
+    | { kind: "url"; url: string }
+    | { kind: "file"; filePath: string }
+    | { kind: "stdin" };
+  extractMode: boolean;
+  slidesEnabled: boolean;
+}) {
+  if (extractMode) return "extract" as const;
+  if (slidesEnabled) return "slides" as const;
+  if (inputTarget.kind === "file") {
+    return isTranscribableExtension(inputTarget.filePath) ? ("media" as const) : ("file" as const);
+  }
+  if (inputTarget.kind === "stdin") return "file" as const;
+  return isTranscribableExtension(inputTarget.url) ? ("media" as const) : ("url" as const);
+}
 
 export type RunnerPlan = {
   cacheState: CacheState;
@@ -252,6 +284,7 @@ export async function createRunnerPlan(options: {
     requestedModel,
     requestedModelInput,
     requestedModelLabel,
+    selectionSource,
     isNamedModelSelection,
     isImplicitAutoSelection,
     wantsFreeNamedModel,
@@ -370,6 +403,66 @@ export async function createRunnerPlan(options: {
     restoreProgressAfterStdout?.();
   };
 
+  const researchMemoryFactory = createResearchMemoryStoreFromConfig({
+    config,
+    env: envForRun,
+  });
+  const researchMemory =
+    researchMemoryFactory.store && researchMemoryFactory.artifactRoot
+      ? createResearchMemoryRunRecorder({
+          store: researchMemoryFactory.store,
+          artifactRoot: researchMemoryFactory.artifactRoot,
+          outputLanguage,
+          model: {
+            requestedModelInput,
+            requestedModelLabel,
+            selectionSource,
+            providerBaseUrls: {
+              ...providerBaseUrls,
+              nvidia: nvidiaBaseUrl,
+              zai: zaiBaseUrl,
+            },
+            localOnlyMode,
+          },
+          run: {
+            id: `run-${randomUUID()}`,
+            kind: "cli",
+            mode: resolveCliResearchMemoryMode({
+              inputTarget,
+              extractMode,
+              slidesEnabled: Boolean(slidesSettings),
+            }),
+            status: "running",
+            createdAt: runStartedAtMs,
+            startedAt: runStartedAtMs,
+            completedAt: null,
+            inputRef:
+              inputTarget.kind === "url"
+                ? inputTarget.url
+                : inputTarget.kind === "file"
+                  ? inputTarget.filePath
+                  : "stdin",
+            length: formatLengthForMemory(lengthArg),
+            languageRaw:
+              outputLanguage.kind === "fixed"
+                ? outputLanguage.tag
+                : typeof config?.output?.language === "string"
+                  ? config.output.language
+                  : typeof config?.language === "string"
+                    ? config.language
+                    : "auto",
+            languageBucket: outputLanguage.kind === "auto" ? "none" : null,
+            requestedFormat: format,
+            summaryArtifactId: null,
+            metrics: {},
+            configFingerprint: null,
+          },
+          onWarning: (message) => {
+            stderr.write(`${message}\n`);
+          },
+        })
+      : null;
+
   const { summarizeAsset, assetInputContext, urlFlowContext } = createRunnerFlowContexts({
     summarizeMediaFileImpl,
     cacheState,
@@ -473,64 +566,75 @@ export async function createRunnerPlan(options: {
     clearProgressIfCurrent,
     buildReport,
     estimateCostUsd,
+    researchMemory,
   });
 
   return {
     cacheState,
     execute: async () => {
-      await executeRunnerInput({
-        inputTarget,
-        stdin: stdin ?? process.stdin,
-        handleFileInputContext: assetInputContext,
-        url,
-        isYoutubeUrl,
-        withUrlAssetContext: assetInputContext,
-        slidesEnabled: Boolean(slidesSettings),
-        extractMode,
-        progressEnabled,
-        renderSpinnerStatus,
-        renderSpinnerStatusWithModel,
-        extractAssetContext: {
-          env,
-          envForRun,
-          execFileImpl,
-          timeoutMs,
-          preprocessMode,
-        },
-        outputExtractedAssetContext: {
-          io: { env, envForRun, stdout, stderr },
-          flags: {
+      await researchMemory?.start();
+      try {
+        await executeRunnerInput({
+          inputTarget,
+          stdin: stdin ?? process.stdin,
+          handleFileInputContext: assetInputContext,
+          url,
+          isYoutubeUrl,
+          withUrlAssetContext: assetInputContext,
+          slidesEnabled: Boolean(slidesSettings),
+          extractMode,
+          progressEnabled,
+          renderSpinnerStatus,
+          renderSpinnerStatusWithModel,
+          extractAssetContext: {
+            env,
+            envForRun,
+            execFileImpl,
             timeoutMs,
             preprocessMode,
-            format,
-            plain,
-            json,
-            metricsEnabled,
-            metricsDetailed,
-            shouldComputeReport,
-            runStartedAtMs,
-            verboseColor,
           },
-          hooks: {
-            clearProgressForStdout,
-            restoreProgressAfterStdout,
-            buildReport,
-            estimateCostUsd,
+          outputExtractedAssetContext: {
+            io: { env, envForRun, stdout, stderr },
+            flags: {
+              timeoutMs,
+              preprocessMode,
+              format,
+              plain,
+              json,
+              metricsEnabled,
+              metricsDetailed,
+              shouldComputeReport,
+              runStartedAtMs,
+              verboseColor,
+            },
+            hooks: {
+              clearProgressForStdout,
+              restoreProgressAfterStdout,
+              buildReport,
+              estimateCostUsd,
+            },
+            apiStatus: {
+              xaiApiKey,
+              apiKey,
+              openrouterApiKey,
+              apifyToken,
+              firecrawlConfigured,
+              googleConfigured,
+              anthropicConfigured,
+              openaiApiKey,
+            },
+            researchMemory,
           },
-          apiStatus: {
-            xaiApiKey,
-            apiKey,
-            openrouterApiKey,
-            apifyToken,
-            firecrawlConfigured,
-            googleConfigured,
-            anthropicConfigured,
-            openaiApiKey,
-          },
-        },
-        summarizeAsset,
-        runUrlFlowContext: urlFlowContext,
-      });
+          summarizeAsset,
+          runUrlFlowContext: urlFlowContext,
+        });
+        await researchMemory?.complete(await buildReport());
+      } catch (error) {
+        await researchMemory?.fail(error);
+        throw error;
+      } finally {
+        await researchMemory?.close();
+      }
     },
   };
 }
