@@ -1,5 +1,6 @@
 import { parseSseEvent, type SseSlidesData } from "../../lib/runtime-contracts";
 import { parseSseStream, type SseMessage } from "../../lib/sse";
+import { t } from "./i18n";
 
 export type SlidesStreamController = {
   start: (runId: string) => Promise<void>;
@@ -29,7 +30,7 @@ export function createSlidesStreamController(
     onError,
     fetchImpl,
     idleTimeoutMs = 300_000,
-    idleTimeoutMessage = "Timed out waiting for slide updates.",
+    idleTimeoutMessage = t("timedOutSlideUpdates"),
   } = options;
   let controller: AbortController | null = null;
   let streaming = false;
@@ -81,7 +82,7 @@ export function createSlidesStreamController(
         },
       );
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      if (!res.body) throw new Error("Missing stream body");
+      if (!res.body) throw new Error(t("missingStreamBody"));
 
       const iterator = parseSseStream(res.body);
       const useIdleTimeout = Number.isFinite(idleTimeoutMs) && idleTimeoutMs > 0;
@@ -124,7 +125,7 @@ export function createSlidesStreamController(
       if (generation !== activeGeneration) return;
       if (nextController.signal.aborted) return;
       if (!sawDone) {
-        throw new Error("Stream ended unexpectedly. The daemon may have stopped.");
+        throw new Error(t("streamEndedUnexpectedly"));
       }
     } catch (err) {
       if (err instanceof Error && err.name === "IdleTimeoutError") {

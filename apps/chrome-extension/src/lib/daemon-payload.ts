@@ -1,4 +1,4 @@
-import type { Settings } from "./settings";
+import { summaryLanguageForSettings, type Settings } from "./settings";
 
 export type ExtractedPage = {
   url: string;
@@ -44,7 +44,7 @@ export function buildDaemonRequestBody({
     truncated: extracted.truncated,
     model: settings.model,
     length: settings.length,
-    language: settings.language,
+    language: summaryLanguageForSettings(settings),
     ...(promptOverride ? { prompt: promptOverride } : {}),
     ...(noCache ? { noCache: true } : {}),
     ...(diagnostics ? { diagnostics } : {}),

@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import type { PanelPhase } from "./types";
 
 type SummaryEmptyStateInput = {
@@ -17,26 +18,26 @@ export type SummaryEmptyState = {
 export function buildSummaryEmptyState(input: SummaryEmptyStateInput): SummaryEmptyState | null {
   if (input.hasSlides) return null;
 
-  const subject = input.tabTitle?.trim() || input.tabUrl?.trim() || "this page";
+  const subject = input.tabTitle?.trim() || input.tabUrl?.trim() || t("thisPage");
   if (!input.tabUrl) {
     return {
-      label: "No page",
-      message: "Open a page to summarize.",
+      label: t("noPage"),
+      message: t("openPageToSummarize"),
       detail: null,
     };
   }
 
   if (input.phase === "connecting" || input.phase === "streaming" || input.autoSummarize) {
     return {
-      label: "Loading",
-      message: "Preparing summary",
+      label: t("loading"),
+      message: t("preparingSummary"),
       detail: subject,
     };
   }
 
   return {
-    label: "Ready",
-    message: "Click Summarize to start.",
+    label: t("ready"),
+    message: t("clickSummarize"),
     detail: subject,
   };
 }

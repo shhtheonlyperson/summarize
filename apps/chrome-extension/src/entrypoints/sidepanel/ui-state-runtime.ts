@@ -1,4 +1,5 @@
 import { shouldPreferUrlMode } from "@steipete/summarize-core/content/url";
+import { t } from "./i18n";
 import type { PanelCachePayload } from "./panel-cache";
 import {
   resolvePanelNavigationDecision,
@@ -204,7 +205,7 @@ export function createUiStateRuntime(opts: UiStateRuntimeOpts) {
       : navigation.kind !== "none"
         ? preferUrlMode
         : mediaAvailable || preferUrlMode;
-    const nextVideoLabel = state.media?.hasAudio && !state.media.hasVideo ? "Audio" : "Video";
+    const nextVideoLabel = state.media?.hasAudio && !state.media.hasVideo ? t("audio") : t("video");
 
     if (navigation.kind === "tab") {
       if (navigation.preserveChat) {
@@ -348,7 +349,7 @@ export function createUiStateRuntime(opts: UiStateRuntimeOpts) {
     if (!opts.panelState.currentSource) {
       if (!ignoreTransientTabState) {
         opts.panelState.lastMeta = { inputSummary: null, model: null, modelLabel: null };
-        opts.headerController.setBaseTitle(nextTabTitle || nextTabUrl || "Summarize");
+        opts.headerController.setBaseTitle(nextTabTitle || nextTabUrl || t("appTitle"));
         opts.headerController.setBaseSubtitle("");
       }
     }
