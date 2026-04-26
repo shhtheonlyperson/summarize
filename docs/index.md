@@ -81,6 +81,15 @@ Save defaults in `~/.summarize/config.json` and override per-invocation with fla
 }
 ```
 
+## Local-first additions
+
+- [Local-first roadmap](local-first-roadmap.md)
+- [Local LLM onboarding](local-llm-onboarding.md)
+- [Local model capabilities audit](local-model-capabilities-audit.md)
+- [Local research memory](local-research-memory.md)
+- [Local research memory design](local-research-memory-design.md)
+- [NotebookLM podcast workflow](notebooklm-podcast-workflow.md)
+
 ## Project
 
 Active development; the [changelog](https://github.com/steipete/summarize/blob/main/CHANGELOG.md) tracks recent releases. Released under the [MIT license](https://github.com/steipete/summarize/blob/main/LICENSE). Source at [github.com/steipete/summarize](https://github.com/steipete/summarize). The Chrome extension is on the [Chrome Web Store](https://chromewebstore.google.com/detail/summarize/cejgnmmhbbpdmjnfppjdfkocebngehfg).
