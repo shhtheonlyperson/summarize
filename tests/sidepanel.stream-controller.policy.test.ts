@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { setSidepanelUiLanguage } from "../apps/chrome-extension/src/entrypoints/sidepanel/i18n";
 import {
   accumulateChatChunk,
   accumulateSummarizeChunk,
@@ -7,6 +8,10 @@ import {
 } from "../apps/chrome-extension/src/entrypoints/sidepanel/stream-controller-policy";
 
 describe("sidepanel stream controller policy", () => {
+  beforeEach(() => {
+    setSidepanelUiLanguage("en");
+  });
+
   it("keeps slide status visible during streaming output", () => {
     expect(
       shouldSurfaceStreamingStatus({

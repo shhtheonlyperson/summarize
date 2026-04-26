@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setSidepanelUiLanguage } from "../apps/chrome-extension/src/entrypoints/sidepanel/i18n";
 import { createSlidesSummaryController } from "../apps/chrome-extension/src/entrypoints/sidepanel/slides-summary-controller";
 import type { StreamControllerOptions } from "../apps/chrome-extension/src/entrypoints/sidepanel/stream-controller";
 import type { PanelState, UiState } from "../apps/chrome-extension/src/entrypoints/sidepanel/types";
@@ -66,6 +67,7 @@ function buildPanelState(): PanelState {
 
 describe("slides summary controller", () => {
   beforeEach(() => {
+    setSidepanelUiLanguage("en");
     streamOptions = null;
     streamOptionsList = [];
     streamStartSpy = null;

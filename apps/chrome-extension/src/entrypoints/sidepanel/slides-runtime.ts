@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import { createSlidesHydrator } from "./slides-hydrator";
 import { createSlidesRunRuntime } from "./slides-run-runtime";
 import { createSlidesSummaryController } from "./slides-summary-controller";
@@ -104,7 +105,7 @@ export function createSidepanelSlidesRuntime({
       slidesRunRuntime.handleSlidesStatus(text);
     },
     onError: (err) => {
-      const message = friendlyFetchError(err, "Slides stream failed");
+      const message = friendlyFetchError(err, t("slidesStreamFailed"));
       showSlideNotice(message, { allowRetry: true });
       setSlidesBusy(false);
       if (!isStreaming()) {

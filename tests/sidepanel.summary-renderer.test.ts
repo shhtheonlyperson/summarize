@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setSidepanelUiLanguage } from "../apps/chrome-extension/src/entrypoints/sidepanel/i18n.js";
 import {
   renderSummaryEmptyState,
   renderSummaryMarkdownDisplay,
 } from "../apps/chrome-extension/src/entrypoints/sidepanel/summary-renderer.js";
 
 describe("sidepanel summary renderer", () => {
+  beforeEach(() => {
+    setSidepanelUiLanguage("en");
+  });
+
   it("renders and clears empty states", () => {
     const hostEl = document.createElement("div");
     renderSummaryEmptyState({

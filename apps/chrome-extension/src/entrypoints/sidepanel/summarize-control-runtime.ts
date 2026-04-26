@@ -1,4 +1,5 @@
 import type { Settings, SlidesLayout } from "../../lib/settings";
+import { t } from "./i18n";
 import { mountSummarizeControl } from "./pickers";
 import type { SlideTextMode } from "./slides-state";
 import { resolveSlidesRenderLayout } from "./slides-view-policy";
@@ -107,7 +108,9 @@ export function createSummarizeControlRuntime(options: SummarizeControlRuntimeOp
       const tools = await fetchSlideTools(options.loadSettings, state.slidesOcrEnabled);
       if (!tools.ok) {
         options.showSlideNotice(
-          `Slide extraction requires ${tools.missing.join(", ")}. Install and restart the daemon.`,
+          `${t("slideExtractionRequires")} ${tools.missing.join(", ")}. ${t(
+            "installAndRestartDaemon",
+          )}`,
         );
         refreshSummarizeControl();
         return;
@@ -171,7 +174,7 @@ export function createSummarizeControlRuntime(options: SummarizeControlRuntimeOp
     mode: options.getState().inputMode,
     slidesEnabled: options.getState().slidesEnabled,
     mediaAvailable: false,
-    videoLabel: "Video",
+    videoLabel: t("video"),
     busy: false,
     slidesTextMode: options.slidesTextController.getTextMode(),
     slidesTextToggleVisible: options.slidesTextController.getTextToggleVisible(),

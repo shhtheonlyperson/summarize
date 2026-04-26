@@ -1,7 +1,7 @@
 import type { AssistantMessage, Message } from "@mariozechner/pi-ai";
 import { readAgentResponse } from "../../lib/agent-response";
 import { buildChatPageContent } from "../../lib/chat-context";
-import type { Settings } from "../../lib/settings";
+import { summaryLanguageForSettings, type Settings } from "../../lib/settings";
 import type { CachedExtract } from "./extract-cache";
 
 type BackgroundChatSession = {
@@ -135,7 +135,7 @@ export async function handlePanelAgentRequest({
         messages,
         model: settings.model,
         length: settings.length,
-        language: settings.language,
+        language: summaryLanguageForSettings(settings),
         tools,
         automationEnabled: settings.automationEnabled,
       }),
@@ -216,7 +216,7 @@ export async function handlePanelChatHistoryRequest({
         cacheContent,
         model: settings.model,
         length: settings.length,
-        language: settings.language,
+        language: summaryLanguageForSettings(settings),
         automationEnabled: settings.automationEnabled,
       }),
     });
