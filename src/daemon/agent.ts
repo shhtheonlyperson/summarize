@@ -270,6 +270,7 @@ export async function streamAgentResponse({
   pageContent,
   messages,
   modelOverride,
+  requestLocalOnly,
   tools,
   automationEnabled,
   onChunk,
@@ -282,6 +283,7 @@ export async function streamAgentResponse({
   pageContent: string;
   messages: unknown;
   modelOverride: string | null;
+  requestLocalOnly?: boolean | null;
   tools: string[];
   automationEnabled: boolean;
   onChunk: (text: string) => void;
@@ -302,6 +304,7 @@ export async function streamAgentResponse({
     env,
     pageContent,
     modelOverride,
+    requestLocalOnly,
   });
 
   if ("transport" in resolved && resolved.transport === "cli") {
@@ -370,6 +373,7 @@ export async function completeAgentResponse({
   pageContent,
   messages,
   modelOverride,
+  requestLocalOnly,
   tools,
   automationEnabled,
 }: {
@@ -379,6 +383,7 @@ export async function completeAgentResponse({
   pageContent: string;
   messages: unknown;
   modelOverride: string | null;
+  requestLocalOnly?: boolean | null;
   tools: string[];
   automationEnabled: boolean;
 }): Promise<AssistantMessage> {
@@ -396,6 +401,7 @@ export async function completeAgentResponse({
     env,
     pageContent,
     modelOverride,
+    requestLocalOnly,
   });
 
   if ("transport" in resolved && resolved.transport === "cli") {

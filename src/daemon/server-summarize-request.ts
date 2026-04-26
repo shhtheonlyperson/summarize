@@ -57,6 +57,7 @@ export type ParsedSummarizeRequest = {
   textContent: string;
   truncated: boolean;
   modelOverride: string | null;
+  requestLocalOnly: boolean | null;
   lengthRaw: string;
   languageRaw: string;
   promptOverride: string | null;
@@ -107,6 +108,7 @@ export async function parseSummarizeRequest({
   const textContent = typeof obj.text === "string" ? obj.text : "";
   const truncated = Boolean(obj.truncated);
   const modelOverride = typeof obj.model === "string" ? obj.model.trim() : null;
+  const requestLocalOnly = typeof obj.localOnly === "boolean" ? obj.localOnly : null;
   const lengthRaw = typeof obj.length === "string" ? obj.length.trim() : "";
   const languageRaw = typeof obj.language === "string" ? obj.language.trim() : "";
   const promptRaw = typeof obj.prompt === "string" ? obj.prompt : "";
@@ -168,6 +170,7 @@ export async function parseSummarizeRequest({
     textContent,
     truncated,
     modelOverride,
+    requestLocalOnly,
     lengthRaw,
     languageRaw,
     promptOverride,
