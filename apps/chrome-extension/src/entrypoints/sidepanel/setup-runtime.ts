@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import { installStepsHtml, wireSetupButtons } from "./setup-view";
 import type { UiState } from "./types";
 
@@ -18,7 +19,7 @@ export function resolvePlatformKind(): PlatformKind {
 export function friendlyFetchError(err: unknown, context: string): string {
   const message = err instanceof Error ? err.message : String(err);
   if (message.toLowerCase() === "failed to fetch") {
-    return `${context}: Failed to fetch (daemon unreachable or blocked by Chrome; try \`summarize daemon status\`, maybe \`summarize daemon restart\`, and check ~/.summarize/logs/daemon.err.log)`;
+    return `${context}: ${t("fetchFailedDetail")}`;
   }
   return `${context}: ${message}`;
 }
@@ -38,9 +39,8 @@ export function createSetupRuntime(options: {
     options.setupEl.classList.remove("hidden");
     options.setupEl.innerHTML = installStepsHtml({
       token,
-      headline: "Setup",
-      message:
-        "Install summarize, then register the daemon so the side panel can stream summaries.",
+      headline: t("setup"),
+      message: t("setupMessage"),
       platformKind,
     });
     wireSetupButtons({
@@ -68,8 +68,8 @@ export function createSetupRuntime(options: {
         options.setupEl.innerHTML = `
           ${installStepsHtml({
             token,
-            headline: "Daemon not reachable",
-            message: state.daemon.error ?? "Check that the LaunchAgent is installed.",
+            headline: t("daemonNotReachable"),
+            message: state.daemon.error ?? t("launchAgentCheck"),
             platformKind,
             showTroubleshooting: true,
           })}

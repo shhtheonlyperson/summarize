@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   defaultSettings,
+  languageForUiLanguage,
   loadSettings,
+  normalizeUiLanguage,
   patchSettings,
   saveSettings,
+  summaryLanguageForSettings,
 } from "../apps/chrome-extension/src/lib/settings.js";
 import { installChromeStorage } from "./helpers/chrome-storage.js";
 
@@ -18,34 +21,63 @@ describe("chrome/settings", () => {
   it("loads defaults when storage is empty", async () => {
     const s = await loadSettings();
     expect(s).toEqual(defaultSettings);
+    expect(s.uiLanguage).toBe("zh-tw");
+    expect(s.language).toBe("zh-tw");
   });
 
-  it("normalizes model/length/language on save", async () => {
+  it("normalizes model/length/language/ui language on save", async () => {
     await saveSettings({
       ...defaultSettings,
       token: "t",
       model: "Auto",
       length: "S",
       language: " German ",
+      uiLanguage: "English" as never,
     });
 
     const raw = storage.settings as Record<string, unknown>;
     expect(raw.model).toBe("auto");
     expect(raw.length).toBe("short");
     expect(raw.language).toBe("German");
+    expect(raw.uiLanguage).toBe("en");
 
     const loaded = await loadSettings();
     expect(loaded.model).toBe("auto");
     expect(loaded.length).toBe("short");
     expect(loaded.language).toBe("German");
+    expect(loaded.uiLanguage).toBe("en");
   });
 
   it("patches settings and persists them", async () => {
-    await patchSettings({ token: "x", length: "20k", language: "en" });
+    await patchSettings({
+      token: "x",
+      length: "20k",
+      language: "en",
+      uiLanguage: "zh-hant" as never,
+    });
     const loaded = await loadSettings();
     expect(loaded.token).toBe("x");
     expect(loaded.length).toBe("20k");
     expect(loaded.language).toBe("en");
+    expect(loaded.uiLanguage).toBe("zh-tw");
+  });
+
+  it("syncs summary language when only the sidepanel UI language changes", async () => {
+    await patchSettings({ language: "en", uiLanguage: "en" });
+    await patchSettings({ uiLanguage: "zh-hant" as never });
+
+    const loaded = await loadSettings();
+
+    expect(loaded.language).toBe("zh-tw");
+    expect(loaded.uiLanguage).toBe("zh-tw");
+    expect(summaryLanguageForSettings(loaded)).toBe("zh-tw");
+    expect(languageForUiLanguage("English")).toBe("en");
+  });
+
+  it("normalizes sidepanel UI language aliases", () => {
+    expect(normalizeUiLanguage("english")).toBe("en");
+    expect(normalizeUiLanguage("zh-Hant")).toBe("zh-tw");
+    expect(normalizeUiLanguage("nope")).toBe("zh-tw");
   });
 
   it("persists slide OCR preference", async () => {

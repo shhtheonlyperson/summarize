@@ -2,6 +2,7 @@ import { readPresetOrCustomValue } from "../../lib/combo";
 import { parseSseEvent } from "../../lib/runtime-contracts";
 import type { Settings } from "../../lib/settings";
 import { parseSseStream } from "../../lib/sse";
+import { t } from "./i18n";
 
 type StatusState = "idle" | "running" | "error" | "ok";
 
@@ -41,10 +42,10 @@ export function createModelPresetsController({
   const setDefaultPresets = () => {
     modelPresetEl.innerHTML = "";
     for (const { value, label } of [
-      { value: "auto", label: "Auto" },
+      { value: "auto", label: t("auto") },
       { value: "gpt-fast", label: "GPT Fast" },
-      { value: "free", label: "Free" },
-      { value: "custom", label: "Custom…" },
+      { value: "free", label: t("free") },
+      { value: "custom", label: t("custom") },
     ]) {
       const option = document.createElement("option");
       option.value = value;
@@ -200,12 +201,12 @@ export function createModelPresetsController({
     if (refreshFreeRunning) return;
     const token = (await loadSettings()).token.trim();
     if (!token) {
-      setStatus("Setup required (missing token).", "error");
+      setStatus(t("setupRequiredMissingToken"), "error");
       return;
     }
     refreshFreeRunning = true;
     modelRefreshBtn.disabled = true;
-    setStatus("Starting scan…", "running");
+    setStatus(t("startingScan"), "running");
     let winnerModel: string | null = null;
 
     try {
@@ -228,7 +229,7 @@ export function createModelPresetsController({
       );
       if (!streamResponse.ok)
         throw new Error(`${streamResponse.status} ${streamResponse.statusText}`);
-      if (!streamResponse.body) throw new Error("Missing stream body");
+      if (!streamResponse.body) throw new Error(t("missingStreamBody"));
 
       for await (const raw of parseSseStream(streamResponse.body)) {
         const event = parseSseEvent(raw);
@@ -249,11 +250,11 @@ export function createModelPresetsController({
         }
       }
 
-      const winnerNote = winnerModel ? ` Top: ${winnerModel}` : "";
-      setStatus(`Free models updated.${winnerNote}`, "ok");
+      const winnerNote = winnerModel ? ` ${t("topModel")}: ${winnerModel}` : "";
+      setStatus(`${t("freeModelsUpdated")}${winnerNote}`, "ok");
       await refreshPresets(token);
     } catch (error) {
-      setStatus(friendlyFetchError(error, "Refresh free failed"), "error");
+      setStatus(friendlyFetchError(error, t("refreshFreeFailed")), "error");
     } finally {
       refreshFreeRunning = false;
       modelRefreshBtn.disabled = false;
@@ -267,6 +268,13 @@ export function createModelPresetsController({
     refreshPresets,
     runRefreshFree,
     setDefaultPresets,
+    localizeDefaultPresets: () => {
+      for (const option of Array.from(modelPresetEl.options)) {
+        if (option.value === "auto") option.textContent = t("auto");
+        if (option.value === "free") option.textContent = t("free");
+        if (option.value === "custom") option.textContent = t("custom");
+      }
+    },
     setPlaceholderFromDiscovery,
     setStatus,
     setValue,
