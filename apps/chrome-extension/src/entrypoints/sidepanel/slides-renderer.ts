@@ -1,5 +1,6 @@
 import type { SseSlidesData } from "../../lib/runtime-contracts";
 import type { SlidesLayout } from "../../lib/settings";
+import { formatSlideLabel, t } from "./i18n";
 import { resolveSlidesRenderLayout } from "./slides-view-policy";
 
 const MAX_SLIDE_STRIP = 12;
@@ -140,9 +141,9 @@ export function createSlidesRenderer({
     const total = allSlides.length;
     title.textContent =
       !state.slidesExpanded && total > slides.length
-        ? `Slides (${total}) · showing ${slides.length}`
-        : `Slides (${total})`;
-    toggle.textContent = state.slidesExpanded ? "Collapse" : "Expand";
+        ? `${t("slidesCount")} (${total}) · ${t("slidesShowing")} ${slides.length}`
+        : `${t("slidesCount")} (${total})`;
+    toggle.textContent = state.slidesExpanded ? t("collapse") : t("expand");
     toggle.setAttribute("aria-pressed", state.slidesExpanded ? "true" : "false");
     grid.classList.toggle("isExpanded", state.slidesExpanded);
 
@@ -170,7 +171,7 @@ export function createSlidesRenderer({
         const thumb = document.createElement("div");
         thumb.className = "slideStrip__thumb";
         const img = document.createElement("img");
-        img.alt = `Slide ${slide.index}`;
+        img.alt = formatSlideLabel(slide.index);
         img.className = "slideStrip__thumbImage";
         thumb.appendChild(img);
 
@@ -262,7 +263,7 @@ export function createSlidesRenderer({
     const title = root.querySelector<HTMLDivElement>(".slideGallery__title");
     const list = root.querySelector<HTMLDivElement>(".slideGallery__list");
     if (!title || !list) return;
-    title.textContent = `Slides (${slides.length})`;
+    title.textContent = `${t("slidesCount")} (${slides.length})`;
 
     const existingItems = new Map<number, HTMLElement>();
     for (const item of Array.from(list.querySelectorAll<HTMLElement>(".slideGallery__item"))) {
@@ -289,7 +290,7 @@ export function createSlidesRenderer({
         const thumb = document.createElement("div");
         thumb.className = "slideInline__thumb slideGallery__thumb isPlaceholder";
         const img = document.createElement("img");
-        img.alt = `Slide ${slide.index}`;
+        img.alt = formatSlideLabel(slide.index);
         img.className = "slideInline__thumbImage";
         thumb.appendChild(img);
         media.appendChild(thumb);
@@ -352,7 +353,7 @@ export function createSlidesRenderer({
       const thumb = document.createElement("div");
       thumb.className = "slideInline__thumb isPlaceholder";
       const img = document.createElement("img");
-      img.alt = `Slide ${index}`;
+      img.alt = formatSlideLabel(index);
       img.className = "slideInline__thumbImage";
       updateThumb(img, thumb, slide.imageUrl);
       const caption = document.createElement("div");

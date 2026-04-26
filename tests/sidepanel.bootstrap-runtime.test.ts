@@ -26,6 +26,7 @@ describe("sidepanel bootstrap runtime", () => {
   it("hydrates settings, binds lifecycle, and pings", async () => {
     const calls: string[] = [];
     const loadedSettings = {
+      uiLanguage: "zh-tw",
       autoSummarize: true,
       chatEnabled: false,
       automationEnabled: false,
@@ -49,6 +50,7 @@ describe("sidepanel bootstrap runtime", () => {
       setSettingsHydrated: (value) => {
         calls.push(`hydrated:${value}`);
       },
+      applyUiLanguage: (value) => calls.push(`language:${value}`),
       typographyController: {
         setCurrentFontSize: (value) => calls.push(`font:${value}`),
         setCurrentLineHeight: (value) => calls.push(`line:${value}`),
@@ -84,6 +86,7 @@ describe("sidepanel bootstrap runtime", () => {
     expect(bindingSpies.bindSettingsStorage).toHaveBeenCalledTimes(1);
     expect(bindingSpies.bindSidepanelLifecycle).toHaveBeenCalledTimes(1);
     expect(calls).toContain("hide-automation");
+    expect(calls).toContain("language:zh-tw");
     expect(calls).toContain("model-disabled:true");
     expect(calls).toContain("chat:true");
     expect(calls).toContain("ready");
@@ -98,6 +101,7 @@ describe("sidepanel bootstrap runtime", () => {
         calls.push("ensure");
       },
       loadSettings: async () => ({
+        uiLanguage: "en",
         autoSummarize: false,
         chatEnabled: true,
         automationEnabled: true,
@@ -115,6 +119,7 @@ describe("sidepanel bootstrap runtime", () => {
       setSettingsHydrated: (value) => {
         calls.push(`hydrated:${value}`);
       },
+      applyUiLanguage: (value) => calls.push(`language:${value}`),
       typographyController: {
         setCurrentFontSize: (value) => calls.push(`font:${value}`),
         setCurrentLineHeight: (value) => calls.push(`line:${value}`),
@@ -148,6 +153,7 @@ describe("sidepanel bootstrap runtime", () => {
     await vi.advanceTimersByTimeAsync(25_000);
 
     expect(calls).not.toContain("hide-automation");
+    expect(calls).toContain("language:en");
     expect(calls).toContain("model-disabled:false");
     expect(calls).toContain("chat:true");
     expect(calls).toContain("layout:strip");
