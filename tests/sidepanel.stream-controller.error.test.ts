@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { setSidepanelUiLanguage } from "../apps/chrome-extension/src/entrypoints/sidepanel/i18n.js";
 import { createStreamController } from "../apps/chrome-extension/src/entrypoints/sidepanel/stream-controller.js";
 import { encodeSseEvent, type SseEvent } from "../src/shared/sse-events.js";
 
@@ -43,6 +44,10 @@ const run = {
 };
 
 describe("sidepanel stream controller error handling", () => {
+  beforeEach(() => {
+    setSidepanelUiLanguage("en");
+  });
+
   it("keeps error phase when SSE returns an error event", async () => {
     const phases: string[] = [];
     const statuses: string[] = [];
