@@ -5,11 +5,13 @@ import {
   applyHelpStyle,
   attachRichHelp,
   buildDaemonHelp,
+  buildLocalRuntimeHelp,
   buildProgram,
   buildRefreshFreeHelp,
   buildSlidesProgram,
   buildTranscriberHelp,
 } from "./help.js";
+import { handleLocalRuntimeProbeRequest } from "./local-runtime-probe-cli.js";
 
 type HelpContext = {
   normalizedArgv: string[];
@@ -32,6 +34,10 @@ export function handleHelpRequest({
   }
   if (topic === "daemon") {
     stdout.write(`${buildDaemonHelp()}\n`);
+    return true;
+  }
+  if (topic === "local-runtime") {
+    stdout.write(`${buildLocalRuntimeHelp()}\n`);
     return true;
   }
   if (topic === "slides") {
@@ -157,5 +163,17 @@ export async function handleDaemonCliRequest(ctx: RefreshContext): Promise<boole
     fetchImpl: ctx.fetchImpl,
     stdout: ctx.stdout,
     stderr: ctx.stderr,
+  });
+}
+
+export async function handleLocalRuntimeCliRequest(
+  ctx: RefreshContext & { setExitCode?: (code: number) => void },
+): Promise<boolean> {
+  return handleLocalRuntimeProbeRequest({
+    normalizedArgv: ctx.normalizedArgv,
+    envForRun: ctx.envForRun,
+    fetchImpl: ctx.fetchImpl,
+    stdout: ctx.stdout,
+    setExitCode: ctx.setExitCode,
   });
 }
