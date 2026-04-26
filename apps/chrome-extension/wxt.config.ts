@@ -12,6 +12,19 @@ const extensionVersion = (() => {
   }
 })();
 
+const localModelRoutingDefaults = (() => {
+  try {
+    const raw = readFileSync(
+      new URL("../../src/config/local-model-routing-defaults.json", import.meta.url),
+      "utf8",
+    );
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+})();
+const localModelRoutingDefaultsJson = JSON.stringify(localModelRoutingDefaults);
+
 const gitHash = (() => {
   try {
     return execSync("git rev-parse --short HEAD", {
@@ -34,6 +47,7 @@ export default defineConfig({
     define: {
       __SUMMARIZE_VERSION__: JSON.stringify(extensionVersion),
       __SUMMARIZE_GIT_HASH__: JSON.stringify(gitHash),
+      __LOCAL_MODEL_ROUTING_DEFAULTS_JSON__: JSON.stringify(localModelRoutingDefaultsJson),
     },
     resolve: {
       alias: {
