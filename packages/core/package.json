@@ -38,6 +38,10 @@
     "./language": {
       "types": "./dist/types/language.d.ts",
       "import": "./dist/esm/language.js"
+    },
+    "./local-runtime": {
+      "types": "./dist/types/local-runtime.d.ts",
+      "import": "./dist/esm/local-runtime.js"
     }
   },
   "scripts": {
