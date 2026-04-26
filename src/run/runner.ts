@@ -5,6 +5,7 @@ import {
   handleDaemonCliRequest,
   handleHelpRequest,
   handleLocalRuntimeCliRequest,
+  handleMemoryRequest,
   handleRefreshFreeRequest,
 } from "./cli-preflight.js";
 import { attachRichHelp, buildProgram } from "./help.js";
@@ -140,6 +141,9 @@ async function handleImmediateCliRequests(options: {
       setExitCode,
     })
   ) {
+    return true;
+  }
+  if (await handleMemoryRequest({ normalizedArgv, envForRun, stdout, setExitCode })) {
     return true;
   }
   if (await handleSlidesCliRequest({ normalizedArgv, envForRun, fetchImpl, stdout, stderr })) {
