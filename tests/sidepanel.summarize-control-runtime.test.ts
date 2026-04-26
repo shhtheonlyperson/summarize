@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setSidepanelUiLanguage } from "../apps/chrome-extension/src/entrypoints/sidepanel/i18n";
 import type { SlideTextMode } from "../apps/chrome-extension/src/entrypoints/sidepanel/slides-state";
 import { createSummarizeControlRuntime } from "../apps/chrome-extension/src/entrypoints/sidepanel/summarize-control-runtime";
 import type { Settings, SlidesLayout } from "../apps/chrome-extension/src/lib/settings";
@@ -151,6 +152,7 @@ function buildRuntime(
 describe("sidepanel summarize control runtime", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    setSidepanelUiLanguage("en");
     summarizeControlUpdate.mockReset();
     currentProps = null;
   });

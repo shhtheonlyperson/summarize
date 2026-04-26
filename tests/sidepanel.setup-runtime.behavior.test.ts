@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setSidepanelUiLanguage } from "../apps/chrome-extension/src/entrypoints/sidepanel/i18n";
 import type { UiState } from "../apps/chrome-extension/src/entrypoints/sidepanel/types";
 
 const setupViewMocks = vi.hoisted(() => ({
@@ -80,6 +81,7 @@ describe("sidepanel setup runtime behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+    setSidepanelUiLanguage("en");
     stubNavigator({
       platform: "MacIntel",
       userAgent: "Mozilla/5.0",

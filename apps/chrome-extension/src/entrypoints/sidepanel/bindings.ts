@@ -191,6 +191,7 @@ export function bindSettingsStorage({
   getPendingSettingsSnapshot,
   setChatEnabledValue,
   setAutomationEnabledValue,
+  applyUiLanguage,
 }: {
   applyChatEnabled: () => void;
   hideAutomationNotice: () => void;
@@ -199,6 +200,7 @@ export function bindSettingsStorage({
   getPendingSettingsSnapshot: () => Partial<Settings> | null;
   setChatEnabledValue: (value: boolean) => void;
   setAutomationEnabledValue: (value: boolean) => void;
+  applyUiLanguage: (value: string) => void;
 }) {
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
@@ -220,6 +222,10 @@ export function bindSettingsStorage({
     if (typeof nextAutomationEnabled === "boolean") {
       setAutomationEnabledValue(nextAutomationEnabled);
       if (!nextAutomationEnabled) hideAutomationNotice();
+    }
+    const nextUiLanguage = (nextSettings as { uiLanguage?: unknown }).uiLanguage;
+    if (typeof nextUiLanguage === "string") {
+      applyUiLanguage(nextUiLanguage);
     }
   });
 }

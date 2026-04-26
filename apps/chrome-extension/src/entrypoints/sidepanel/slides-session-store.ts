@@ -1,4 +1,5 @@
 import type { SlidesLayout } from "../../lib/settings";
+import { t } from "./i18n";
 import type { RunStart } from "./types";
 
 type InputMode = "page" | "video";
@@ -37,7 +38,7 @@ export function createSlidesSessionStore(options: {
     inputMode: "page",
     inputModeOverride: null,
     mediaAvailable: false,
-    summarizeVideoLabel: "Video",
+    summarizeVideoLabel: t("video"),
     summarizePageWords: null,
     summarizeVideoDurationSeconds: null,
     slidesBusy: false,

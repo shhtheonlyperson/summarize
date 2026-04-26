@@ -9,6 +9,12 @@ import type { ColorMode, ColorScheme } from "../../lib/theme";
 import { getOverlayRoot } from "../../ui/portal";
 import { SchemeChips } from "../../ui/scheme-chips";
 import { type SelectItem, useZagSelect } from "../../ui/zag-select";
+import {
+  formatCharacters,
+  formatWordCount as formatLocalizedWordCount,
+  getSidepanelUiLanguage,
+  t,
+} from "./i18n";
 
 type SidepanelPickerState = {
   scheme: ColorScheme;
@@ -50,19 +56,19 @@ const LENGTH_COUNT_PATTERN = /^(?<value>\d+(?:\.\d+)?)(?<unit>k|m)?$/i;
 
 type LengthItem = SelectItem & { tooltip?: string };
 
-const lengthLabels: Record<SummaryLength, string> = {
-  short: "Short",
-  medium: "Medium",
-  long: "Long",
-  xl: "Extra Large (XL)",
-  xxl: "Extra Extra Large (XXL)",
+const lengthLabel = (preset: SummaryLength): string => {
+  if (preset === "short") return t("lengthShort");
+  if (preset === "medium") return t("lengthMedium");
+  if (preset === "long") return t("lengthLong");
+  if (preset === "xl") return t("lengthXl");
+  return t("lengthXxl");
 };
 
 const formatCount = (value: number) => value.toLocaleString();
 
 const formatWordCount = (value: number | null | undefined) => {
   if (!value || !Number.isFinite(value)) return null;
-  return `${formatCount(value)} words`;
+  return formatLocalizedWordCount(value);
 };
 
 const formatDuration = (seconds: number | null | undefined) => {
@@ -78,38 +84,39 @@ const formatDuration = (seconds: number | null | undefined) => {
 
 const formatLengthTooltip = (preset: SummaryLength): string => {
   const spec = SUMMARY_LENGTH_SPECS[preset];
-  return `${lengthLabels[preset]}: target ~${formatCount(spec.targetCharacters)} chars (${formatCount(
+  if (getSidepanelUiLanguage() === "zh-tw") {
+    return `${lengthLabel(preset)}：目標約 ${formatCharacters(spec.targetCharacters)}（${formatCharacters(
+      spec.minCharacters,
+    )}-${formatCharacters(spec.maxCharacters)}）。${spec.formatting}`;
+  }
+  return `${lengthLabel(preset)}: target ~${formatCount(spec.targetCharacters)} chars (${formatCount(
     spec.minCharacters,
   )}-${formatCount(spec.maxCharacters)}). ${spec.formatting}`;
 };
 
-const lengthItems: LengthItem[] = [
-  { value: "short", label: "Short", tooltip: formatLengthTooltip("short") },
-  { value: "medium", label: "Medium", tooltip: formatLengthTooltip("medium") },
-  { value: "long", label: "Long", tooltip: formatLengthTooltip("long") },
+const getLengthItems = (): LengthItem[] => [
+  { value: "short", label: t("lengthShort"), tooltip: formatLengthTooltip("short") },
+  { value: "medium", label: t("lengthMedium"), tooltip: formatLengthTooltip("medium") },
+  { value: "long", label: t("lengthLong"), tooltip: formatLengthTooltip("long") },
   { value: "xl", label: "XL", tooltip: formatLengthTooltip("xl") },
   { value: "xxl", label: "XXL", tooltip: formatLengthTooltip("xxl") },
-  {
-    value: "20k",
-    label: "20k",
-    tooltip: "Custom target around 20,000 characters (soft guideline).",
-  },
-  { value: "custom", label: "Custom…", tooltip: "Set a custom length like 1500, 20k, or 1.5k." },
+  { value: "20k", label: "20k", tooltip: t("length20kTooltip") },
+  { value: "custom", label: t("custom"), tooltip: t("lengthCustomTooltip") },
 ];
 
-const schemeItems: SelectItem[] = [
-  { value: "slate", label: "Slate" },
-  { value: "cedar", label: "Cedar" },
-  { value: "mint", label: "Mint" },
-  { value: "ocean", label: "Ocean" },
-  { value: "ember", label: "Ember" },
-  { value: "iris", label: "Iris" },
+const getSchemeItems = (): SelectItem[] => [
+  { value: "slate", label: t("schemeSlate") },
+  { value: "cedar", label: t("schemeCedar") },
+  { value: "mint", label: t("schemeMint") },
+  { value: "ocean", label: t("schemeOcean") },
+  { value: "ember", label: t("schemeEmber") },
+  { value: "iris", label: t("schemeIris") },
 ];
 
-const modeItems: SelectItem[] = [
-  { value: "system", label: "System" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
+const getModeItems = (): SelectItem[] => [
+  { value: "system", label: t("modeSystem") },
+  { value: "light", label: t("modeLight") },
+  { value: "dark", label: t("modeDark") },
 ];
 
 const modeIcons: Record<string, JSX.Element> = {
@@ -154,7 +161,7 @@ const modeIcons: Record<string, JSX.Element> = {
   ),
 };
 
-const fontItems: SelectItem[] = [
+const getFontItems = (): SelectItem[] => [
   {
     value: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif',
     label: "San Francisco",
@@ -163,7 +170,7 @@ const fontItems: SelectItem[] = [
   { value: "Iowan Old Style, Palatino, serif", label: "Iowan" },
   {
     value: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-    label: "Mono",
+    label: t("fontMono"),
   },
 ];
 
@@ -244,6 +251,7 @@ function LengthField({
   const inputRef = useRef<HTMLInputElement>(null);
   const shouldFocusCustomInputRef = useRef(false);
   const resolved = useMemo(() => resolvePresetOrCustom({ value, presets: lengthPresets }), [value]);
+  const items = getLengthItems();
   const [presetValue, setPresetValue] = useState(resolved.presetValue);
   const [customValue, setCustomValue] = useState(resolved.customValue);
   const portalRoot = getOverlayRoot();
@@ -255,7 +263,7 @@ function LengthField({
 
   const api = useZagSelect({
     id: "length",
-    items: lengthItems,
+    items,
     value: presetValue,
     onValueChange: (next) => {
       const nextValue = next || defaultSettings.length;
@@ -325,7 +333,7 @@ function LengthField({
     >
       <div className="pickerContent" {...api.getContentProps()}>
         <div className="pickerList" {...api.getListProps()}>
-          {lengthItems.map((item) => (
+          {items.map((item) => (
             <button
               key={item.value}
               className="pickerOption"
@@ -343,7 +351,7 @@ function LengthField({
 
   return (
     <label className={variant === "mini" ? "length mini" : "length wide"} {...resolvedLabelProps}>
-      <span className="pickerTitle">Length</span>
+      <span className="pickerTitle">{t("length")}</span>
       <div className="combo">
         <div className="picker" {...api.getRootProps()}>
           {presetValue === "custom" ? (
@@ -352,7 +360,7 @@ function LengthField({
                 ref={inputRef}
                 id="lengthCustom"
                 type="text"
-                placeholder="Custom (e.g. 20k)"
+                placeholder={t("customLengthPlaceholder")}
                 autocapitalize="off"
                 autocomplete="off"
                 spellcheck="false"
@@ -373,12 +381,12 @@ function LengthField({
                 }}
               />
               <button className="pickerTrigger presetsTrigger" {...api.getTriggerProps()}>
-                Presets
+                {t("presets")}
               </button>
             </div>
           ) : (
             <button className="pickerTrigger" {...api.getTriggerProps()}>
-              <span>{api.valueAsString || "Length"}</span>
+              <span>{api.valueAsString || t("length")}</span>
             </button>
           )}
           {portalRoot ? createPortal(content, portalRoot) : content}
@@ -390,6 +398,9 @@ function LengthField({
 }
 
 function SidepanelPickers(props: SidepanelPickerProps) {
+  const schemeItems = getSchemeItems();
+  const modeItems = getModeItems();
+  const fontItems = getFontItems();
   const schemeApi = useZagSelect({
     id: "scheme",
     items: schemeItems,
@@ -423,14 +434,14 @@ function SidepanelPickers(props: SidepanelPickerProps) {
   return (
     <>
       <SelectField
-        label="Scheme"
+        label={t("scheme")}
         labelClassName="scheme"
         pickerId="scheme"
         api={schemeApi}
         items={schemeItems}
         triggerContent={(label, value) => (
           <>
-            <span className="scheme-label">{label || "Slate"}</span>
+            <span className="scheme-label">{label || t("schemeSlate")}</span>
             <SchemeChips scheme={value || "slate"} />
           </>
         )}
@@ -442,14 +453,14 @@ function SidepanelPickers(props: SidepanelPickerProps) {
         )}
       />
       <SelectField
-        label="Mode"
+        label={t("mode")}
         labelClassName="mode"
         pickerId="mode"
         api={modeApi}
         items={modeItems}
         triggerContent={(label, value) => (
           <>
-            <span>{label || "System"}</span>
+            <span>{label || t("modeSystem")}</span>
             <span className="modeIcon">{modeIcons[value] ?? null}</span>
           </>
         )}
@@ -461,7 +472,7 @@ function SidepanelPickers(props: SidepanelPickerProps) {
         )}
       />
       <SelectField
-        label="Font"
+        label={t("font")}
         labelClassName="font"
         pickerId="font"
         api={fontApi}
@@ -499,9 +510,9 @@ function SummarizeControl(props: SummarizeControlProps) {
   const pageMeta = formatWordCount(props.pageWords);
   const videoMeta = formatDuration(props.videoDurationSeconds);
 
-  const pageLabel = pageMeta ? `Page · ${pageMeta}` : "Page";
-  const videoLabel = `${props.videoLabel ?? "Video"}${videoMeta ? ` · ${videoMeta}` : ""}`;
-  const videoSlidesLabel = `${props.videoLabel ?? "Video"} + Slides`;
+  const pageLabel = pageMeta ? `${t("page")} · ${pageMeta}` : t("page");
+  const videoLabel = `${props.videoLabel ?? t("video")}${videoMeta ? ` · ${videoMeta}` : ""}`;
+  const videoSlidesLabel = `${props.videoLabel ?? t("video")} + ${t("slides")}`;
 
   const sourceItems: SelectItem[] = props.mediaAvailable
     ? [
@@ -529,7 +540,9 @@ function SummarizeControl(props: SummarizeControlProps) {
 
   const selectedValue = api.value[0] ?? "";
   const selectedLabel =
-    api.valueAsString || sourceItems.find((item) => item.value === selectedValue)?.label || "Page";
+    api.valueAsString ||
+    sourceItems.find((item) => item.value === selectedValue)?.label ||
+    t("page");
 
   const positionerProps = api.getPositionerProps();
   const positionerStyle = {
@@ -609,7 +622,11 @@ function SummarizeControl(props: SummarizeControlProps) {
         <button
           type="button"
           className="ghost summarizeButton isDropdown"
-          aria-label={`Summarize (${selectedLabel})`}
+          aria-label={
+            getSidepanelUiLanguage() === "zh-tw"
+              ? `${t("summarize")}（${selectedLabel}）`
+              : `${t("summarize")} (${selectedLabel})`
+          }
           data-busy={props.busy ? "true" : "false"}
           disabled={!props.mediaAvailable && props.mode === "video"}
           {...rest}
@@ -617,27 +634,27 @@ function SummarizeControl(props: SummarizeControlProps) {
           onPointerDown={onPointerDown}
           onKeyDown={onKeyDown}
         >
-          Summarize
+          {t("summarize")}
         </button>
         {portalRoot ? createPortal(content, portalRoot) : content}
         <select className="pickerHidden" {...api.getHiddenSelectProps()} />
       </div>
       {showSlidesTextToggle ? (
         <fieldset className="summarizeSlidesToggle">
-          <legend className="summarizeSlidesToggle__label">Slides text source</legend>
+          <legend className="summarizeSlidesToggle__label">{t("slidesTextSource")}</legend>
           <button
             type="button"
             data-active={props.slidesTextMode === "transcript" ? "true" : "false"}
             onClick={() => props.onSlidesTextModeChange?.("transcript")}
           >
-            Transcript
+            {t("transcript")}
           </button>
           <button
             type="button"
             data-active={props.slidesTextMode === "ocr" ? "true" : "false"}
             onClick={() => props.onSlidesTextModeChange?.("ocr")}
           >
-            OCR
+            {t("ocr")}
           </button>
         </fieldset>
       ) : null}

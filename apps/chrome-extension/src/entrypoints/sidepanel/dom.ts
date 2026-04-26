@@ -55,6 +55,7 @@ export function createSidepanelDom() {
   const modelStatusEl = byId<HTMLDivElement>("modelStatus");
   const modelRowEl = byId<HTMLDivElement>("modelRow");
   const slidesLayoutEl = byId<HTMLSelectElement>("slidesLayout");
+  const uiLanguageEl = byId<HTMLSelectElement>("uiLanguage");
   const chatContainerEl = byId<HTMLElement>("chatContainer");
   const chatMessagesEl = byId<HTMLDivElement>("chatMessages");
   const chatInputEl = byId<HTMLTextAreaElement>("chatInput");
@@ -131,5 +132,6 @@ export function createSidepanelDom() {
     subtitleEl,
     summarizeControlRoot,
     titleEl,
+    uiLanguageEl,
   };
 }

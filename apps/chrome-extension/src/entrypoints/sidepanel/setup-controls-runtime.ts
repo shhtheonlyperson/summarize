@@ -84,6 +84,7 @@ export function createSetupControlsRuntime({
     refreshModelPresets: modelPresetsController.refreshPresets,
     refreshModelsIfStale: modelPresetsController.refreshIfStale,
     runRefreshFree: modelPresetsController.runRefreshFree,
+    localizeDefaultModelPresets: modelPresetsController.localizeDefaultPresets,
     setDefaultModelPresets: modelPresetsController.setDefaultPresets,
     setModelPlaceholderFromDiscovery: modelPresetsController.setPlaceholderFromDiscovery,
     setModelStatus: modelPresetsController.setStatus,

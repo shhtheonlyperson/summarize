@@ -1,4 +1,5 @@
 import { splitStatusPercent } from "../../lib/status";
+import { t } from "./i18n";
 import type { PanelPhase } from "./types";
 
 type HeaderState = {
@@ -29,7 +30,7 @@ export function createHeaderController({
   progressFillEl: HTMLElement;
   getState: () => HeaderState;
 }): HeaderController {
-  let baseTitle = "Summarize";
+  let baseTitle = t("appTitle");
   let baseSubtitle = "";
   let statusText = "";
   let showProgress = false;
@@ -50,7 +51,7 @@ export function createHeaderController({
     const trimmed = text.trim().toLowerCase();
     if (!trimmed) return false;
     if (trimmed.startsWith("error:")) return false;
-    if (trimmed === "copied") return false;
+    if (trimmed === "copied" || trimmed === t("copied").toLowerCase()) return false;
     return (
       trimmed.startsWith("extracting") ||
       trimmed.startsWith("connecting") ||
@@ -160,7 +161,7 @@ export function createHeaderController({
   };
 
   const setBaseTitle = (text: string) => {
-    const next = text.trim() || "Summarize";
+    const next = text.trim() || t("appTitle");
     baseTitle = next;
     updateHeader();
   };

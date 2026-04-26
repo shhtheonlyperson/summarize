@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import { panelUrlsMatch } from "./session-policy";
 
 export type PanelSource = { url: string; title: string | null };
@@ -83,7 +84,7 @@ export function createNavigationRuntime(options: NavigationRuntimeOptions): Navi
         if (preserveChat) notePreserveChatForUrl(tab.url);
         setCurrentSource(null);
         resetForNavigation(preserveChat);
-        setBaseTitle(tab.title || tab.url || "Summarize");
+        setBaseTitle(tab.title || tab.url || t("appTitle"));
         return;
       }
       if (tab.title && tab.title !== currentSource.title) {
