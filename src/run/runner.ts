@@ -4,6 +4,7 @@ import type { ExecFileFn } from "../markitdown.js";
 import {
   handleDaemonCliRequest,
   handleHelpRequest,
+  handleLocalRuntimeCliRequest,
   handleRefreshFreeRequest,
 } from "./cli-preflight.js";
 import { attachRichHelp, buildProgram } from "./help.js";
@@ -26,11 +27,12 @@ type RunEnv = {
   stdin?: NodeJS.ReadableStream;
   stdout: NodeJS.WritableStream;
   stderr: NodeJS.WritableStream;
+  setExitCode?: (code: number) => void;
 };
 
 export async function runCli(
   argv: string[],
-  { env: inputEnv, fetch, execFile: execFileOverride, stdin, stdout, stderr }: RunEnv,
+  { env: inputEnv, fetch, execFile: execFileOverride, stdin, stdout, stderr, setExitCode }: RunEnv,
 ): Promise<void> {
   (globalThis as unknown as { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
   const perfTrace = createPerfTrace({ env: inputEnv, stderr });
@@ -48,6 +50,7 @@ export async function runCli(
         fetchImpl: fetch,
         stdout: runStdout,
         stderr,
+        setExitCode,
       })
     ) {
       return;
@@ -115,8 +118,9 @@ async function handleImmediateCliRequests(options: {
   fetchImpl: typeof fetch;
   stdout: NodeJS.WritableStream;
   stderr: NodeJS.WritableStream;
+  setExitCode?: (code: number) => void;
 }) {
-  const { normalizedArgv, envForRun, fetchImpl, stdout, stderr } = options;
+  const { normalizedArgv, envForRun, fetchImpl, stdout, stderr, setExitCode } = options;
   if (handleHelpRequest({ normalizedArgv, envForRun, stdout, stderr })) {
     return true;
   }
@@ -124,6 +128,18 @@ async function handleImmediateCliRequests(options: {
     return true;
   }
   if (await handleDaemonCliRequest({ normalizedArgv, envForRun, fetchImpl, stdout, stderr })) {
+    return true;
+  }
+  if (
+    await handleLocalRuntimeCliRequest({
+      normalizedArgv,
+      envForRun,
+      fetchImpl,
+      stdout,
+      stderr,
+      setExitCode,
+    })
+  ) {
     return true;
   }
   if (await handleSlidesCliRequest({ normalizedArgv, envForRun, fetchImpl, stdout, stderr })) {
