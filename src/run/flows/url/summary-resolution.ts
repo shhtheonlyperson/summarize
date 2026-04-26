@@ -17,6 +17,7 @@ import {
   writeLastSuccessfulCliProvider,
 } from "../../cli-fallback-state.js";
 import { parseCliUserModelId } from "../../env.js";
+import { isLocalOnlyRemoteProviderError } from "../../local-only.js";
 import { writeVerbose } from "../../logging.js";
 import { runModelAttempts } from "../../model-attempts.js";
 import { buildOpenRouterNoAllowedProvidersMessage } from "../../openrouter.js";
@@ -318,6 +319,7 @@ export async function resolveUrlSummaryExecution({
       isNamedModelSelection: model.isNamedModelSelection,
       envHasKeyFor: model.summaryEngine.envHasKeyFor,
       formatMissingModelError: model.summaryEngine.formatMissingModelError,
+      assertAttemptAllowed: model.summaryEngine.assertAttemptAllowed,
       onAutoSkip: (attempt) => {
         writeVerbose(
           io.stderr,
@@ -386,6 +388,9 @@ export async function resolveUrlSummaryExecution({
         throw new Error(withFreeTip(lastError.message), { cause: lastError });
       }
       throw new Error(withFreeTip(`No model available for --model ${model.requestedModelInput}`));
+    }
+    if (isLocalOnlyRemoteProviderError(lastError)) {
+      throw lastError;
     }
     return {
       kind: "use-extracted",
