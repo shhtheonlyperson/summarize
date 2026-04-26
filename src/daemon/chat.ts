@@ -7,6 +7,11 @@ import { resolveGitHubModelsApiKey } from "../llm/github-models.js";
 import { mergeModelRequestOptions } from "../llm/model-options.js";
 import { buildAutoModelAttempts, envHasKey } from "../model-auto.js";
 import { parseBooleanEnv, parseCliUserModelId } from "../run/env.js";
+import {
+  assertLocalOnlyModelAllowed,
+  isLocalOnlyRemoteProviderError,
+  resolveLocalOnlyMode,
+} from "../run/local-only.js";
 import { resolveEnvState } from "../run/run-env.js";
 import { resolveModelSelection } from "../run/run-models.js";
 
@@ -123,6 +128,7 @@ export async function streamChatResponse({
   pageContent,
   messages,
   modelOverride,
+  requestLocalOnly,
   pushToSession,
   emitMeta,
 }: {
@@ -135,6 +141,7 @@ export async function streamChatResponse({
   pageContent: string;
   messages: Message[];
   modelOverride: string | null;
+  requestLocalOnly?: boolean | null;
   pushToSession: (event: ChatEvent) => void;
   emitMeta: (patch: Partial<ChatSession["lastMeta"]>) => void;
 }) {
@@ -142,7 +149,33 @@ export async function streamChatResponse({
   const envState = resolveEnvState({ env, envForRun: env, configForCli });
   const openaiUseChatCompletions = resolveOpenAiUseChatCompletions({ env, configForCli });
   const openaiRequestOptions = mergeModelRequestOptions(configForCli?.openai);
+  const localOnlyMode = resolveLocalOnlyMode({ config: configForCli, requestLocalOnly });
   const context = buildContext({ pageUrl, pageTitle, pageContent, messages });
+  const assertChatModelAllowed = ({
+    transport,
+    userModelId,
+    modelId,
+    forceOpenRouter,
+    openaiBaseUrlOverride,
+  }: {
+    transport: "native" | "openrouter" | "cli";
+    userModelId: string;
+    modelId: string | null;
+    forceOpenRouter: boolean;
+    openaiBaseUrlOverride?: string | null;
+  }) => {
+    assertLocalOnlyModelAllowed({
+      policy: localOnlyMode,
+      candidate: {
+        transport,
+        userModelId,
+        llmModelId: modelId,
+        forceOpenRouter,
+        openaiBaseUrlOverride,
+      },
+      providerBaseUrls: envState.providerBaseUrls,
+    });
+  };
 
   const resolveModel = () => {
     if (modelOverride && modelOverride.trim().length > 0) {
@@ -211,6 +244,13 @@ export async function streamChatResponse({
 
   const resolved = resolveModel();
   if (resolved) {
+    assertChatModelAllowed({
+      transport: resolved.transport === "cli" ? "cli" : "native",
+      userModelId: resolved.userModelId,
+      modelId: resolved.modelId,
+      forceOpenRouter: resolved.forceOpenRouter,
+      openaiBaseUrlOverride: resolved.openaiBaseUrlOverride,
+    });
     emitMeta({ model: resolved.userModelId });
     if (resolved.transport === "cli") {
       const prompt = flattenChatForCli({
@@ -263,15 +303,48 @@ export async function streamChatResponse({
     cliAvailability: envState.cliAvailability,
   });
 
-  const apiAttempt = attempts.find(
-    (entry) =>
-      entry.transport !== "cli" &&
-      entry.llmModelId &&
-      envHasKey(envState.envForAuto, entry.requiredEnv),
-  );
-  const cliAttempt = !apiAttempt ? attempts.find((entry) => entry.transport === "cli") : null;
+  let localOnlyError: Error | null = null;
+  const apiAttempt = attempts.find((entry) => {
+    if (entry.transport === "cli" || !entry.llmModelId) return false;
+    try {
+      assertChatModelAllowed({
+        transport: entry.transport,
+        userModelId: entry.userModelId,
+        modelId: entry.llmModelId,
+        forceOpenRouter: entry.forceOpenRouter,
+      });
+    } catch (error) {
+      if (isLocalOnlyRemoteProviderError(error)) {
+        localOnlyError = localOnlyError ?? error;
+        return false;
+      }
+      throw error;
+    }
+    return envHasKey(envState.envForAuto, entry.requiredEnv);
+  });
+  const cliAttempt = !apiAttempt
+    ? (attempts.find((entry) => {
+        if (entry.transport !== "cli") return false;
+        try {
+          assertChatModelAllowed({
+            transport: "cli",
+            userModelId: entry.userModelId,
+            modelId: null,
+            forceOpenRouter: false,
+          });
+          return true;
+        } catch (error) {
+          if (isLocalOnlyRemoteProviderError(error)) {
+            localOnlyError = localOnlyError ?? error;
+            return false;
+          }
+          throw error;
+        }
+      }) ?? null)
+    : null;
   const attempt = apiAttempt ?? cliAttempt;
   if (!attempt) {
+    if (localOnlyError) throw localOnlyError;
     throw new Error("No model available for chat");
   }
 
