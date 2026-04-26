@@ -1,4 +1,5 @@
-import type { UiState as PanelUiState } from "../../lib/panel-contracts";
+import type { LocalRuntimeStatus, UiState as PanelUiState } from "../../lib/panel-contracts";
+import { summaryLanguageForSettings } from "../../lib/settings";
 
 export type { PanelUiState };
 
@@ -44,6 +45,8 @@ type SettingsLike = {
   lineHeight: number;
   model: string;
   length: string;
+  uiLanguage: string;
+  language: string;
 };
 
 export async function resolvePanelState({
@@ -54,6 +57,7 @@ export async function resolvePanelState({
   getActiveTab,
   daemonHealth,
   daemonPing,
+  localRuntimeStatus,
   panelSessionStore,
   urlsMatch,
   canSummarizeUrl,
@@ -65,6 +69,7 @@ export async function resolvePanelState({
   getActiveTab: (windowId: number) => Promise<chrome.tabs.Tab | null>;
   daemonHealth: () => Promise<{ ok: boolean; error?: string }>;
   daemonPing: (token: string) => Promise<{ ok: boolean; error?: string }>;
+  localRuntimeStatus: LocalRuntimeStatus | null;
   panelSessionStore: {
     isPanelOpen: (session: SessionLike) => boolean;
     getCachedExtract: (tabId: number, url?: string | null) => CachedExtractLike | null;
@@ -111,6 +116,7 @@ export async function resolvePanelState({
     state: {
       panelOpen: panelSessionStore.isPanelOpen(session),
       daemon,
+      localRuntime: daemonReady ? localRuntimeStatus : null,
       tab: { id: tab?.id ?? null, url: tab?.url ?? null, title: tab?.title ?? null },
       media: cached?.media ?? null,
       stats: {
@@ -131,6 +137,7 @@ export async function resolvePanelState({
         lineHeight: settings.lineHeight,
         model: settings.model,
         length: settings.length,
+        language: summaryLanguageForSettings(settings),
         tokenPresent: Boolean(settings.token.trim()),
       },
       status,

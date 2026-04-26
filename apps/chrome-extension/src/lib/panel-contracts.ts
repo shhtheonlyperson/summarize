@@ -1,9 +1,83 @@
 import type { AssistantMessage, Message } from "@mariozechner/pi-ai";
 import type { SseSlidesData } from "./runtime-contracts";
 
+export type LocalRuntimeKind = "openai-compatible" | "llama-cpp" | "ollama";
+
+export type LocalRuntimeStatusProbe = {
+  ok: boolean;
+  reachable: boolean;
+  runtimeType: LocalRuntimeKind | null;
+  runtimeLabel: string | null;
+  endpointHost: string | null;
+  timeoutMs: number;
+  models: {
+    count: number;
+    hints: string[];
+  };
+  server: {
+    status: number;
+    name?: string;
+    version?: string;
+  } | null;
+  error: {
+    code: string;
+    message: string;
+    status?: number;
+  } | null;
+};
+
+export type LocalRuntimeStatusPayload = {
+  ok: true;
+  localOnly: {
+    enabled: boolean;
+    source: string | null;
+  };
+  runtime: {
+    configured: boolean;
+    type: LocalRuntimeKind | null;
+    endpointHost: string | null;
+    baseUrlSource: "configured" | "default" | null;
+  };
+  modelHints: {
+    configuredModel: {
+      input: string;
+      source: "env" | "config" | "default";
+    };
+    localRoutingEnabled: boolean;
+    selected: {
+      bucket: "english" | "traditionalChinese" | "bilingual" | "fallback";
+      modelInput: string;
+      language: {
+        kind: string;
+        tag?: string;
+        label?: string;
+      };
+    } | null;
+    routes: Array<{
+      bucket: "english" | "traditionalChinese" | "bilingual" | "fallback";
+      modelInput: string;
+      language: {
+        kind: string;
+        tag?: string;
+        label?: string;
+      };
+    }>;
+  };
+  probes: LocalRuntimeStatusProbe[];
+  warnings: string[];
+};
+
+export type LocalRuntimeStatus =
+  | LocalRuntimeStatusPayload
+  | {
+      ok: false;
+      error: string;
+    };
+
 export type UiState = {
   panelOpen: boolean;
   daemon: { ok: boolean; authed: boolean; error?: string };
+  localRuntime: LocalRuntimeStatus | null;
   tab: { id: number | null; url: string | null; title: string | null };
   media: { hasVideo: boolean; hasAudio: boolean; hasCaptions: boolean } | null;
   stats: { pageWords: number | null; videoDurationSeconds: number | null };
@@ -20,6 +94,7 @@ export type UiState = {
     lineHeight: number;
     model: string;
     length: string;
+    language?: string;
     tokenPresent: boolean;
   };
   status: string;
@@ -84,6 +159,7 @@ export type PanelToBg =
 export type BgToPanel =
   | { type: "ui:state"; state: UiState }
   | { type: "ui:status"; status: string }
+  | { type: "ui:local-runtime-status"; status: LocalRuntimeStatus }
   | { type: "run:start"; run: RunStart }
   | { type: "run:error"; message: string }
   | { type: "slides:run"; ok: boolean; runId?: string; url?: string; error?: string }

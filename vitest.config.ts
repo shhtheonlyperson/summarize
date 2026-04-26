@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { cpus } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,8 +13,15 @@ const maxThreads = Number.isFinite(envMaxThreads)
 const coverageReporters = process.env.CI
   ? ["text", "json-summary", "html"]
   : ["text", "json-summary"];
+const localModelRoutingDefaults = JSON.parse(
+  readFileSync(resolve(rootDir, "src/config/local-model-routing-defaults.json"), "utf8"),
+) as unknown;
+const localModelRoutingDefaultsJson = JSON.stringify(localModelRoutingDefaults);
 
 export default defineConfig({
+  define: {
+    __LOCAL_MODEL_ROUTING_DEFAULTS_JSON__: JSON.stringify(localModelRoutingDefaultsJson),
+  },
   poolOptions: {
     threads: {
       minThreads: 1,
@@ -37,6 +45,10 @@ export default defineConfig({
       {
         find: /^@steipete\/summarize-core\/language$/,
         replacement: resolve(rootDir, "packages/core/src/language.ts"),
+      },
+      {
+        find: /^@steipete\/summarize-core\/local-runtime$/,
+        replacement: resolve(rootDir, "packages/core/src/local-runtime.ts"),
       },
       {
         find: /^@steipete\/summarize-core$/,

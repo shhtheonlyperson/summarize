@@ -10,6 +10,10 @@ export function createSidepanelDom() {
   const headerEl = document.querySelector("header") as HTMLElement | null;
   if (!headerEl) throw new Error("Missing <header>");
   const progressFillEl = byId<HTMLDivElement>("progressFill");
+  const localRuntimeStatusEl = byId<HTMLDivElement>("localRuntimeStatus");
+  const localRuntimePrivacyEl = byId<HTMLElement>("localRuntimePrivacy");
+  const localRuntimeRouteEl = byId<HTMLSpanElement>("localRuntimeRoute");
+  const localRuntimeDetailEl = byId<HTMLDivElement>("localRuntimeDetail");
   const drawerEl = byId<HTMLElement>("drawer");
   const setupEl = byId<HTMLDivElement>("setup");
   const errorEl = byId<HTMLDivElement>("error");
@@ -108,6 +112,10 @@ export function createSidepanelDom() {
     lengthRoot,
     lineLooseBtn,
     lineTightBtn,
+    localRuntimeDetailEl,
+    localRuntimePrivacyEl,
+    localRuntimeRouteEl,
+    localRuntimeStatusEl,
     mainEl,
     metricsEl,
     metricsHomeEl,

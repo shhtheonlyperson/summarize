@@ -1,4 +1,4 @@
-import type { BgToPanel, RunStart, UiState } from "../../lib/panel-contracts";
+import type { BgToPanel, LocalRuntimeStatus, RunStart, UiState } from "../../lib/panel-contracts";
 import { t } from "./i18n";
 import {
   normalizePanelUrl,
@@ -10,6 +10,7 @@ export function handleSidepanelBgMessage(options: {
   msg: BgToPanel;
   applyUiState: (state: UiState) => void;
   setStatus: (text: string) => void;
+  handleLocalRuntimeStatus: (status: LocalRuntimeStatus) => void;
   isStreaming: () => boolean;
   handleRunError: (message: string) => void;
   handleSlidesRun: (msg: Extract<BgToPanel, { type: "slides:run" }>) => void;
@@ -27,6 +28,9 @@ export function handleSidepanelBgMessage(options: {
       return;
     case "ui:status":
       if (!options.isStreaming()) options.setStatus(msg.status);
+      return;
+    case "ui:local-runtime-status":
+      options.handleLocalRuntimeStatus(msg.status);
       return;
     case "run:error":
       options.handleRunError(msg.message);
@@ -70,6 +74,7 @@ export function createSidepanelBgMessageRuntime(options: {
   };
   applyUiState: (state: UiState) => void;
   setStatus: (text: string) => void;
+  handleLocalRuntimeStatus: (status: LocalRuntimeStatus) => void;
   isStreaming: () => boolean;
   setPhase: (phase: "error", opts?: { error?: string | null }) => void;
   finishStreamingMessage: () => void;
@@ -119,6 +124,7 @@ export function createSidepanelBgMessageRuntime(options: {
           options.applyUiState(state);
         },
         setStatus: options.setStatus,
+        handleLocalRuntimeStatus: options.handleLocalRuntimeStatus,
         isStreaming: options.isStreaming,
         handleRunError: (message) => {
           const detail = message && message.trim().length > 0 ? message : t("somethingWentWrong");

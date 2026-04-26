@@ -1,6 +1,10 @@
 import { logExtensionEvent } from "../../lib/extension-logs";
+import { fetchLocalRuntimeStatus } from "../../lib/local-runtime-status-client";
+import type { LocalRuntimeStatus } from "../../lib/panel-contracts";
 import { resolvePanelState } from "./panel-state";
 import { summarizeActiveTab as runPanelSummarize } from "./panel-summarize";
+
+const LOCAL_RUNTIME_STATUS_CACHE_MS = 15_000;
 
 export function createBackgroundPanelRuntime<
   Session extends {
@@ -56,6 +60,39 @@ export function createBackgroundPanelRuntime<
     send(session, { type: "ui:status", status });
   };
 
+  let localRuntimeStatusCache: { value: LocalRuntimeStatus; fetchedAt: number } | null = null;
+  let localRuntimeStatusRefresh: Promise<void> | null = null;
+
+  const getCachedLocalRuntimeStatus = () => {
+    if (
+      localRuntimeStatusCache &&
+      Date.now() - localRuntimeStatusCache.fetchedAt < LOCAL_RUNTIME_STATUS_CACHE_MS
+    ) {
+      return localRuntimeStatusCache.value;
+    }
+    return null;
+  };
+
+  const refreshLocalRuntimeStatus = (session: Session) => {
+    if (localRuntimeStatusRefresh) return;
+    localRuntimeStatusRefresh = (async () => {
+      let status: LocalRuntimeStatus;
+      try {
+        const settings = await loadSettings();
+        const token = settings.token.trim();
+        if (!token) return;
+        status = await fetchLocalRuntimeStatus({ token, fetchImpl });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Local runtime status unavailable.";
+        status = { ok: false, error: message };
+      }
+      localRuntimeStatusCache = { value: status, fetchedAt: Date.now() };
+      send(session, { type: "ui:local-runtime-status", status });
+    })().finally(() => {
+      localRuntimeStatusRefresh = null;
+    });
+  };
+
   const emitState = async (
     session: Session,
     status: string,
@@ -69,11 +106,20 @@ export function createBackgroundPanelRuntime<
       getActiveTab,
       daemonHealth,
       daemonPing,
+      localRuntimeStatus: getCachedLocalRuntimeStatus(),
       panelSessionStore,
       urlsMatch,
       canSummarizeUrl,
     });
     send(session, { type: "ui:state", state: next.state });
+    if (
+      !next.state.localRuntime &&
+      next.state.settings.tokenPresent &&
+      next.state.daemon.ok &&
+      next.state.daemon.authed
+    ) {
+      refreshLocalRuntimeStatus(session);
+    }
 
     if (next.shouldRecover) {
       void summarizeActiveTab(session, "daemon-recovered");
