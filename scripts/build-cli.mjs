@@ -1,4 +1,4 @@
-import { chmod, mkdir, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,3 +17,8 @@ await import('./esm/cli.js')
 
 await writeFile(path.join(distDir, "cli.js"), wrapper, "utf8");
 await chmod(path.join(distDir, "cli.js"), 0o755);
+await cp(
+  path.join(repoRoot, "src", "research-memory", "postgres", "migrations"),
+  path.join(distDir, "esm", "research-memory", "postgres", "migrations"),
+  { recursive: true },
+);
