@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { setSidepanelUiLanguage } from "../apps/chrome-extension/src/entrypoints/sidepanel/i18n.js";
 import { createSlidesStreamController } from "../apps/chrome-extension/src/entrypoints/sidepanel/slides-stream-controller.js";
 import { encodeSseEvent, type SseEvent } from "../src/shared/sse-events.js";
 
@@ -31,6 +32,10 @@ function streamWithKeepaliveAndDone(delayMs: number, keepaliveEveryMs: number) {
 }
 
 describe("sidepanel slides stream controller", () => {
+  beforeEach(() => {
+    setSidepanelUiLanguage("en");
+  });
+
   it("streams slides events and finishes on done", async () => {
     const slidesEvents: SseEvent[] = [
       { event: "status", data: { text: "Slides: extracting" } },

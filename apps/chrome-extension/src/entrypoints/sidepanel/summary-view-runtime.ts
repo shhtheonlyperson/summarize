@@ -1,4 +1,5 @@
 import { buildIdleSubtitle } from "../../lib/header";
+import { t } from "./i18n";
 import type { PanelCachePayload } from "./panel-cache";
 import { normalizeSlideImageUrl } from "./slide-images";
 import type { PanelPhase, PanelState } from "./types";
@@ -163,7 +164,7 @@ export function createSummaryViewRuntime(opts: SummaryViewRuntimeOpts) {
     });
     opts.clearSlidesSummaryPending();
     opts.clearSlidesSummaryError();
-    opts.headerController.setBaseTitle(payload.title || payload.url || "Summarize");
+    opts.headerController.setBaseTitle(payload.title || payload.url || t("appTitle"));
     opts.headerController.setBaseSubtitle(
       buildIdleSubtitle({
         inputSummary: opts.panelState.lastMeta.inputSummary,

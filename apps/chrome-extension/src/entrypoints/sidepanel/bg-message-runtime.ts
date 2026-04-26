@@ -1,4 +1,5 @@
 import type { BgToPanel, RunStart, UiState } from "../../lib/panel-contracts";
+import { t } from "./i18n";
 import {
   normalizePanelUrl,
   shouldAcceptRunForCurrentPage,
@@ -120,7 +121,7 @@ export function createSidepanelBgMessageRuntime(options: {
         setStatus: options.setStatus,
         isStreaming: options.isStreaming,
         handleRunError: (message) => {
-          const detail = message && message.trim().length > 0 ? message : "Something went wrong.";
+          const detail = message && message.trim().length > 0 ? message : t("somethingWentWrong");
           options.setStatus(`Error: ${detail}`);
           options.setPhase("error", { error: detail });
           if (options.panelState.chatStreaming) {

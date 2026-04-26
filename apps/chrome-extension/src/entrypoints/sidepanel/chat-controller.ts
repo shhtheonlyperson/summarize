@@ -5,6 +5,7 @@ import {
   computeChatContextUsage,
   hasUserChatMessage,
 } from "./chat-state";
+import { t } from "./i18n";
 import type { ChatMessage } from "./types";
 
 type RenderOptions = { prepend?: boolean; scroll?: boolean };
@@ -182,7 +183,9 @@ export class ChatController {
     }
     const usage = computeChatContextUsage(this.messages, this.limits);
     this.contextEl.classList.remove("isHidden");
-    this.contextEl.textContent = `Context ${usage.percent}% · ${usage.totalMessages} msgs · ${usage.totalChars.toLocaleString()} chars`;
+    this.contextEl.textContent = `${t("context")} ${usage.percent}% · ${usage.totalMessages} ${t(
+      "messagesAbbrev",
+    )} · ${usage.totalChars.toLocaleString()} ${t("charactersAbbrev")}`;
     if (usage.percent >= 85) {
       this.contextEl.dataset.state = "warn";
     } else {
@@ -218,7 +221,9 @@ export class ChatController {
       msgEl.classList.add("tool");
       if (message.isError) msgEl.classList.add("error");
       const output = extractText(message);
-      const header = `Tool result: ${message.toolName}${message.isError ? " (error)" : ""}`;
+      const header = `${t("toolResult")}: ${message.toolName}${
+        message.isError ? ` (${t("toolError")})` : ""
+      }`;
       const body = output ? `\n\n\`\`\`\n${output}\n\`\`\`` : "";
       msgEl.innerHTML = this.markdown.render(`${header}${body}`);
       const attachments = extractAttachments(message);
@@ -229,13 +234,13 @@ export class ChatController {
           const link = document.createElement("button");
           link.type = "button";
           link.className = "chatAttachment";
-          link.textContent = `${file.fileName} (${file.mimeType || "file"})`;
+          link.textContent = `${file.fileName} (${file.mimeType || t("file")})`;
           link.addEventListener("click", () => {
             const blob = base64ToBlob(file.contentBase64, file.mimeType);
             const url = URL.createObjectURL(blob);
             const anchor = document.createElement("a");
             anchor.href = url;
-            anchor.download = file.fileName || "download";
+            anchor.download = file.fileName || t("download");
             anchor.click();
             setTimeout(() => URL.revokeObjectURL(url), 1000);
           });
@@ -334,7 +339,11 @@ function buildAssistantMarkdown(
   const calls = toolCalls
     .map(
       (call) =>
-        `**Tool:** ${call.name}\n\n\`\`\`json\n${JSON.stringify(call.arguments, null, 2)}\n\`\`\``,
+        `**${t("tool")}:** ${call.name}\n\n\`\`\`json\n${JSON.stringify(
+          call.arguments,
+          null,
+          2,
+        )}\n\`\`\``,
     )
     .join("\n\n");
   if (!text.trim()) return calls;

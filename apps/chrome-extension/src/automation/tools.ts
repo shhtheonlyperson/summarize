@@ -326,9 +326,7 @@ function maybeNotifyUserScriptsNotice(message: string) {
   window.dispatchEvent(
     new CustomEvent("summarize:automation-permissions", {
       detail: {
-        title: "User Scripts required",
         message,
-        ctaLabel: "Open extension details",
         ctaAction: "extensions",
       },
     }),

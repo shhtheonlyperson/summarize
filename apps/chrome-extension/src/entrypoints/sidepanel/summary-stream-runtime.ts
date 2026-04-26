@@ -1,4 +1,5 @@
 import { buildIdleSubtitle } from "../../lib/header";
+import { t } from "./i18n";
 import { createStreamController } from "./stream-controller";
 import type { PanelPhase, PanelState } from "./types";
 
@@ -143,7 +144,7 @@ export function createSummaryStreamRuntime({
       onRender: renderMarkdown,
       onSyncWithActiveTab: syncWithActiveTab,
       onError: (err) => {
-        const message = friendlyFetchError(err, "Stream failed");
+        const message = friendlyFetchError(err, t("streamFailed"));
         lastStreamError = message;
         return message;
       },

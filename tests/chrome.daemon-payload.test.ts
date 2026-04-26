@@ -14,7 +14,14 @@ describe("chrome/daemon-payload", () => {
         text: "Content",
         truncated: false,
       },
-      settings: { ...defaultSettings, token: "t", model: "auto", length: "xl", language: "auto" },
+      settings: {
+        ...defaultSettings,
+        token: "t",
+        model: "auto",
+        length: "xl",
+        language: "auto",
+        uiLanguage: "en",
+      },
     });
 
     expect(body).toEqual({
@@ -24,7 +31,7 @@ describe("chrome/daemon-payload", () => {
       truncated: false,
       model: "auto",
       length: "xl",
-      language: "auto",
+      language: "en",
       autoCliFallback: true,
       autoCliOrder: "claude,gemini,codex,agent,openclaw,opencode",
       maxCharacters: defaultSettings.maxChars,
@@ -60,7 +67,7 @@ describe("chrome/daemon-payload", () => {
       truncated: false,
       model: "auto",
       length: "xl",
-      language: "auto",
+      language: "zh-tw",
       mode: "url",
       firecrawl: "auto",
       markdownMode: "llm",
@@ -73,6 +80,25 @@ describe("chrome/daemon-payload", () => {
       autoCliOrder: "claude,gemini,codex,agent,openclaw,opencode",
       maxCharacters: defaultSettings.maxChars,
     });
+  });
+
+  it("uses Traditional Chinese UI language for daemon routing even with stale English output language", () => {
+    const body = buildDaemonRequestBody({
+      extracted: {
+        url: "https://example.com/article",
+        title: "Hello",
+        text: "Content",
+        truncated: false,
+      },
+      settings: {
+        ...defaultSettings,
+        token: "t",
+        uiLanguage: "zh-tw",
+        language: "en",
+      },
+    });
+
+    expect(body.language).toBe("zh-tw");
   });
 
   it("forces transcript video mode when inputMode=video", () => {

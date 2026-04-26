@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 type ChatQueueItem = {
   id: string;
   text: string;
@@ -45,7 +47,7 @@ export function createChatQueueRuntime(opts: ChatQueueRuntimeOpts) {
       remove.type = "button";
       remove.className = "chatQueueRemove";
       remove.textContent = "x";
-      remove.setAttribute("aria-label", "Remove queued message");
+      remove.setAttribute("aria-label", t("removeQueuedMessage"));
       remove.addEventListener("click", () => removeQueuedMessage(item.id));
 
       row.append(text, remove);
@@ -57,7 +59,7 @@ export function createChatQueueRuntime(opts: ChatQueueRuntimeOpts) {
     const text = normalizeQueueText(input);
     if (!text) return false;
     if (queue.length >= opts.maxQueue) {
-      opts.setStatus(`Queue full (${opts.maxQueue}). Remove one to add more.`);
+      opts.setStatus(`${t("queueFull")} (${opts.maxQueue}).`);
       return false;
     }
     queue.push({ id: crypto.randomUUID(), text, createdAt: Date.now() });
