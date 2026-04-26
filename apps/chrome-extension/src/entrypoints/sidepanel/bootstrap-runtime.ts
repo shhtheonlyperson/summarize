@@ -1,6 +1,7 @@
 import { bindSettingsStorage, bindSidepanelLifecycle } from "./bindings";
 
 type LoadedSettings = {
+  uiLanguage: string;
   autoSummarize: boolean;
   chatEnabled: boolean;
   automationEnabled: boolean;
@@ -18,6 +19,7 @@ export function bootstrapSidepanel(options: {
   getPendingSettingsSnapshot: () => Partial<LoadedSettings> | null;
   clearPendingSettingsSnapshot: () => void;
   setSettingsHydrated: (value: boolean) => void;
+  applyUiLanguage: (value: string) => void;
   typographyController: {
     setCurrentFontSize: (value: number) => void;
     setCurrentLineHeight: (value: number) => void;
@@ -55,6 +57,7 @@ export function bootstrapSidepanel(options: {
       ? { ...loadedSettings, ...pendingSettingsSnapshot }
       : loadedSettings;
     options.clearPendingSettingsSnapshot();
+    options.applyUiLanguage(settings.uiLanguage);
     options.setSettingsHydrated(true);
     options.typographyController.setCurrentFontSize(settings.fontSize);
     options.typographyController.setCurrentLineHeight(settings.lineHeight);

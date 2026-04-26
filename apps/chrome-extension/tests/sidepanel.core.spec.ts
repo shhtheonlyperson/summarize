@@ -120,7 +120,7 @@ test("sidepanel scheme picker applies overlay selection", async ({
     await expect(schemeList).toBeVisible();
     await schemeList.locator('[role="option"]').nth(1).click();
 
-    await expect(schemeTrigger.locator(".scheme-label")).toHaveText("Cedar");
+    await expect(schemeTrigger.locator(".scheme-label")).toHaveText("雪松");
     assertNoErrors(harness);
   } finally {
     await closeExtension(harness.context, harness.userDataDir);
@@ -205,7 +205,7 @@ test("sidepanel refresh free models from advanced settings", async ({
     await page.locator("#advancedSettings summary").click();
     await expect(page.locator("#modelRefresh")).toBeVisible();
     await page.locator("#modelRefresh").click();
-    await expect(page.locator("#modelStatus")).toContainText("Free models updated.");
+    await expect(page.locator("#modelStatus")).toContainText("免費模型已更新。");
     await expect.poll(() => modelCalls).toBeGreaterThanOrEqual(2);
     assertNoErrors(harness);
   } finally {
@@ -270,7 +270,7 @@ test("sidepanel refresh free shows error on failure", async ({
     await page.locator("#advancedSettings summary").click();
     await expect(page.locator("#modelRefresh")).toBeVisible();
     await page.locator("#modelRefresh").click();
-    await expect(page.locator("#modelStatus")).toContainText("Refresh free failed");
+    await expect(page.locator("#modelStatus")).toContainText("重新整理免費模型失敗");
     await expect(page.locator("#modelStatus")).toHaveAttribute("data-state", "error");
     assertNoErrors(harness);
   } finally {
@@ -299,7 +299,7 @@ test("sidepanel mode picker applies overlay selection", async ({
     await expect(modeList).toBeVisible();
     await modeList.locator('[role="option"]').nth(2).click();
 
-    await expect(modeTrigger).toHaveText("Dark");
+    await expect(modeTrigger).toHaveText("深色");
     await expect(page.locator("html")).toHaveAttribute("data-mode", "dark");
     assertNoErrors(harness);
   } finally {
@@ -325,7 +325,7 @@ test("sidepanel custom length input accepts typing", async ({
     await lengthTrigger.click();
     const lengthList = getOpenPickerList(page);
     await expect(lengthList).toBeVisible();
-    await lengthList.locator(".pickerOption", { hasText: "Custom…" }).click();
+    await lengthList.locator(".pickerOption", { hasText: "自訂…" }).click();
 
     const customInput = page.locator("#lengthCustom");
     await expect(customInput).toBeVisible();
@@ -446,7 +446,7 @@ test("sidepanel clears summary when tab url changes", async ({
     });
 
     await expect(page.locator("#title")).toHaveText("New Title");
-    await expect(page.locator("#render")).toContainText("Click Summarize to start.");
+    await expect(page.locator("#render")).toContainText("點按「摘要」開始。");
     await expect(page.locator("#render")).toContainText("New Title");
     await expect(page.locator("#render")).not.toContainText("Hello world");
     assertNoErrors(harness);

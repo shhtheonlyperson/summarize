@@ -9,6 +9,7 @@ import {
 
 export type Settings = {
   token: string;
+  uiLanguage: UiLanguage;
   autoSummarize: boolean;
   hoverSummaries: boolean;
   chatEnabled: boolean;
@@ -43,6 +44,7 @@ export type Settings = {
   colorMode: ColorMode;
 };
 
+export type UiLanguage = "en" | "zh-tw";
 export type SlidesLayout = "strip" | "gallery";
 
 const storageKey = "settings";
@@ -93,6 +95,31 @@ function normalizeLanguage(value: unknown): string {
   const trimmed = value.trim();
   if (!trimmed) return defaultSettings.language;
   return trimmed;
+}
+
+export function normalizeUiLanguage(value: unknown): UiLanguage {
+  if (typeof value !== "string") return defaultSettings.uiLanguage;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "en" || normalized === "english") return "en";
+  if (
+    normalized === "zh-tw" ||
+    normalized === "zh_hant" ||
+    normalized === "zh-hant" ||
+    normalized === "traditional-chinese"
+  ) {
+    return "zh-tw";
+  }
+  return defaultSettings.uiLanguage;
+}
+
+export function languageForUiLanguage(value: unknown): string {
+  return normalizeUiLanguage(value) === "zh-tw" ? "zh-tw" : "en";
+}
+
+export function summaryLanguageForSettings(
+  settings: Pick<Settings, "language" | "uiLanguage">,
+): string {
+  return languageForUiLanguage(settings.uiLanguage) || normalizeLanguage(settings.language);
 }
 
 function normalizePromptOverride(value: unknown): string {
@@ -276,6 +303,7 @@ function normalizeLineHeight(value: unknown): number {
 
 export const defaultSettings: Settings = {
   token: "",
+  uiLanguage: "zh-tw",
   autoSummarize: true,
   hoverSummaries: false,
   chatEnabled: true,
@@ -293,7 +321,7 @@ export const defaultSettings: Settings = {
   transcriber: "",
   model: "auto",
   length: "xl",
-  language: "auto",
+  language: "zh-tw",
   promptOverride: "",
   maxChars: 120_000,
   requestMode: "",
@@ -332,6 +360,7 @@ export async function loadSettings(): Promise<Settings> {
     ...defaultSettings,
     ...raw,
     token: typeof raw.token === "string" ? raw.token : defaultSettings.token,
+    uiLanguage: normalizeUiLanguage(raw.uiLanguage),
     model: normalizeModel(raw.model),
     length: normalizeLength(raw.length),
     language: normalizeLanguage(raw.language),
@@ -397,6 +426,7 @@ export async function saveSettings(settings: Settings): Promise<void> {
   await chrome.storage.local.set({
     [storageKey]: {
       ...settings,
+      uiLanguage: normalizeUiLanguage(settings.uiLanguage),
       model: normalizeModel(settings.model),
       length: normalizeLength(settings.length),
       language: normalizeLanguage(settings.language),
@@ -425,7 +455,13 @@ export async function saveSettings(settings: Settings): Promise<void> {
 
 export async function patchSettings(patch: Partial<Settings>): Promise<Settings> {
   const current = await loadSettings();
-  const next = { ...current, ...patch };
+  const shouldSyncLanguageToUi =
+    Object.hasOwn(patch, "uiLanguage") && !Object.hasOwn(patch, "language");
+  const next = {
+    ...current,
+    ...patch,
+    ...(shouldSyncLanguageToUi ? { language: languageForUiLanguage(patch.uiLanguage) } : {}),
+  };
   await saveSettings(next);
   return next;
 }
