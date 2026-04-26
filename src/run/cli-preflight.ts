@@ -7,6 +7,7 @@ import {
   buildDaemonHelp,
   buildLocalRuntimeHelp,
   buildMemoryHelp,
+  buildPodcastHelp,
   buildProgram,
   buildRefreshFreeHelp,
   buildSlidesProgram,
@@ -14,6 +15,7 @@ import {
 } from "./help.js";
 import { handleLocalRuntimeProbeRequest } from "./local-runtime-probe-cli.js";
 import { handleMemoryCliRequest } from "./memory-cli.js";
+import { handlePodcastCliRequest } from "./podcast-cli.js";
 
 type HelpContext = {
   normalizedArgv: string[];
@@ -44,6 +46,10 @@ export function handleHelpRequest({
   }
   if (topic === "memory") {
     stdout.write(`${buildMemoryHelp()}\n`);
+    return true;
+  }
+  if (topic === "podcast") {
+    stdout.write(`${buildPodcastHelp()}\n`);
     return true;
   }
   if (topic === "slides") {
@@ -194,5 +200,21 @@ export async function handleMemoryRequest(
     envForRun: ctx.envForRun,
     stdout: ctx.stdout,
     setExitCode: ctx.setExitCode,
+  });
+}
+
+export async function handlePodcastRequest(
+  ctx: RefreshContext & {
+    execFileImpl?: import("../markitdown.js").ExecFileFn;
+    setExitCode?: (code: number) => void;
+  },
+): Promise<boolean> {
+  return handlePodcastCliRequest({
+    normalizedArgv: ctx.normalizedArgv,
+    envForRun: ctx.envForRun,
+    fetchImpl: ctx.fetchImpl,
+    stdout: ctx.stdout,
+    stderr: ctx.stderr,
+    execFileImpl: ctx.execFileImpl,
   });
 }

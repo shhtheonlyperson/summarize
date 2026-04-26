@@ -6,6 +6,7 @@ import {
   handleHelpRequest,
   handleLocalRuntimeCliRequest,
   handleMemoryRequest,
+  handlePodcastRequest,
   handleRefreshFreeRequest,
 } from "./cli-preflight.js";
 import { attachRichHelp, buildProgram } from "./help.js";
@@ -39,11 +40,14 @@ export async function runCli(
   const { normalizedArgv, envForRun } = prepareRunEnvironment(argv, inputEnv);
   const env = envForRun;
 
+  const execFileImpl = execFileOverride ?? execFile;
+
   if (
     await handleImmediateCliRequests({
       normalizedArgv,
       envForRun,
       fetchImpl: fetch,
+      execFileImpl,
       stdout,
       stderr,
       setExitCode,
@@ -51,7 +55,6 @@ export async function runCli(
   ) {
     return;
   }
-  const execFileImpl = execFileOverride ?? execFile;
   const program = buildCliProgram({ normalizedArgv, envForRun, stdout, stderr });
   if (!program) return;
 
@@ -99,11 +102,13 @@ async function handleImmediateCliRequests(options: {
   normalizedArgv: string[];
   envForRun: Record<string, string | undefined>;
   fetchImpl: typeof fetch;
+  execFileImpl: ExecFileFn;
   stdout: NodeJS.WritableStream;
   stderr: NodeJS.WritableStream;
   setExitCode?: (code: number) => void;
 }) {
-  const { normalizedArgv, envForRun, fetchImpl, stdout, stderr, setExitCode } = options;
+  const { normalizedArgv, envForRun, fetchImpl, execFileImpl, stdout, stderr, setExitCode } =
+    options;
   if (handleHelpRequest({ normalizedArgv, envForRun, stdout, stderr })) {
     return true;
   }
@@ -126,6 +131,19 @@ async function handleImmediateCliRequests(options: {
     return true;
   }
   if (await handleMemoryRequest({ normalizedArgv, envForRun, stdout, setExitCode })) {
+    return true;
+  }
+  if (
+    await handlePodcastRequest({
+      normalizedArgv,
+      envForRun,
+      fetchImpl,
+      execFileImpl,
+      stdout,
+      stderr,
+      setExitCode,
+    })
+  ) {
     return true;
   }
   if (await handleSlidesCliRequest({ normalizedArgv, envForRun, fetchImpl, stdout, stderr })) {

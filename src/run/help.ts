@@ -264,6 +264,7 @@ ${heading("Examples")}
   ${cmd("summarize local-runtime probe")} ${dim("# probe configured/default local LLM endpoints")}
   ${cmd("summarize memory list")} ${dim("# list persisted research-memory runs")}
   ${cmd("summarize memory export <run-id> --output notebooklm.md --language zh-TW")} ${dim("# NotebookLM-ready markdown")}
+  ${cmd("summarize podcast create <run-id> --output overview.mp3 --language zh-TW")} ${dim("# NotebookLM podcast")}
   ${cmd('summarize "https://example.com" --length 20k --max-output-tokens 2k --timeout 2m --model openai/gpt-5-mini')}
   ${cmd('summarize "https://example.com" --model openai/gpt-5.5 --fast --thinking medium')}
   ${cmd('summarize "https://example.com" --model openai/gpt-5.4 --service-tier fast --thinking low')}
@@ -316,6 +317,7 @@ ${heading("Hint")}
   ${cmd("summarize transcriber setup")} ${dim("# set up local ONNX transcription; auto prefers it when configured")}
   ${cmd("summarize local-runtime probe --json")} ${dim("# verify local LLM endpoints before daemon/extension use")}
   ${cmd("summarize memory status")} ${dim("# check optional research-memory persistence")}
+  ${cmd("summarize podcast create <run-id-or-url>")} ${dim("# create a NotebookLM audio overview from research memory")}
 
 ${heading("Support")}
   ${SUPPORT_URL}
@@ -424,6 +426,28 @@ export function buildMemoryHelp(): string {
     "  summarize memory list --status succeeded",
     "  summarize memory show run_123 --json",
     "  summarize memory export run_123 --output notebooklm.md --language zh-TW",
+  ].join("\n");
+}
+
+export function buildPodcastHelp(): string {
+  return [
+    "Usage: summarize podcast create <run-id-or-url> [options]",
+    "",
+    "Creates a NotebookLM audio overview from a persisted research-memory run.",
+    "When given a URL, summarize runs first and then uses the new persisted run.",
+    "",
+    "Options:",
+    "  --language <language>  auto|en|english|zh-TW|traditional-chinese",
+    "  --format <format>      NotebookLM audio style: deep-dive|brief|critique|debate (default: deep-dive)",
+    "  --length <length>      NotebookLM audio length: short|default|long (medium/xl map to default/long)",
+    "  -o, --output <path>    Download generated audio to this path",
+    "  --wait                 Wait for source/audio readiness (default)",
+    "  --no-wait              Start audio generation and return without waiting",
+    "  --json                 Print machine-readable JSON",
+    "",
+    "Examples:",
+    "  summarize podcast create run_123 --output overview.mp3 --language zh-TW --format deep-dive",
+    "  summarize podcast create https://example.com/research --length long --output overview.mp3",
   ].join("\n");
 }
 
