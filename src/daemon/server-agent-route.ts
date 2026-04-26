@@ -43,6 +43,7 @@ export async function handleAgentRoute({
   const pageContent = typeof obj.pageContent === "string" ? obj.pageContent : "";
   const messages = obj.messages;
   const modelOverride = typeof obj.model === "string" ? obj.model.trim() : null;
+  const requestLocalOnly = typeof obj.localOnly === "boolean" ? obj.localOnly : null;
   const tools = Array.isArray(obj.tools)
     ? obj.tools.filter((tool): tool is string => typeof tool === "string")
     : [];
@@ -67,6 +68,7 @@ export async function handleAgentRoute({
           pageContent,
           messages,
           modelOverride: normalizedModelOverride,
+          requestLocalOnly,
           tools,
           automationEnabled,
         }),
@@ -107,6 +109,7 @@ export async function handleAgentRoute({
         pageContent,
         messages: messages as Message[],
         modelOverride: normalizedModelOverride,
+        requestLocalOnly,
         tools,
         automationEnabled,
         onChunk: (text) => writeEvent({ event: "chunk", data: { text } }),
