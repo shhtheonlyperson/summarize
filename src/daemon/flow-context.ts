@@ -15,6 +15,7 @@ import {
   summarizeAsset as summarizeAssetFlow,
 } from "../run/flows/asset/summary.js";
 import { createUrlFlowContext, type UrlFlowContext } from "../run/flows/url/types.js";
+import { resolveLocalOnlyMode } from "../run/local-only.js";
 import { resolveRunContextState } from "../run/run-context.js";
 import { createRunMetrics } from "../run/run-metrics.js";
 import { resolveModelSelection } from "../run/run-models.js";
@@ -218,6 +219,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     envForRun,
     explicitModelArg: modelOverride?.trim() ? modelOverride.trim() : null,
   });
+  const localOnlyMode = resolveLocalOnlyMode({ config });
 
   const fixedModelSpec: FixedModelSpec | null =
     requestedModel.kind === "fixed" ? requestedModel : null;
@@ -273,6 +275,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     zai: { apiKey: zaiApiKey, baseUrl: zaiBaseUrl },
     nvidia: { apiKey: nvidiaApiKey, baseUrl: nvidiaBaseUrl },
     providerBaseUrls,
+    localOnlyMode,
   });
 
   const outputLanguage = resolveOutputLanguageSetting({
