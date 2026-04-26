@@ -6,12 +6,14 @@ import {
   attachRichHelp,
   buildDaemonHelp,
   buildLocalRuntimeHelp,
+  buildMemoryHelp,
   buildProgram,
   buildRefreshFreeHelp,
   buildSlidesProgram,
   buildTranscriberHelp,
 } from "./help.js";
 import { handleLocalRuntimeProbeRequest } from "./local-runtime-probe-cli.js";
+import { handleMemoryCliRequest } from "./memory-cli.js";
 
 type HelpContext = {
   normalizedArgv: string[];
@@ -38,6 +40,10 @@ export function handleHelpRequest({
   }
   if (topic === "local-runtime") {
     stdout.write(`${buildLocalRuntimeHelp()}\n`);
+    return true;
+  }
+  if (topic === "memory") {
+    stdout.write(`${buildMemoryHelp()}\n`);
     return true;
   }
   if (topic === "slides") {
@@ -173,6 +179,19 @@ export async function handleLocalRuntimeCliRequest(
     normalizedArgv: ctx.normalizedArgv,
     envForRun: ctx.envForRun,
     fetchImpl: ctx.fetchImpl,
+    stdout: ctx.stdout,
+    setExitCode: ctx.setExitCode,
+  });
+}
+
+export async function handleMemoryRequest(
+  ctx: Pick<RefreshContext, "normalizedArgv" | "envForRun" | "stdout"> & {
+    setExitCode?: (code: number) => void;
+  },
+): Promise<boolean> {
+  return handleMemoryCliRequest({
+    normalizedArgv: ctx.normalizedArgv,
+    envForRun: ctx.envForRun,
     stdout: ctx.stdout,
     setExitCode: ctx.setExitCode,
   });
