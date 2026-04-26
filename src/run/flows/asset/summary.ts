@@ -26,6 +26,7 @@ import {
 } from "../../cli-fallback-state.js";
 import { writeFinishLine } from "../../finish-line.js";
 import { resolveTargetCharacters } from "../../format.js";
+import { isLocalOnlyRemoteProviderError } from "../../local-only.js";
 import { writeVerbose } from "../../logging.js";
 import { prepareMarkdownForTerminal } from "../../markdown.js";
 import { runModelAttempts } from "../../model-attempts.js";
@@ -555,6 +556,7 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
       isNamedModelSelection: ctx.isNamedModelSelection,
       envHasKeyFor: ctx.summaryEngine.envHasKeyFor,
       formatMissingModelError: ctx.summaryEngine.formatMissingModelError,
+      assertAttemptAllowed: ctx.summaryEngine.assertAttemptAllowed,
       onAutoSkip: (attempt) => {
         writeVerbose(
           ctx.stderr,
@@ -629,6 +631,9 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
         throw new Error(withFreeTip(lastError.message), { cause: lastError });
       }
       throw new Error(withFreeTip(`No model available for --model ${ctx.requestedModelInput}`));
+    }
+    if (isLocalOnlyRemoteProviderError(lastError)) {
+      throw lastError;
     }
     if (textContent) {
       ctx.clearProgressForStdout();
