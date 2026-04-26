@@ -9,6 +9,7 @@ import { mergeModelRequestOptions } from "../llm/model-options.js";
 import type { ModelRequestOptions } from "../llm/model-options.js";
 import type { Prompt } from "../llm/prompt.js";
 import { formatCompactCount } from "../tty/format.js";
+import { assertLocalOnlyModelAllowed, type LocalOnlyMode } from "./local-only.js";
 import { createRetryLogger, writeVerbose } from "./logging.js";
 import { prepareMarkdownForTerminalStreaming } from "./markdown.js";
 import type { PerfTrace } from "./perf-trace.js";
@@ -87,6 +88,7 @@ export type SummaryEngineDeps = {
     google: string | null;
     xai: string | null;
   };
+  localOnlyMode: LocalOnlyMode;
   perfTrace?: PerfTrace | null;
 };
 
@@ -201,6 +203,14 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
     return `Missing ${attempt.requiredEnv} for model ${attempt.userModelId}. Set the env var or choose a different --model.`;
   };
 
+  const assertAttemptAllowed = (attempt: ModelAttempt): void => {
+    assertLocalOnlyModelAllowed({
+      policy: deps.localOnlyMode,
+      candidate: attempt,
+      providerBaseUrls: deps.providerBaseUrls,
+    });
+  };
+
   const runSummaryAttempt = async ({
     attempt,
     prompt,
@@ -226,6 +236,7 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
     modelMeta: ModelMeta;
     maxOutputTokensForCall: number | null;
   }> => {
+    assertAttemptAllowed(attempt);
     onModelChosen?.(attempt.userModelId);
     deps.perfTrace?.mark("summary:model-chosen", attempt.userModelId);
 
@@ -647,8 +658,10 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
 
   return {
     applyOpenAiGatewayOverrides,
+    assertAttemptAllowed,
     envHasKeyFor,
     formatMissingModelError,
+    localOnlyMode: deps.localOnlyMode,
     runSummaryAttempt,
   };
 }
