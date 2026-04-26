@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { closeSync, openSync } from "node:fs";
+import { closeSync, constants as fsConstants, openSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { buildDaemonHelp } from "../run/help.js";
@@ -263,12 +263,81 @@ async function resolveTsxCliPath(repoRoot: string): Promise<string> {
   return candidate;
 }
 
+function expandHomePath(filePath: string, env: Record<string, string | undefined>): string {
+  const home = (env.HOME ?? env.USERPROFILE ?? "").trim();
+  if (!home) return filePath;
+  if (filePath === "~") return home;
+  if (filePath.startsWith("~/") || filePath.startsWith("~\\")) {
+    return path.join(home, filePath.slice(2));
+  }
+  return filePath;
+}
+
+async function isExecutable(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath, fsConstants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveExecutableFromPath(
+  command: string,
+  env: Record<string, string | undefined>,
+): Promise<string | null> {
+  const pathValue = env.PATH?.trim();
+  if (!pathValue) return null;
+
+  const names =
+    process.platform === "win32" && !/\.(cmd|exe|bat)$/i.test(command)
+      ? [command, `${command}.exe`, `${command}.cmd`, `${command}.bat`]
+      : [command];
+
+  for (const rawDir of pathValue.split(path.delimiter)) {
+    const dir = rawDir.trim();
+    if (!dir) continue;
+    for (const name of names) {
+      const candidate = path.join(dir, name);
+      if (await isExecutable(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+async function resolveNodePathForService(env: Record<string, string | undefined>): Promise<string> {
+  const explicitNode = (env.SUMMARIZE_NODE_PATH ?? "").trim();
+  if (explicitNode) {
+    const expanded = expandHomePath(explicitNode, env);
+    if (await isExecutable(expanded)) return expanded;
+    throw new Error(`SUMMARIZE_NODE_PATH is not executable: ${expanded}`);
+  }
+
+  const home = (env.HOME ?? env.USERPROFILE ?? "").trim();
+  if (home) {
+    const managedNode = path.join(
+      home,
+      "n",
+      "bin",
+      process.platform === "win32" ? "node.exe" : "node",
+    );
+    if (await isExecutable(managedNode)) return managedNode;
+  }
+
+  const pathNode = await resolveExecutableFromPath("node", env);
+  if (pathNode) return pathNode;
+
+  return process.execPath;
+}
+
 async function resolveDaemonProgramArguments({
   dev,
+  env,
 }: {
   dev: boolean;
+  env: Record<string, string | undefined>;
 }): Promise<{ programArguments: string[]; workingDirectory?: string }> {
-  const nodePath = process.execPath;
+  const nodePath = await resolveNodePathForService(env);
   if (!dev) {
     try {
       const cliEntrypointPath = await resolveCliEntrypointPathForService();
@@ -413,7 +482,10 @@ export async function handleDaemonRequest({
       process.platform === "win32" && isWindowsContainerEnvironment(envForRun);
 
     if (windowsContainerMode) {
-      const { programArguments, workingDirectory } = await resolveDaemonProgramArguments({ dev });
+      const { programArguments, workingDirectory } = await resolveDaemonProgramArguments({
+        dev,
+        env: envForRun,
+      });
       await startDetachedContainerDaemon({
         env: envForRun,
         programArguments,
@@ -445,7 +517,10 @@ export async function handleDaemonRequest({
       return true;
     }
 
-    const { programArguments, workingDirectory } = await resolveDaemonProgramArguments({ dev });
+    const { programArguments, workingDirectory } = await resolveDaemonProgramArguments({
+      dev,
+      env: envForRun,
+    });
     const service = resolveDaemonService();
     await service.install({ env: envForRun, stdout, programArguments, workingDirectory });
     await waitForHealthWithRetries({ fetchImpl, port, attempts: 5, timeoutMs: 5000, delayMs: 500 });
