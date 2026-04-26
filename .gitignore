@@ -18,3 +18,4 @@ apps/chrome-extension/test-results
 
 # Built docs site (see scripts/build-docs-site.mjs)
 dist/docs-site
+.agents/
