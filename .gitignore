@@ -5,6 +5,7 @@ dist-bun
 coverage
 .DS_Store
 .pnpm-debug.log
+.pnpm-store/
 .turbo
 .cache
 .output
