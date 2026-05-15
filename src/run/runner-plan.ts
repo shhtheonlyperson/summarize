@@ -18,6 +18,7 @@ import { isPdfExtension, isTranscribableExtension } from "./flows/asset/input.js
 import { summarizeMediaFile as summarizeMediaFileImpl } from "./flows/asset/media.js";
 import { resolveLocalOnlyMode } from "./local-only.js";
 import { createMediaCacheFromConfig } from "./media-cache-state.js";
+import type { PerfTrace } from "./perf-trace.js";
 import { createProgressGate } from "./progress.js";
 import { resolveRunContextState } from "./run-context.js";
 import { resolveRunInput } from "./run-input.js";
@@ -76,6 +77,7 @@ export async function createRunnerPlan(options: {
   stdout: NodeJS.WritableStream;
   stderr: NodeJS.WritableStream;
   promptOverride: string | null;
+  perfTrace?: PerfTrace | null;
 }): Promise<RunnerPlan> {
   const {
     normalizedArgv,
@@ -87,6 +89,7 @@ export async function createRunnerPlan(options: {
     stdin,
     stdout,
     stderr,
+    perfTrace = null,
   } = options;
   let { promptOverride } = options;
   const programOpts = program.opts() as Record<string, unknown>;
@@ -99,6 +102,7 @@ export async function createRunnerPlan(options: {
     cliProviderArgRaw,
     stdout,
   });
+  perfTrace?.mark("plan:input");
   cliProviderArgRaw = inputResolution.cliProviderArgRaw;
   const inputTarget = inputResolution.inputTarget;
   const url = inputResolution.url;
@@ -138,6 +142,7 @@ export async function createRunnerPlan(options: {
     envForRun,
     url: inputTarget.kind === "url" ? inputTarget.url : url,
   });
+  perfTrace?.mark("plan:flags");
 
   if (extractMode && lengthExplicitlySet && !json && isRichTty(stderr)) {
     stderr.write("Warning: --length is ignored with --extract (no summary is generated).\n");
@@ -202,6 +207,7 @@ export async function createRunnerPlan(options: {
     cliFlagPresent,
     cliProviderArg,
   });
+  perfTrace?.mark("plan:context");
 
   const themeName = resolveThemeNameFromSources({
     cli: (programOpts as { theme?: unknown }).theme,
@@ -242,6 +248,7 @@ export async function createRunnerPlan(options: {
     config,
     noMediaCacheFlag,
   });
+  perfTrace?.mark("plan:cache");
 
   if (markdownModeExplicitlySet && format !== "markdown") {
     throw new Error("--markdown-mode is only supported with --format md");
@@ -392,6 +399,7 @@ export async function createRunnerPlan(options: {
     },
     providerBaseUrls,
     localOnlyMode,
+    perfTrace,
   });
 
   const writeViaFooter = (parts: string[]) => {
@@ -567,6 +575,7 @@ export async function createRunnerPlan(options: {
     buildReport,
     estimateCostUsd,
     researchMemory,
+    perfTrace,
   });
 
   return {

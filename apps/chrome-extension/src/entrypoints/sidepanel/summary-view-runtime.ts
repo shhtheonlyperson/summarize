@@ -2,6 +2,7 @@ import { buildIdleSubtitle } from "../../lib/header";
 import { t } from "./i18n";
 import type { PanelCachePayload } from "./panel-cache";
 import { normalizeSlideImageUrl } from "./slide-images";
+import { normalizeSlidesPayload } from "./slides-payload";
 import type { PanelPhase, PanelState } from "./types";
 
 type SlidesTextControllerLike = {
@@ -173,16 +174,14 @@ export function createSummaryViewRuntime(opts: SummaryViewRuntimeOpts) {
       }),
     );
     opts.setSlidesTranscriptTimedText(payload.transcriptTimedText ?? null);
-    if (payload.slides) {
+    const normalizedSlides = normalizeSlidesPayload(payload.slides);
+    const hasNormalizedSlides = Boolean(normalizedSlides && normalizedSlides.slides.length > 0);
+    if (normalizedSlides && hasNormalizedSlides) {
       opts.panelState.slides = {
-        ...payload.slides,
-        slides: payload.slides.slides.map((slide) => ({
+        ...normalizedSlides,
+        slides: normalizedSlides.slides.map((slide) => ({
           ...slide,
-          imageUrl: normalizeSlideImageUrl(
-            slide.imageUrl,
-            payload.slides?.sourceId ?? "",
-            slide.index,
-          ),
+          imageUrl: normalizeSlideImageUrl(slide.imageUrl, normalizedSlides.sourceId, slide.index),
         })),
       };
       opts.setSlidesContextPending(false);
@@ -202,7 +201,7 @@ export function createSummaryViewRuntime(opts: SummaryViewRuntimeOpts) {
     opts.getSlidesHydrator().syncFromCache({
       runId: opts.panelState.slidesRunId ?? null,
       summaryFromCache: payload.summaryFromCache,
-      hasSlides: Boolean(payload.slides && payload.slides.slides.length > 0),
+      hasSlides: hasNormalizedSlides,
     });
     if ((payload.slidesSummaryMarkdown ?? "").trim()) {
       opts.updateSlideSummaryFromMarkdown(payload.slidesSummaryMarkdown ?? "", {

@@ -9,6 +9,16 @@
 
 ### Fixes
 
+- CLI performance: add opt-in startup/first-output tracing and avoid network LiteLLM catalog refreshes on fixed-model summary streaming and finish-line cost estimation.
+- Chrome extension slides: harden slide payload loading against malformed cache/stream data and clear stale thumbnails before retrying updated slide images.
+- Release gate: run `pnpm typecheck` during `pnpm check` so CI/release checks catch TypeScript errors.
+- Typecheck: include `packages/core` in the root typecheck script so core library errors fail the gate.
+- Tests: ignore invalid `VITEST_MAX_THREADS` overrides so Vitest never receives `maxThreads` below `minThreads`.
+- CLI version: stop baking a stale git SHA into the committed `dist/cli.js` wrapper so checkout builds report the current commit.
+- Chrome extension: keep local-video slide E2E shutdown from hanging, reject malformed media durations and non-video YouTube container URLs, and sanitize invalid advanced settings before they reach daemon requests.
+- Parsing: reject non-decimal timestamp hrefs, malformed transcript clocks, malformed podcast durations, and non-decimal slide/retry numeric settings.
+- Timestamps: reject malformed transcript, key-moment, slide, summary, and side-panel chat timestamps before they become prompt context or seek links.
+- Slides: wait for background slide extraction to finish before URL flows exit, avoiding late cache writes during daemon shutdown.
 - Daemon slides: ignore request-provided slide output directories and keep extracted slide artifacts under `~/.summarize/slides` (#220, thanks @Hinotoi-agent).
 - Chrome extension automation: require confirmation before side-panel agent automation tools run, and report cancelled calls without applying navigation side effects (#219, thanks @Hinotoi-agent).
 - Chrome extension automation: guard the artifacts bridge so browser JS can only read or write artifacts while extension-owned automation has armed the tab (#222, thanks @Hinotoi-agent).

@@ -12,6 +12,7 @@ import { formatCompactCount } from "../tty/format.js";
 import { assertLocalOnlyModelAllowed, type LocalOnlyMode } from "./local-only.js";
 import { createRetryLogger, writeVerbose } from "./logging.js";
 import { prepareMarkdownForTerminalStreaming } from "./markdown.js";
+import type { PerfTrace } from "./perf-trace.js";
 import { createStreamOutputGate, type StreamOutputMode } from "./stream-output.js";
 import {
   canStream,
@@ -88,6 +89,7 @@ export type SummaryEngineDeps = {
     xai: string | null;
   };
   localOnlyMode: LocalOnlyMode;
+  perfTrace?: PerfTrace | null;
 };
 
 export type SummaryStreamHandler = {
@@ -236,6 +238,7 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
   }> => {
     assertAttemptAllowed(attempt);
     onModelChosen?.(attempt.userModelId);
+    deps.perfTrace?.mark("summary:model-chosen", attempt.userModelId);
 
     if (attempt.transport === "cli") {
       const hasAttachments = (prompt.attachments?.length ?? 0) > 0;
@@ -334,9 +337,11 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
     const maxOutputTokensForCall = await deps.resolveMaxOutputTokensForCall(
       parsedModelEffective.canonical,
     );
+    deps.perfTrace?.mark("summary:max-output");
     const maxInputTokensForCall = await deps.resolveMaxInputTokensForCall(
       parsedModelEffective.canonical,
     );
+    deps.perfTrace?.mark("summary:max-input");
     if (
       typeof maxInputTokensForCall === "number" &&
       Number.isFinite(maxInputTokensForCall) &&
@@ -411,6 +416,7 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
 
     let streamResult: Awaited<ReturnType<typeof streamTextWithModelId>> | null = null;
     try {
+      deps.perfTrace?.mark("summary:stream-open");
       streamResult = await streamTextWithModelId({
         modelId: parsedModelEffective.canonical,
         apiKeys: apiKeysForLlm,
@@ -547,7 +553,12 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
         : null;
 
       try {
+        let sawFirstDelta = false;
         for await (const delta of streamResult.textStream) {
+          if (!sawFirstDelta) {
+            sawFirstDelta = true;
+            deps.perfTrace?.mark("summary:first-delta");
+          }
           const prevStreamed = streamed;
           const merged = mergeStreamingChunk(streamed, delta);
           streamed = merged.next;

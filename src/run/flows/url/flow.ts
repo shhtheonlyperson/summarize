@@ -36,6 +36,7 @@ export async function runUrlFlow({
   }
 
   const { io, flags, model, cache: cacheState, hooks } = ctx;
+  ctx.perfTrace?.mark("url:start");
   const theme = createThemeRenderer({
     themeName: resolveThemeNameFromSources({ env: io.envForRun.SUMMARIZE_THEME }),
     enabled: flags.verboseColor,
@@ -125,8 +126,10 @@ export async function runUrlFlow({
 
   const pauseProgressLine = pauseProgress;
   activeHooks.setClearProgressBeforeStdout(pauseProgressLine);
+  let backgroundSlidesPromise: Promise<SlideExtractionResult | null> | null = null;
   try {
     let extracted = await extractionSession.fetchInitialExtract(url);
+    ctx.perfTrace?.mark("url:extracted");
     let extractionUi = deriveExtractionUi(extracted);
 
     const formatSummaryProgress = (modelId?: string | null) => {
@@ -215,7 +218,7 @@ export async function runUrlFlow({
     updateSummaryProgress();
 
     if (flags.slides) {
-      void slidesSession.runSlidesExtraction().catch((error) => {
+      backgroundSlidesPromise = slidesSession.runSlidesExtraction().catch((error) => {
         const message = error instanceof Error ? error.message : String(error);
         writeSlidesBackgroundFailureWarning({ ctx, theme, message });
         writeVerbose(
@@ -225,6 +228,7 @@ export async function runUrlFlow({
           flags.verboseColor,
           io.envForRun,
         );
+        return null;
       });
     }
 
@@ -246,6 +250,7 @@ export async function runUrlFlow({
       languageInstruction: flags.languageInstruction ?? null,
       slides: slidesForPrompt ?? slidesSession.getSlidesExtracted() ?? null,
     });
+    ctx.perfTrace?.mark("url:prompt");
 
     // Whisper transcription costs need to be folded into the finish line totals.
     const transcriptionCostUsd = estimateWhisperTranscriptionCostUsd({
@@ -299,6 +304,7 @@ export async function runUrlFlow({
         slides: slidesSession.getSlidesExtracted() ?? slidesForPrompt ?? null,
         slidesOutput: slidesSession.slidesOutput,
       });
+      if (backgroundSlidesPromise) await backgroundSlidesPromise;
       return;
     }
 
@@ -321,7 +327,12 @@ export async function runUrlFlow({
       slides: slidesSession.getSlidesExtracted() ?? slidesForPrompt ?? null,
       slidesOutput: slidesSession.slidesOutput,
     });
+    ctx.perfTrace?.mark("url:summary-done");
+    if (backgroundSlidesPromise) await backgroundSlidesPromise;
   } finally {
+    if (backgroundSlidesPromise) {
+      await backgroundSlidesPromise;
+    }
     if (flags.progressEnabled) {
       process.off("SIGINT", handleSigint);
       process.off("SIGTERM", handleSigterm);

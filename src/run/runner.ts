@@ -10,6 +10,7 @@ import {
   handleRefreshFreeRequest,
 } from "./cli-preflight.js";
 import { attachRichHelp, buildProgram } from "./help.js";
+import { createPerfTrace } from "./perf-trace.js";
 import { createRunnerPlan } from "./runner-plan.js";
 import {
   applyWidthOverride,
@@ -36,65 +37,82 @@ export async function runCli(
   { env: inputEnv, fetch, execFile: execFileOverride, stdin, stdout, stderr, setExitCode }: RunEnv,
 ): Promise<void> {
   (globalThis as unknown as { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false;
+  const perfTrace = createPerfTrace({ env: inputEnv, stderr });
+  const runStdout = perfTrace?.wrapStdout(stdout) ?? stdout;
 
-  const { normalizedArgv, envForRun } = prepareRunEnvironment(argv, inputEnv);
-  const env = envForRun;
+  try {
+    const { normalizedArgv, envForRun } = prepareRunEnvironment(argv, inputEnv);
+    perfTrace?.mark("cli:environment");
+    const env = envForRun;
 
-  const execFileImpl = execFileOverride ?? execFile;
+    const execFileImpl = execFileOverride ?? execFile;
 
-  if (
-    await handleImmediateCliRequests({
+    if (
+      await handleImmediateCliRequests({
+        normalizedArgv,
+        envForRun,
+        fetchImpl: fetch,
+        execFileImpl,
+        stdout: runStdout,
+        stderr,
+        setExitCode,
+      })
+    ) {
+      return;
+    }
+    perfTrace?.mark("cli:preflight");
+    const program = buildCliProgram({ normalizedArgv, envForRun, stdout: runStdout, stderr });
+    if (!program) return;
+    perfTrace?.mark("cli:parsed");
+
+    if (
+      handleVersionFlag({
+        versionRequested: Boolean(program.opts().version),
+        stdout: runStdout,
+        importMetaUrl: import.meta.url,
+      })
+    ) {
+      return;
+    }
+
+    applyWidthOverride({ width: program.opts().width, env });
+
+    let promptOverride = await resolvePromptOverride({
+      prompt: program.opts().prompt,
+      promptFile: program.opts().promptFile,
+    });
+
+    if (
+      await handleCacheUtilityFlags({
+        normalizedArgv,
+        envForRun,
+        stdout: runStdout,
+      })
+    ) {
+      return;
+    }
+    const plan = await createRunnerPlan({
       normalizedArgv,
+      program,
+      env,
       envForRun,
       fetchImpl: fetch,
       execFileImpl,
-      stdout,
+      stdin,
+      stdout: runStdout,
       stderr,
-      setExitCode,
-    })
-  ) {
-    return;
-  }
-  const program = buildCliProgram({ normalizedArgv, envForRun, stdout, stderr });
-  if (!program) return;
+      promptOverride,
+      perfTrace,
+    });
+    perfTrace?.mark("cli:planned");
 
-  if (handleVersionFlag({ versionRequested: Boolean(program.opts().version), stdout })) {
-    return;
-  }
-
-  applyWidthOverride({ width: program.opts().width, env });
-
-  let promptOverride = await resolvePromptOverride({
-    prompt: program.opts().prompt,
-    promptFile: program.opts().promptFile,
-  });
-
-  if (
-    await handleCacheUtilityFlags({
-      normalizedArgv,
-      envForRun,
-      stdout,
-    })
-  ) {
-    return;
-  }
-  const plan = await createRunnerPlan({
-    normalizedArgv,
-    program,
-    env,
-    envForRun,
-    fetchImpl: fetch,
-    execFileImpl,
-    stdin,
-    stdout,
-    stderr,
-    promptOverride,
-  });
-
-  try {
-    await plan.execute();
+    try {
+      await plan.execute();
+    } finally {
+      plan.cacheState.store?.close();
+    }
   } finally {
-    plan.cacheState.store?.close();
+    perfTrace?.finish();
   }
 }
 

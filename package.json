@@ -37,7 +37,7 @@
     "build:bun:test": "bun scripts/build-bun.js --test",
     "build:cli": "node scripts/build-cli.mjs",
     "build:lib": "tsgo -p tsconfig.build.json",
-    "check": "pnpm format:check && pnpm lint && pnpm test:coverage",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage",
     "clean": "rimraf dist packages/core/dist",
     "dev:cli": "pnpm -C packages/core build && tsx src/cli.ts",
     "docs:build": "node scripts/build-docs-site.mjs",
@@ -56,7 +56,7 @@
     "test:coverage:build": "pnpm build && pnpm test:coverage",
     "test:coverage:html": "vitest run --coverage --coverage.reporter=text --coverage.reporter=json-summary --coverage.reporter=html",
     "test:extension-e2e": "pnpm -C apps/chrome-extension test:e2e",
-    "typecheck": "tsgo -p tsconfig.build.json --noEmit"
+    "typecheck": "pnpm -C packages/core typecheck && tsgo -p tsconfig.build.json --noEmit"
   },
   "dependencies": {
     "@mariozechner/pi-ai": "^0.73.0",

@@ -4,6 +4,7 @@ import type { ResearchMemoryRunRecorder } from "../research-memory/lifecycle.js"
 import { createAssetSummaryContext, type SummarizeAssetArgs } from "./flows/asset/summary.js";
 import { summarizeAsset as summarizeAssetFlow } from "./flows/asset/summary.js";
 import { createUrlFlowContext, type UrlFlowContext } from "./flows/url/types.js";
+import type { PerfTrace } from "./perf-trace.js";
 
 type SummarizeMediaFile = typeof import("./flows/asset/media.js").summarizeMediaFile;
 
@@ -23,6 +24,7 @@ export function createRunnerFlowContexts(options: {
   buildReport: UrlFlowContext["hooks"]["buildReport"];
   estimateCostUsd: UrlFlowContext["hooks"]["estimateCostUsd"];
   researchMemory?: ResearchMemoryRunRecorder | null;
+  perfTrace?: PerfTrace | null;
 }) {
   const {
     summarizeMediaFileImpl,
@@ -40,6 +42,7 @@ export function createRunnerFlowContexts(options: {
     buildReport,
     estimateCostUsd,
     researchMemory,
+    perfTrace = null,
   } = options;
 
   const assetSummaryContext = createAssetSummaryContext({
@@ -151,6 +154,7 @@ export function createRunnerFlowContexts(options: {
       cache: cacheState,
       mediaCache,
       researchMemory,
+      perfTrace,
       runtimeHooks: {
         setTranscriptionCost,
         summarizeAsset,

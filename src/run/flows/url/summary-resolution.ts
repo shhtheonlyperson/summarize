@@ -74,6 +74,7 @@ export async function resolveUrlSummaryExecution({
   slidesOutput?: SlidesTerminalOutput | null;
 }): Promise<UrlSummaryResolution> {
   const { io, flags, model, cache: cacheState } = ctx;
+  ctx.perfTrace?.mark("summary:resolve-start");
   const lastSuccessfulCliProvider = model.isFallbackModel
     ? await readLastSuccessfulCliProvider(io.envForRun)
     : null;
@@ -176,6 +177,7 @@ export async function resolveUrlSummaryExecution({
       },
     ];
   })();
+  ctx.perfTrace?.mark("summary:attempts", attempts[0]?.userModelId ?? null);
 
   const cacheStore =
     cacheState.mode === "default" && !flags.summaryCacheBypass ? cacheState.store : null;
@@ -308,6 +310,7 @@ export async function resolveUrlSummaryExecution({
     writeVerbose(io.stderr, flags.verbose, "cache miss summary", flags.verboseColor, io.envForRun);
   }
   ctx.hooks.onSummaryCached?.(summaryFromCache);
+  ctx.perfTrace?.mark(summaryFromCache ? "summary:cache-hit" : "summary:cache-miss");
 
   let lastError: unknown = null;
   let missingRequiredEnvs = new Set<ModelAttempt["requiredEnv"]>();
