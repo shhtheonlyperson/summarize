@@ -15,3 +15,6 @@ _pack
 apps/chrome-extension/test-results
 /slides/
 .agents/
+
+# Built docs site (see scripts/build-docs-site.mjs)
+dist/docs-site

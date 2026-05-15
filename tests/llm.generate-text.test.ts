@@ -38,6 +38,7 @@ describe("llm generate/stream", () => {
   const originalBaseUrl = process.env.OPENAI_BASE_URL;
 
   afterEach(() => {
+    vi.useRealTimers();
     mocks.completeSimple.mockClear();
     mocks.streamSimple.mockClear();
     process.env.OPENAI_BASE_URL = originalBaseUrl;
@@ -920,6 +921,55 @@ describe("llm generate/stream", () => {
     }
   });
 
+  it("does not forward OpenAI-only request options to GitHub Models", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(_input)).toBe("https://models.github.ai/inference/chat/completions");
+      const body = JSON.parse(String(init?.body)) as {
+        model: string;
+        reasoning_effort?: string;
+        service_tier?: string;
+        verbosity?: string;
+      };
+      expect(body.model).toBe("openai/gpt-4.1");
+      expect(body).not.toHaveProperty("reasoning_effort");
+      expect(body).not.toHaveProperty("service_tier");
+      expect(body).not.toHaveProperty("verbosity");
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { role: "assistant", content: "ok from github models" } }],
+          usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    });
+
+    try {
+      vi.stubGlobal("fetch", fetchMock);
+      const result = await generateTextWithModelId({
+        modelId: "github-copilot/gpt-4.1",
+        apiKeys: {
+          openaiApiKey: "gh-token",
+          openrouterApiKey: null,
+          xaiApiKey: null,
+          googleApiKey: null,
+          anthropicApiKey: null,
+        },
+        prompt: { userText: "hi" },
+        timeoutMs: 2000,
+        fetchImpl: fetchMock as typeof fetch,
+        requestOptions: {
+          serviceTier: "fast",
+          reasoningEffort: "medium",
+          textVerbosity: "medium",
+        },
+      });
+
+      expect(result.text).toBe("ok from github models");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("omits temperature for GitHub Models GPT-5-family ids", async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body)) as {
@@ -1101,6 +1151,7 @@ describe("llm generate/stream", () => {
   });
 
   it("times out when a stream stalls before yielding", async () => {
+    vi.useFakeTimers();
     mocks.streamSimple.mockImplementationOnce(() => ({
       async *[Symbol.asyncIterator]() {
         await new Promise(() => {});
@@ -1123,10 +1174,13 @@ describe("llm generate/stream", () => {
     });
     const iterator = result.textStream[Symbol.asyncIterator]();
     const nextPromise = iterator.next();
-    await expect(nextPromise).rejects.toThrow(/timed out/i);
-  }, 250);
+    const rejection = expect(nextPromise).rejects.toThrow(/timed out/i);
+    await vi.advanceTimersByTimeAsync(5);
+    await rejection;
+  });
 
   it("resolves stream usage as null when stream.result() never settles", async () => {
+    vi.useFakeTimers();
     const finalMessage = makeAssistantMessage({ text: "ok" });
     mocks.streamSimple.mockImplementationOnce(() => ({
       async *[Symbol.asyncIterator]() {
@@ -1165,6 +1219,7 @@ describe("llm generate/stream", () => {
     let streamed = "";
     for await (const delta of result.textStream) streamed += delta;
     expect(streamed).toBe("ok");
+    await vi.advanceTimersByTimeAsync(20);
     await expect(result.usage).resolves.toBeNull();
   });
 });

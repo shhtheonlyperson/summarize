@@ -1,4 +1,6 @@
 ---
+title: "LLM overview"
+kicker: "models"
 summary: "LLM usage, env vars, flags, and prompt rules."
 read_when:
   - "When changing model selection or prompt formatting."
@@ -35,7 +37,7 @@ installed, auto mode can use local CLI models via `cli.enabled` or implicit auto
 - `ANTHROPIC_API_KEY` (required for `anthropic/...` models)
 - `ANTHROPIC_BASE_URL` (optional; override Anthropic API endpoint)
 - `SUMMARIZE_MODEL` (optional; overrides default model selection)
-- `CLAUDE_PATH` / `CODEX_PATH` / `GEMINI_PATH` / `AGENT_PATH` / `OPENCLAW_PATH` / `OPENCODE_PATH` (optional; override CLI binary paths)
+- `CLAUDE_PATH` / `CODEX_PATH` / `GEMINI_PATH` / `AGENT_PATH` / `OPENCLAW_PATH` / `OPENCODE_PATH` / `COPILOT_PATH` (optional; override CLI binary paths)
 
 ## Flags
 
@@ -49,6 +51,7 @@ installed, auto mode can use local CLI models via `cli.enabled` or implicit auto
     - `cli/agent/auto`
     - `cli/openclaw/main`
     - `cli/opencode/openai/gpt-5.4`
+    - `cli/copilot/gpt-5.2`
     - `openai/gpt-5.4`
     - `openai/gpt-5.4-mini`
     - `openai/gpt-5.4-nano`
@@ -63,7 +66,7 @@ installed, auto mode can use local CLI models via `cli.enabled` or implicit auto
     - `anthropic/claude-sonnet-4-5`
     - `openrouter/meta-llama/llama-3.3-70b-instruct:free` (force OpenRouter)
 - `--cli [provider]`
-  - Examples: `--cli claude`, `--cli Gemini`, `--cli codex`, `--cli agent`, `--cli openclaw`, `--cli opencode` (equivalent to `--model cli/<provider>`); `--cli` alone uses auto selection with CLI enabled.
+  - Examples: `--cli claude`, `--cli Gemini`, `--cli codex`, `--cli agent`, `--cli openclaw`, `--cli opencode`, `--cli copilot` (equivalent to `--model cli/<provider>`); `--cli` alone uses auto selection with CLI enabled.
 - `--model auto`
   - See `docs/model-auto.md`
 - `--model <preset>`
@@ -142,4 +145,5 @@ Use `--model github-copilot/<model>` for explicit GitHub-hosted model calls.
 
 - For PDF inputs, `--preprocess auto` will send the PDF directly to Anthropic/OpenAI/Gemini when a fixed model supports documents; otherwise we fall back to markitdown.
 - `--preprocess always` forces markitdown (no direct attachments).
+- When markitdown returns only page headers for an image-only PDF, summarize can retry with OpenAI vision OCR if `OPENAI_API_KEY` is available. The OCR model defaults to `gpt-4o-mini`; set `MARKITDOWN_OCR_MODEL` to override it, or `MARKITDOWN_OCR_DPI` to tune rendered page size. This sends rendered PDF pages to the OpenAI API and may incur per-page vision costs.
 - Streaming is disabled for document attachments.

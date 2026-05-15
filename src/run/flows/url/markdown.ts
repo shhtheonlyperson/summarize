@@ -299,7 +299,7 @@ export function createMarkdownConverters(
           void args.url;
           void args.title;
           void args.siteName;
-          return convertToMarkdownWithMarkitdown({
+          const { markdown } = await convertToMarkdownWithMarkitdown({
             bytes: new TextEncoder().encode(args.html),
             filenameHint: "page.html",
             mediaTypeHint: "text/html",
@@ -308,6 +308,7 @@ export function createMarkdownConverters(
             env: ctx.io.env,
             execFileImpl: ctx.io.execFileImpl,
           });
+          return markdown;
         }
       : null;
 

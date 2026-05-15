@@ -1,6 +1,13 @@
 export type AutoRuleKind = "text" | "website" | "youtube" | "image" | "video" | "file";
 export type VideoMode = "auto" | "transcript" | "understand";
-export type CliProvider = "claude" | "codex" | "gemini" | "agent" | "openclaw" | "opencode";
+export type CliProvider =
+  | "claude"
+  | "codex"
+  | "gemini"
+  | "agent"
+  | "openclaw"
+  | "opencode"
+  | "copilot";
 export type OpenAiReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
 export type OpenAiTextVerbosity = "low" | "medium" | "high";
 export type ModelRequestOptions = {
@@ -11,6 +18,7 @@ export type ModelRequestOptions = {
 export type CliProviderConfig = {
   binary?: string;
   extraArgs?: string[];
+  isolated?: boolean;
   model?: string;
 };
 export type CliAutoFallbackConfig = {
@@ -27,6 +35,7 @@ export type CliConfig = {
   agent?: CliProviderConfig;
   openclaw?: CliProviderConfig;
   opencode?: CliProviderConfig;
+  copilot?: CliProviderConfig;
   autoFallback?: CliAutoFallbackConfig;
   magicAuto?: CliAutoFallbackConfig;
   promptOverride?: string;

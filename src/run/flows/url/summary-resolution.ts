@@ -27,6 +27,7 @@ import { normalizeSummarySlideHeadings } from "./slides-text.js";
 import { buildModelMetaFromAttempt } from "./summary-finish.js";
 import { shouldBypassShortContentSummary } from "./summary-prompt.js";
 import {
+  ensureSummaryKeyMoments,
   resolveSummaryTimestampUpperBound,
   sanitizeSummaryKeyMoments,
   shouldSanitizeSummaryKeyMoments,
@@ -403,8 +404,13 @@ export async function resolveUrlSummaryExecution({
   const { summary, summaryAlreadyPrinted, modelMeta, maxOutputTokensForCall } = summaryResult;
   const normalizedSummaryBase =
     slides && slides.slides.length > 0 ? normalizeSummarySlideHeadings(summary) : summary;
-  const normalizedSummary = sanitizeSummaryKeyMoments({
+  const sanitizedSummary = sanitizeSummaryKeyMoments({
     markdown: normalizedSummaryBase,
+    maxSeconds: timestampUpperBound,
+  });
+  const normalizedSummary = ensureSummaryKeyMoments({
+    markdown: sanitizedSummary,
+    extracted,
     maxSeconds: timestampUpperBound,
   });
 
