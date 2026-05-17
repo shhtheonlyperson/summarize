@@ -223,6 +223,7 @@ export type AssetSummaryContext = {
   lengthInstruction?: string | null;
   languageInstruction?: string | null;
   isFallbackModel: boolean;
+  localRouteFallbackModelInput?: string | null;
   isImplicitAutoSelection: boolean;
   allowAutoCliFallback: boolean;
   desiredOutputTokens: number | null;
@@ -308,6 +309,7 @@ export type AssetSummaryContextInput = {
     AssetSummaryContext,
     | "fixedModelSpec"
     | "isFallbackModel"
+    | "localRouteFallbackModelInput"
     | "isImplicitAutoSelection"
     | "allowAutoCliFallback"
     | "desiredOutputTokens"

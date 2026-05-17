@@ -221,6 +221,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     wantsFreeNamedModel,
     configForModelSelection,
     isFallbackModel,
+    localRouteFallbackModelInput,
   } = resolveModelSelection({
     config,
     configForCli: configForCliWithMagic,
@@ -321,6 +322,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     model: {
       fixedModelSpec,
       isFallbackModel,
+      localRouteFallbackModelInput,
       isImplicitAutoSelection,
       allowAutoCliFallback,
       desiredOutputTokens,
@@ -429,6 +431,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
       requestedModelLabel,
       fixedModelSpec,
       isFallbackModel,
+      localRouteFallbackModelInput,
       isImplicitAutoSelection,
       allowAutoCliFallback,
       isNamedModelSelection,

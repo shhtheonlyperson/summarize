@@ -11,6 +11,7 @@ import type { ExtractedLinkContent } from "../../../content/index.js";
 import { resolveGitHubModelsApiKey } from "../../../llm/github-models.js";
 import type { Prompt } from "../../../llm/prompt.js";
 import { buildAutoModelAttempts } from "../../../model-auto.js";
+import { parseRequestedModelId } from "../../../model-spec.js";
 import { SUMMARY_SYSTEM_PROMPT } from "../../../prompts/index.js";
 import {
   readLastSuccessfulCliProvider,
@@ -162,20 +163,39 @@ export async function resolveUrlSummaryExecution({
                 forceChatCompletions: true,
               }
             : {};
-    return [
-      {
-        transport: model.fixedModelSpec.transport === "openrouter" ? "openrouter" : "native",
-        userModelId: model.fixedModelSpec.userModelId,
-        llmModelId: model.fixedModelSpec.llmModelId,
-        openrouterProviders: model.fixedModelSpec.openrouterProviders,
-        forceOpenRouter: model.fixedModelSpec.forceOpenRouter,
-        requiredEnv: model.fixedModelSpec.requiredEnv,
-        ...(model.fixedModelSpec.requestOptions
-          ? { requestOptions: model.fixedModelSpec.requestOptions }
-          : {}),
-        ...openaiOverrides,
-      },
-    ];
+    const primary: ModelAttempt = {
+      transport: model.fixedModelSpec.transport === "openrouter" ? "openrouter" : "native",
+      userModelId: model.fixedModelSpec.userModelId,
+      llmModelId: model.fixedModelSpec.llmModelId,
+      openrouterProviders: model.fixedModelSpec.openrouterProviders,
+      forceOpenRouter: model.fixedModelSpec.forceOpenRouter,
+      requiredEnv: model.fixedModelSpec.requiredEnv,
+      ...(model.fixedModelSpec.requestOptions
+        ? { requestOptions: model.fixedModelSpec.requestOptions }
+        : {}),
+      ...openaiOverrides,
+    };
+    // Local language-aware routing picked this model and may have configured
+    // a fallback model. Append it as a second attempt so the request still
+    // completes when the bucket-specific local model is unreachable or
+    // returns empty (e.g. backend mismatched or stop-token-only output).
+    const extras: ModelAttempt[] = [];
+    const fallbackInput = model.localRouteFallbackModelInput?.trim() ?? null;
+    if (fallbackInput) {
+      const parsed = parseRequestedModelId(fallbackInput);
+      if (parsed.kind === "fixed" && parsed.transport !== "cli") {
+        extras.push({
+          transport: parsed.transport === "openrouter" ? "openrouter" : "native",
+          userModelId: parsed.userModelId,
+          llmModelId: parsed.llmModelId,
+          openrouterProviders: parsed.openrouterProviders,
+          forceOpenRouter: parsed.forceOpenRouter,
+          requiredEnv: parsed.requiredEnv,
+          ...openaiOverrides,
+        });
+      }
+    }
+    return [primary, ...extras];
   })();
   ctx.perfTrace?.mark("summary:attempts", attempts[0]?.userModelId ?? null);
 
@@ -275,7 +295,15 @@ export async function resolveUrlSummaryExecution({
       }
     }
     if (!summaryFromCache) {
-      for (const attempt of attempts) {
+      // Local-route fallback attempts are runtime-only: they should be tried
+      // when the primary model fails at call time, but their cached results
+      // must NOT pre-empt a fresh call to the primary. Otherwise changing
+      // the configured primary model in localRouting would keep serving stale
+      // summaries written by an earlier fallback.
+      const localRouteFallbackAdded =
+        attempts.length > 1 && Boolean(model.localRouteFallbackModelInput);
+      const cacheEligibleAttempts = localRouteFallbackAdded ? attempts.slice(0, 1) : attempts;
+      for (const attempt of cacheEligibleAttempts) {
         if (!model.summaryEngine.envHasKeyFor(attempt.requiredEnv)) continue;
         const key = buildSummaryCacheKey({
           contentHash,
@@ -317,9 +345,12 @@ export async function resolveUrlSummaryExecution({
   let sawOpenRouterNoAllowedProviders = false;
 
   if (!summaryResult || !usedAttempt) {
+    // When local routing supplied an additional fallback attempt, treat the
+    // sequence as fallback-eligible so a failing primary doesn't abort the run.
+    const hasLocalRouteFallback = attempts.length > 1 && Boolean(model.localRouteFallbackModelInput);
     const attemptOutcome = await runModelAttempts({
       attempts,
-      isFallbackModel: model.isFallbackModel,
+      isFallbackModel: model.isFallbackModel || hasLocalRouteFallback,
       isNamedModelSelection: model.isNamedModelSelection,
       envHasKeyFor: model.summaryEngine.envHasKeyFor,
       formatMissingModelError: model.summaryEngine.formatMissingModelError,

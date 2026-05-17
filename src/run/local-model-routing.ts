@@ -175,7 +175,11 @@ export function resolveLanguageAwareLocalModelInput({
 }: {
   config: SummarizeConfig | null;
   outputLanguage: OutputLanguage | null | undefined;
-}): { modelInput: string; bucket: LocalModelRoutingBucket } | null {
+}): {
+  modelInput: string;
+  bucket: LocalModelRoutingBucket;
+  fallbackModelInput: string | null;
+} | null {
   const routing = config?.localRouting;
   if (routing?.enabled !== true) return null;
 
@@ -187,16 +191,15 @@ export function resolveLanguageAwareLocalModelInput({
   const defaultModel = bucketConfig.defaultModel;
   const defaultModelInput = normalizeRoutedModelInput(config, defaultModel);
   const configuredModelInput = resolveActiveRoutedModelInput(config, configured);
-  if (configured) {
-    return {
-      modelInput: configuredModelInput ?? defaultModelInput,
-      bucket,
-    };
-  }
+  const fallbackCandidate = resolveActiveRoutedModelInput(config, routing.fallbackModel);
 
-  const fallbackModelInput = resolveActiveRoutedModelInput(config, routing.fallbackModel);
-  return {
-    modelInput: fallbackModelInput ?? defaultModelInput,
-    bucket,
-  };
+  const modelInput = configured
+    ? (configuredModelInput ?? defaultModelInput)
+    : (fallbackCandidate ?? defaultModelInput);
+  const fallbackModelInput =
+    fallbackCandidate && fallbackCandidate.toLowerCase() !== modelInput.toLowerCase()
+      ? fallbackCandidate
+      : null;
+
+  return { modelInput, bucket, fallbackModelInput };
 }

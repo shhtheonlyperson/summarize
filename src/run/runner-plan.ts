@@ -297,6 +297,7 @@ export async function createRunnerPlan(options: {
     wantsFreeNamedModel,
     configForModelSelection,
     isFallbackModel,
+    localRouteFallbackModelInput,
   } = resolveModelSelection({
     config,
     configForCli,
@@ -526,6 +527,7 @@ export async function createRunnerPlan(options: {
       requestedModelLabel,
       fixedModelSpec,
       isFallbackModel,
+      localRouteFallbackModelInput,
       isImplicitAutoSelection,
       allowAutoCliFallback: false,
       isNamedModelSelection,

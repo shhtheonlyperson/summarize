@@ -286,6 +286,27 @@ describe("run model selection", () => {
     if (result.requestedModel.kind === "fixed") {
       expect(result.requestedModel.userModelId).toBe("openai/qwen3-local");
     }
+    expect(result.localRouteFallbackModelInput).toBe("openai/llama-local");
+  });
+
+  it("exposes no local-route fallback when the routed model already is the fallback", () => {
+    const result = resolveModelSelection({
+      config: {
+        localRouting: {
+          enabled: true,
+          englishModel: "gemma-local",
+          fallbackModel: "gemma-local",
+        },
+      },
+      configForCli: null,
+      configPath: null,
+      envForRun: {},
+      explicitModelArg: null,
+      outputLanguage: parseOutputLanguage("en"),
+    });
+
+    expect(result.requestedModelInput).toBe("openai/gemma-local");
+    expect(result.localRouteFallbackModelInput).toBeNull();
   });
 
   it("routes bilingual output to the configured local model", () => {

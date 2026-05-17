@@ -76,6 +76,7 @@ export type UrlFlowModel = {
   requestedModelLabel: string;
   fixedModelSpec: FixedModelSpec | null;
   isFallbackModel: boolean;
+  localRouteFallbackModelInput: string | null;
   isImplicitAutoSelection: boolean;
   allowAutoCliFallback: boolean;
   isNamedModelSelection: boolean;

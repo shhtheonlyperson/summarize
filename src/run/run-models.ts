@@ -66,6 +66,7 @@ export type ModelSelection = {
   wantsFreeNamedModel: boolean;
   configForModelSelection: SummarizeConfig | null;
   isFallbackModel: boolean;
+  localRouteFallbackModelInput: string | null;
 };
 
 export type ModelSelectionSource =
@@ -203,6 +204,14 @@ export function resolveModelSelection({
   const isImplicitAutoSelection =
     requestedModelResolved.kind === "auto" && requestedModelSource === "auto";
 
+  const localRouteFallbackModelInput = (() => {
+    if (!localRoute?.fallbackModelInput) return null;
+    const fallback = localRoute.fallbackModelInput.trim();
+    if (!fallback) return null;
+    if (fallback.toLowerCase() === requestedModelInput.toLowerCase()) return null;
+    return fallback;
+  })();
+
   return {
     requestedModel: requestedModelResolved,
     requestedModelInput,
@@ -213,5 +222,6 @@ export function resolveModelSelection({
     wantsFreeNamedModel,
     configForModelSelection,
     isFallbackModel,
+    localRouteFallbackModelInput,
   };
 }

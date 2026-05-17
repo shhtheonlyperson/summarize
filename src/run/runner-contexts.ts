@@ -72,6 +72,7 @@ export function createRunnerFlowContexts(options: {
     model: {
       fixedModelSpec: model.fixedModelSpec,
       isFallbackModel: model.isFallbackModel,
+      localRouteFallbackModelInput: model.localRouteFallbackModelInput,
       isImplicitAutoSelection: model.isImplicitAutoSelection,
       allowAutoCliFallback: model.allowAutoCliFallback,
       desiredOutputTokens: model.desiredOutputTokens,

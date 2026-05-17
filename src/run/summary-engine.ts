@@ -633,7 +633,70 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
       if (last instanceof Error) {
         throw new Error(last.message, { cause: last });
       }
-      throw new Error("LLM returned an empty summary");
+      if (!streamResult) {
+        throw new Error("LLM returned an empty summary");
+      }
+      // Streaming completed cleanly but produced no usable text. Some models
+      // (notably some local MLX/llama.cpp builds) terminate after emitting
+      // only whitespace or a stop token. Retry once via non-streaming, which
+      // has built-in retry-on-empty behavior.
+      writeVerbose(
+        deps.stderr,
+        deps.verbose,
+        `Streaming returned empty output for ${parsedModelEffective.canonical}; retrying without streaming.`,
+        deps.verboseColor,
+        deps.envForRun,
+      );
+      const result = await summarizeWithModelId({
+        modelId: parsedModelEffective.canonical,
+        prompt,
+        maxOutputTokens: maxOutputTokensForCall ?? undefined,
+        timeoutMs: deps.timeoutMs,
+        fetchImpl: deps.trackedFetch,
+        apiKeys: apiKeysForLlm,
+        forceOpenRouter: attempt.forceOpenRouter,
+        openaiBaseUrlOverride: attempt.openaiBaseUrlOverride ?? deps.providerBaseUrls.openai,
+        anthropicBaseUrlOverride: deps.providerBaseUrls.anthropic,
+        googleBaseUrlOverride: deps.providerBaseUrls.google,
+        xaiBaseUrlOverride: deps.providerBaseUrls.xai,
+        zaiBaseUrlOverride: deps.zai.baseUrl,
+        forceChatCompletions,
+        requestOptions,
+        retries: deps.retries,
+        onRetry: createRetryLogger({
+          stderr: deps.stderr,
+          verbose: deps.verbose,
+          color: deps.verboseColor,
+          modelId: parsedModelEffective.canonical,
+          env: deps.envForRun,
+        }),
+      });
+      deps.llmCalls.push({
+        provider: result.provider,
+        model: result.canonicalModelId,
+        usage: result.usage,
+        purpose: "summary",
+      });
+      summary = result.text.trim();
+      if (summary.length === 0) {
+        throw new Error("LLM returned an empty summary");
+      }
+      // Emit the recovered text so streaming consumers see it. The earlier
+      // (empty) stream output was already forwarded; the recovered text is
+      // appended.
+      if (streamHandler) {
+        await streamHandler.onChunk({
+          streamed: summary,
+          prevStreamed: "",
+          appended: summary,
+        });
+        await streamHandler.onDone?.(summary);
+        summaryAlreadyPrinted = true;
+      } else if (shouldStreamSummaryToStdout || shouldStreamRenderedMarkdownToStdout) {
+        deps.stdout.write(summary);
+        if (!summary.endsWith("\n")) deps.stdout.write("\n");
+        summaryAlreadyPrinted = true;
+      }
     }
 
     if (!streamResult && streamHandler) {
